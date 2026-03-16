@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReviewsRouteImport } from './routes/reviews'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ReviewsIndexRouteImport } from './routes/reviews/index'
+import { Route as ReviewsNewRouteImport } from './routes/reviews/new'
 import { Route as ReviewsReviewIdRouteImport } from './routes/reviews/$reviewId'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
 
@@ -30,6 +31,11 @@ const ReviewsIndexRoute = ReviewsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ReviewsRoute,
 } as any)
+const ReviewsNewRoute = ReviewsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => ReviewsRoute,
+} as any)
 const ReviewsReviewIdRoute = ReviewsReviewIdRouteImport.update({
   id: '/$reviewId',
   path: '/$reviewId',
@@ -46,12 +52,14 @@ export interface FileRoutesByFullPath {
   '/reviews': typeof ReviewsRouteWithChildren
   '/api/$': typeof ApiSplatRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
+  '/reviews/new': typeof ReviewsNewRoute
   '/reviews/': typeof ReviewsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/$': typeof ApiSplatRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
+  '/reviews/new': typeof ReviewsNewRoute
   '/reviews': typeof ReviewsIndexRoute
 }
 export interface FileRoutesById {
@@ -60,19 +68,27 @@ export interface FileRoutesById {
   '/reviews': typeof ReviewsRouteWithChildren
   '/api/$': typeof ApiSplatRoute
   '/reviews/$reviewId': typeof ReviewsReviewIdRoute
+  '/reviews/new': typeof ReviewsNewRoute
   '/reviews/': typeof ReviewsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/reviews' | '/api/$' | '/reviews/$reviewId' | '/reviews/'
+  fullPaths:
+    | '/'
+    | '/reviews'
+    | '/api/$'
+    | '/reviews/$reviewId'
+    | '/reviews/new'
+    | '/reviews/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/$' | '/reviews/$reviewId' | '/reviews'
+  to: '/' | '/api/$' | '/reviews/$reviewId' | '/reviews/new' | '/reviews'
   id:
     | '__root__'
     | '/'
     | '/reviews'
     | '/api/$'
     | '/reviews/$reviewId'
+    | '/reviews/new'
     | '/reviews/'
   fileRoutesById: FileRoutesById
 }
@@ -105,6 +121,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReviewsIndexRouteImport
       parentRoute: typeof ReviewsRoute
     }
+    '/reviews/new': {
+      id: '/reviews/new'
+      path: '/new'
+      fullPath: '/reviews/new'
+      preLoaderRoute: typeof ReviewsNewRouteImport
+      parentRoute: typeof ReviewsRoute
+    }
     '/reviews/$reviewId': {
       id: '/reviews/$reviewId'
       path: '/$reviewId'
@@ -124,11 +147,13 @@ declare module '@tanstack/react-router' {
 
 interface ReviewsRouteChildren {
   ReviewsReviewIdRoute: typeof ReviewsReviewIdRoute
+  ReviewsNewRoute: typeof ReviewsNewRoute
   ReviewsIndexRoute: typeof ReviewsIndexRoute
 }
 
 const ReviewsRouteChildren: ReviewsRouteChildren = {
   ReviewsReviewIdRoute: ReviewsReviewIdRoute,
+  ReviewsNewRoute: ReviewsNewRoute,
   ReviewsIndexRoute: ReviewsIndexRoute,
 }
 

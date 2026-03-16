@@ -21,6 +21,7 @@ import { TodosApiLive } from "./-lib/wiring/todos-api-live";
 import { DiffApiLive, ReviewFilesApiLive } from "./-lib/wiring/diff-api-live";
 import { GitApiLive } from "./-lib/wiring/git-api-live";
 import { EventsApiLive } from "./-lib/wiring/events-api-live";
+import { ExportApiLive } from "./-lib/wiring/export-api-live";
 import { SqliteService } from "./-lib/db/database";
 import { ReviewService } from "./-lib/services/review.service";
 import { CommentService } from "./-lib/services/comment.service";
@@ -31,6 +32,7 @@ import { CommentRepo } from "./-lib/repos/comment.repo";
 import { TodoRepo } from "./-lib/repos/todo.repo";
 import { GitService } from "./-lib/services/git.service";
 import { EventService } from "./-lib/services/event.service";
+import { ExportService } from "./-lib/services/export.service";
 
 // ── RPC logger middleware ───────────────────────────────────────
 class RpcLogger extends RpcMiddleware.Tag<RpcLogger>()("RpcLogger", {
@@ -71,6 +73,7 @@ const ServiceLayers = Layer.mergeAll(
   TodoRepo.Default,
   GitService.Default,
   EventService.Default,
+  ExportService.Default,
   SqliteService.Default,
 );
 
@@ -95,6 +98,7 @@ const HttpApiRouter = HttpLayerRouter.addHttpApi(DomainApi).pipe(
   Layer.provide(ReviewFilesApiLive),
   Layer.provide(GitApiLive),
   Layer.provide(EventsApiLive),
+  Layer.provide(ExportApiLive),
   Layer.provide(HttpServer.layerContext),
 );
 

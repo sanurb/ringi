@@ -14,12 +14,14 @@ interface ReviewListData {
   hasMore: boolean;
 }
 
-import { createFileRoute } from "@tanstack/react-router";
+import { useMemo } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
 import { serverRuntime } from "../api/$";
 import { ReviewService } from "../api/-lib/services/review.service";
 
+import { useKeyboardShortcuts } from "../-shared/hooks/use-keyboard-shortcuts";
 const listReviews = createServerFn({ method: "GET" }).handler(async (): Promise<ReviewListData> => {
   const result = await serverRuntime.runPromise(
     Effect.gen(function* () {
@@ -38,12 +40,29 @@ export const Route = createFileRoute("/reviews/")({
 
 function ReviewsListPage() {
   const data = Route.useLoaderData();
+  const navigate = useNavigate();
 
+  const shortcuts = useMemo(
+    () => [
+      { key: "n", description: "New review", handler: () => { window.location.href = "/reviews/new"; } },
+      { key: "c", description: "Go to Changes", handler: () => navigate({ to: "/" }) },
+    ],
+    [navigate],
+  );
+  useKeyboardShortcuts(shortcuts);
   return (
     <div className="mx-auto max-w-4xl p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-100">Reviews</h1>
-        <span className="text-sm text-gray-500">{data.total} total</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">{data.total} total</span>
+          <a
+            href="/reviews/new"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+          >
+            New Review
+          </a>
+        </div>
       </div>
 
       {data.reviews.length === 0 ? (

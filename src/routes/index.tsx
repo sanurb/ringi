@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useState, useCallback, useMemo } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
 import { serverRuntime } from "./api/$";
@@ -7,6 +7,7 @@ import { GitService } from "./api/-lib/services/git.service";
 import { parseDiff, getDiffSummary } from "./api/-lib/services/diff.service";
 import { DiffView } from "./-shared/diff/diff-view";
 import { Sidebar } from "./-shared/layout/sidebar";
+import { useKeyboardShortcuts } from "./-shared/hooks/use-keyboard-shortcuts";
 
 const loadStagedDiff = createServerFn({ method: "GET" }).handler(async () => {
   return serverRuntime.runPromise(
@@ -29,6 +30,16 @@ export const Route = createFileRoute("/")({
 function StagedChangesPage() {
   const data = Route.useLoaderData();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const shortcuts = useMemo(
+    () => [
+      { key: "n", description: "New review", handler: () => { window.location.href = "/reviews/new"; } },
+      { key: "r", description: "Go to Reviews", handler: () => navigate({ to: "/reviews" }) },
+    ],
+    [navigate],
+  );
+  useKeyboardShortcuts(shortcuts);
 
   const scrollToFile = useCallback((path: string) => {
     setSelectedFile(path);
@@ -56,6 +67,12 @@ function StagedChangesPage() {
               {data.repository.name} &middot; {data.repository.branch}
             </p>
           </div>
+          <a
+            href="/reviews/new"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+          >
+            New Review
+          </a>
         </div>
 
         <DiffView files={data.files} summary={data.summary} />

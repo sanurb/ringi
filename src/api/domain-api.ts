@@ -290,6 +290,15 @@ export class EventsApiGroup extends HttpApiGroup.make("events")
       .addSuccess(Schema.Struct({ count: Schema.Number })),
   ) {}
 
+// ── Export ──────────────────────────────────────────────────
+export class ExportApiGroup extends HttpApiGroup.make("export")
+  .add(
+    HttpApiEndpoint.get("markdown", "/reviews/:id/export/markdown")
+      .setPath(Schema.Struct({ id: ReviewId }))
+      .addSuccess(Schema.String)
+      .addError(ReviewNotFound),
+  ) {}
+
 
 // ── Domain API ─────────────────────────────────────────────────
 export class DomainApi extends HttpApi.make("api")
@@ -300,4 +309,5 @@ export class DomainApi extends HttpApi.make("api")
   .add(DiffApiGroup)
   .add(GitApiGroup)
   .add(EventsApiGroup)
+  .add(ExportApiGroup)
   .prefix("/api") {}
