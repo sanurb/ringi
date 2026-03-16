@@ -2,40 +2,61 @@ import * as Rpc from "@effect/rpc/Rpc";
 import * as RpcGroup from "@effect/rpc/RpcGroup";
 import * as Schema from "effect/Schema";
 import {
-  CreateTodoInput,
-  Todo,
-  TodoId,
-  TodoNotFound,
-  UpdateTodoInput,
-} from "./todo-schema";
+  CreateReviewInput,
+  Review,
+  ReviewId,
+  ReviewNotFound,
+  UpdateReviewInput,
+} from "./schemas/review";
 
-export class TodosRpc extends RpcGroup.make(
+// ── Reviews RPC ────────────────────────────────────────────────
+export class ReviewsRpc extends RpcGroup.make(
   Rpc.make("list", {
-    success: Schema.Array(Todo),
+    success: Schema.Struct({
+      reviews: Schema.Array(Review),
+      total: Schema.Number,
+      page: Schema.Number,
+      pageSize: Schema.Number,
+    }),
+    payload: {
+      page: Schema.Number,
+      pageSize: Schema.Number,
+      status: Schema.optional(Schema.String),
+    },
   }),
 
   Rpc.make("getById", {
-    success: Todo,
-    error: TodoNotFound,
-    payload: { id: TodoId },
+    success: Review,
+    error: ReviewNotFound,
+    payload: { id: ReviewId },
   }),
 
   Rpc.make("create", {
-    success: Todo,
-    payload: { input: CreateTodoInput },
+    success: Review,
+    payload: { input: CreateReviewInput },
   }),
 
   Rpc.make("update", {
-    success: Todo,
-    error: TodoNotFound,
-    payload: { id: TodoId, input: UpdateTodoInput },
+    success: Review,
+    error: ReviewNotFound,
+    payload: { id: ReviewId, input: UpdateReviewInput },
   }),
 
   Rpc.make("remove", {
-    success: Schema.Void,
-    error: TodoNotFound,
-    payload: { id: TodoId },
+    success: Schema.Struct({ success: Schema.Literal(true) }),
+    error: ReviewNotFound,
+    payload: { id: ReviewId },
   }),
-).prefix("todos_") {}
 
-export class DomainRpc extends RpcGroup.make().merge(TodosRpc) {}
+  Rpc.make("stats", {
+    success: Schema.Struct({
+      total: Schema.Number,
+      inProgress: Schema.Number,
+      approved: Schema.Number,
+      changesRequested: Schema.Number,
+    }),
+  }),
+).prefix("reviews_") {}
+
+// ── Merged RPC ─────────────────────────────────────────────────
+export class DomainRpc extends RpcGroup.make().merge(ReviewsRpc) {}

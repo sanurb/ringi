@@ -1,15 +1,23 @@
 @import "tailwindcss";
 
+@theme {
+  --color-surface-primary: #0a0f1a;
+  --color-surface-secondary: #111827;
+  --color-surface-elevated: #1a2234;
+  --color-surface-card: #1e293b;
+  --color-accent-cyan: #06d6d6;
+  --color-accent-purple: #a855f7;
+  --color-accent-pink: #f472b6;
+}
+
 body {
-  @apply m-0;
+  @apply m-0 bg-surface-primary text-gray-100 antialiased;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
     "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+  font-family: "JetBrains Mono", "Fira Code", source-code-pro, Menlo, Monaco, Consolas,
     monospace;
 }
