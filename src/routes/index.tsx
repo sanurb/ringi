@@ -1,13 +1,15 @@
-import { useState, useCallback, useMemo } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState, useCallback, useMemo, useRef } from "react";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
 import { serverRuntime } from "./api/$";
 import { GitService } from "./api/-lib/services/git.service";
 import { parseDiff, getDiffSummary } from "./api/-lib/services/diff.service";
+import { ActionBar } from "./-shared/layout/action-bar";
+import { FileTree } from "./-shared/layout/file-tree";
 import { DiffView } from "./-shared/diff/diff-view";
-import { Sidebar } from "./-shared/layout/sidebar";
 import { useKeyboardShortcuts } from "./-shared/hooks/use-keyboard-shortcuts";
+import { useEventSource } from "./-shared/hooks/use-event-source";
 
 const loadStagedDiff = createServerFn({ method: "GET" }).handler(async () => {
   return serverRuntime.runPromise(
@@ -30,7 +32,11 @@ export const Route = createFileRoute("/")({
 function StagedChangesPage() {
   const data = Route.useLoaderData();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [diffMode, setDiffMode] = useState<"split" | "unified">("split");
   const navigate = useNavigate();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  useEventSource({ onEvent: () => router.invalidate() });
 
   const shortcuts = useMemo(
     () => [
@@ -46,36 +52,40 @@ function StagedChangesPage() {
     const el = document.getElementById(
       `diff-file-${path.replace(/\//g, "-")}`,
     );
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (el && scrollContainerRef.current) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  const toggleDiffMode = useCallback(() => {
+    setDiffMode((prev) => (prev === "split" ? "unified" : "split"));
   }, []);
 
   return (
-    <div className="flex h-[calc(100vh-49px)]">
-      <Sidebar
-        files={data.files}
-        selectedFile={selectedFile}
-        onSelectFile={scrollToFile}
+    <div className="flex h-full flex-col">
+      <ActionBar
+        repoName={data.repository.name}
+        branchName={data.repository.branch}
+        diffMode={diffMode}
+        onToggleDiffMode={toggleDiffMode}
       />
 
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-100">
-              Staged Changes
-            </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {data.repository.name} &middot; {data.repository.branch}
-            </p>
-          </div>
-          <a
-            href="/reviews/new"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
-          >
-            New Review
-          </a>
-        </div>
+      <div className="flex min-h-0 flex-1">
+        {/* File tree — left column */}
+        <FileTree
+          files={data.files}
+          selectedFile={selectedFile}
+          onSelectFile={scrollToFile}
+          groupLabel="Staged"
+        />
 
-        <DiffView files={data.files} summary={data.summary} />
+        {/* Diff view — center column */}
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto bg-surface-primary p-4"
+        >
+          <DiffView files={data.files} summary={data.summary} diffMode={diffMode} selectedFile={selectedFile} />
+        </div>
       </div>
     </div>
   );

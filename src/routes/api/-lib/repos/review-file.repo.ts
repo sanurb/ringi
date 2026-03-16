@@ -5,7 +5,7 @@ import * as Effect from "effect/Effect";
 import type { DiffHunk } from "@/api/schemas/diff";
 import type { ReviewId } from "@/api/schemas/review";
 
-import { SqliteService } from "../db/database";
+import { SqliteService, withTransaction } from "../db/database";
 
 // ---------------------------------------------------------------------------
 // Internal row shapes
@@ -54,14 +54,12 @@ export interface CreateReviewFileInput {
 
 export const parseHunks = (
   hunksData: string | null,
-): ReadonlyArray<DiffHunk> => {
-  if (hunksData == null) return [];
-  try {
-    return JSON.parse(hunksData) as ReadonlyArray<DiffHunk>;
-  } catch {
-    return [];
-  }
-};
+): Effect.Effect<ReadonlyArray<DiffHunk>> =>
+  hunksData == null
+    ? Effect.succeed([])
+    : Effect.try(() => JSON.parse(hunksData) as ReadonlyArray<DiffHunk>).pipe(
+        Effect.orElseSucceed(() => [] as ReadonlyArray<DiffHunk>),
+      );
 
 export const serializeHunks = (
   hunks: ReadonlyArray<DiffHunk>,
@@ -121,9 +119,9 @@ export class ReviewFileRepo extends Effect.Service<ReviewFileRepo>()(
       const createBulk = (
         files: ReadonlyArray<CreateReviewFileInput>,
       ): Effect.Effect<void> =>
-        Effect.sync(() => {
-          db.exec("BEGIN TRANSACTION");
-          try {
+        withTransaction(
+          db,
+          Effect.sync(() => {
             for (const f of files) {
               stmtInsert.run(
                 randomUUID(),
@@ -136,12 +134,8 @@ export class ReviewFileRepo extends Effect.Service<ReviewFileRepo>()(
                 f.hunksData,
               );
             }
-            db.exec("COMMIT");
-          } catch (err) {
-            db.exec("ROLLBACK");
-            throw err;
-          }
-        });
+          }),
+        );
 
       const deleteByReview = (reviewId: ReviewId): Effect.Effect<number> =>
         Effect.sync(() => {

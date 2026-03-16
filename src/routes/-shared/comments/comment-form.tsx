@@ -1,4 +1,10 @@
 import { useState } from "react";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import { clientRuntime } from "@/lib/client-runtime";
+import { ApiClient } from "@/api/api-client";
+import type { ReviewId } from "@/api/schemas/review";
+import type { Comment } from "@/api/schemas/comment";
 
 export function CommentForm({
   reviewId,
@@ -12,7 +18,7 @@ export function CommentForm({
   filePath: string;
   lineNumber?: number | null;
   lineType?: string | null;
-  onSubmit: (comment: any) => void;
+  onSubmit: (comment: Comment) => void;
   onCancel?: () => void;
 }) {
   const [content, setContent] = useState("");
@@ -20,52 +26,59 @@ export function CommentForm({
   const [showSuggestion, setShowSuggestion] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
 
     setSubmitting(true);
-    try {
-      const res = await fetch(`/api/reviews/${reviewId}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filePath,
-          lineNumber: lineNumber ?? null,
-          lineType: lineType ?? null,
-          content: content.trim(),
-          suggestion: showSuggestion && suggestion.trim() ? suggestion.trim() : null,
-        }),
-      });
-      if (!res.ok) throw new Error(`Failed to create comment: ${res.status}`);
-      const created = await res.json();
-      onSubmit(created);
-      setContent("");
-      setSuggestion("");
-      setShowSuggestion(false);
-    } finally {
-      setSubmitting(false);
-    }
+    clientRuntime.runFork(
+      Effect.gen(function* () {
+        const { http } = yield* ApiClient;
+        return yield* http.comments.create({
+          path: { reviewId: reviewId as ReviewId },
+          payload: {
+            filePath,
+            lineNumber: lineNumber ?? null,
+            lineType: (lineType ?? null) as Comment["lineType"],
+            content: content.trim(),
+            suggestion: showSuggestion && suggestion.trim() ? suggestion.trim() : null,
+          },
+        });
+      }).pipe(
+        Effect.tap((created) =>
+          Effect.sync(() => {
+            onSubmit(created);
+            setContent("");
+            setSuggestion("");
+            setShowSuggestion(false);
+          }),
+        ),
+        Effect.tapErrorCause((cause) =>
+          Effect.logError("Failed to create comment", Cause.pretty(cause)),
+        ),
+        Effect.ensuring(Effect.sync(() => setSubmitting(false))),
+      ),
+    );
   };
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg border border-gray-800 bg-surface-elevated p-4"
+      className="rounded-lg border border-border-default bg-surface-elevated p-4"
     >
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Write a comment..."
         rows={3}
-        className="w-full resize-y rounded border border-gray-700 bg-surface-primary px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-accent-cyan focus:outline-none"
+        className="w-full resize-y rounded border border-border-default bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-accent-primary focus:outline-none"
       />
 
       {/* Suggestion toggle */}
       <button
         type="button"
         onClick={() => setShowSuggestion(!showSuggestion)}
-        className="mt-2 text-xs text-gray-400 transition hover:text-accent-cyan"
+        className="mt-2 text-xs text-text-secondary transition hover:text-accent-primary"
       >
         {showSuggestion ? "− Remove suggestion" : "+ Add suggestion"}
       </button>
@@ -76,7 +89,7 @@ export function CommentForm({
           onChange={(e) => setSuggestion(e.target.value)}
           placeholder="Suggested code change..."
           rows={3}
-          className="mt-2 w-full resize-y rounded border border-gray-700 bg-surface-primary px-3 py-2 font-mono text-xs text-gray-200 placeholder-gray-500 focus:border-accent-cyan focus:outline-none"
+          className="mt-2 w-full resize-y rounded border border-border-default bg-surface-primary px-3 py-2 font-mono text-xs text-text-primary placeholder-text-tertiary focus:border-accent-primary focus:outline-none"
         />
       )}
 
@@ -84,7 +97,7 @@ export function CommentForm({
         <button
           type="submit"
           disabled={submitting || !content.trim()}
-          className="rounded bg-accent-cyan/20 px-3 py-1.5 text-xs font-medium text-accent-cyan transition hover:bg-accent-cyan/30 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded bg-accent-muted px-3 py-1.5 text-xs font-medium text-accent-primary transition hover:bg-accent-muted disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? "Posting..." : "Comment"}
         </button>
@@ -92,7 +105,7 @@ export function CommentForm({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded px-3 py-1.5 text-xs text-gray-400 transition hover:bg-surface-card hover:text-gray-200"
+            className="rounded px-3 py-1.5 text-xs text-text-secondary transition hover:bg-surface-overlay hover:text-text-primary"
           >
             Cancel
           </button>

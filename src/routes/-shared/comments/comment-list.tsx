@@ -66,22 +66,22 @@ export function CommentList({
   return (
     <div className="space-y-4">
       {/* Stats bar */}
-      <div className="flex items-center gap-4 text-xs text-gray-500">
+      <div className="flex items-center gap-4 text-xs text-text-tertiary">
         <span>{comments.length} comments</span>
         <span className="text-green-400">{resolved} resolved</span>
         <span className="text-yellow-400">{unresolved} unresolved</span>
       </div>
 
       {comments.length === 0 && !showForm && (
-        <div className="rounded-lg border border-gray-800 bg-surface-elevated p-6 text-center">
-          <p className="text-sm text-gray-400">No comments yet.</p>
+        <div className="rounded-lg border border-border-default bg-surface-elevated p-6 text-center">
+          <p className="text-sm text-text-secondary">No comments yet.</p>
         </div>
       )}
 
       {/* Comments grouped by line */}
       {[...grouped.entries()].map(([key, group]) => (
         <div key={key} className="space-y-2">
-          <span className="text-xs font-medium text-gray-500">
+          <span className="text-xs font-medium text-text-tertiary">
             {key === "file" ? "File-level" : key}
           </span>
           {group.map((c) => (
@@ -108,7 +108,7 @@ export function CommentList({
         <button
           type="button"
           onClick={() => setShowForm(true)}
-          className="rounded bg-surface-card px-3 py-1.5 text-xs text-gray-400 transition hover:bg-surface-elevated hover:text-gray-200"
+          className="rounded bg-surface-overlay px-3 py-1.5 text-xs text-text-secondary transition hover:bg-surface-elevated hover:text-text-primary"
         >
           + Add comment
         </button>

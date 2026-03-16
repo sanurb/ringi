@@ -15,11 +15,11 @@ export function CommentItem({
 
   return (
     <div
-      className={`rounded-lg border border-gray-800 bg-surface-elevated p-4 ${comment.resolved ? "opacity-60" : ""}`}
+      className={`rounded-lg border border-border-default bg-surface-elevated p-4 ${comment.resolved ? "opacity-60" : ""}`}
     >
       <div className="flex items-start gap-3">
         {/* Avatar placeholder */}
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-purple/30 text-xs font-bold text-accent-purple">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-muted text-xs font-bold text-accent-primary">
           {initials}
         </div>
 
@@ -27,7 +27,7 @@ export function CommentItem({
           {/* Header row */}
           <div className="flex items-center gap-2">
             {comment.filePath && (
-              <span className="truncate rounded bg-surface-card px-1.5 py-0.5 font-mono text-xs text-gray-400">
+              <span className="truncate rounded bg-surface-overlay px-1.5 py-0.5 font-mono text-xs text-text-secondary">
                 {comment.filePath}
                 {comment.lineNumber != null && `:${comment.lineNumber}`}
               </span>
@@ -37,23 +37,23 @@ export function CommentItem({
                 Resolved
               </span>
             )}
-            <span className="ml-auto shrink-0 text-xs text-gray-600">
+            <span className="ml-auto shrink-0 text-xs text-text-tertiary">
               {comment.createdAt}
             </span>
           </div>
 
           {/* Content */}
-          <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-300">
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm text-text-primary">
             {comment.content}
           </p>
 
           {/* Suggestion */}
           {comment.suggestion && (
-            <div className="mt-3 rounded border border-accent-cyan/20 bg-surface-primary p-3">
-              <span className="mb-1 block text-xs font-medium text-accent-cyan">
+            <div className="mt-3 rounded border border-accent-primary/20 bg-surface-primary p-3">
+              <span className="mb-1 block text-xs font-medium text-accent-primary">
                 Suggestion
               </span>
-              <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs text-gray-300">
+              <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs text-text-primary">
                 {comment.suggestion}
               </pre>
             </div>
@@ -68,14 +68,14 @@ export function CommentItem({
                   ? onUnresolve(comment.id)
                   : onResolve(comment.id)
               }
-              className="rounded px-2 py-1 text-xs text-gray-400 transition hover:bg-surface-card hover:text-gray-200"
+              className="rounded px-2 py-1 text-xs text-text-secondary transition hover:bg-surface-overlay hover:text-text-primary"
             >
               {comment.resolved ? "Unresolve" : "Resolve"}
             </button>
             <button
               type="button"
               onClick={() => onDelete(comment.id)}
-              className="rounded px-2 py-1 text-xs text-gray-500 transition hover:bg-red-500/10 hover:text-red-400"
+              className="rounded px-2 py-1 text-xs text-text-tertiary transition hover:bg-red-500/10 hover:text-red-400"
             >
               Delete
             </button>

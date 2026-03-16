@@ -62,7 +62,7 @@ export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
     if (res.ok) fetchTodos();
   }
 
-  function handleCreated(_todo: any) {
+  function handleCreated(_todo: Todo) {
     fetchTodos();
   }
 
@@ -80,22 +80,22 @@ export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
       {/* Panel */}
       <div
         ref={panelRef}
-        className={`fixed inset-y-0 right-0 z-50 w-80 transform border-l border-gray-800 bg-surface-secondary shadow-xl transition-transform duration-200 ${
+        className={`fixed inset-y-0 right-0 z-50 w-80 transform border-l border-border-default bg-surface-secondary shadow-xl transition-transform duration-200 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border-default px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-gray-200">Todos</h2>
-            <p className="text-xs text-gray-500">
+            <h2 className="text-sm font-semibold text-text-primary">Todos</h2>
+            <p className="text-xs text-text-tertiary">
               {stats.completed} completed / {stats.total} total
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-300"
+            className="text-text-tertiary hover:text-text-primary"
             aria-label="Close panel"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -105,14 +105,14 @@ export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
         </div>
 
         {/* Create form */}
-        <div className="border-b border-gray-800 py-3">
+        <div className="border-b border-border-default py-3">
           <CreateTodoForm onCreated={handleCreated} />
         </div>
 
         {/* Todo list */}
         <div className="flex-1 overflow-y-auto px-1 py-2" style={{ maxHeight: "calc(100vh - 160px)" }}>
           {todos.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-gray-500">No todos yet</p>
+            <p className="px-4 py-8 text-center text-sm text-text-tertiary">No todos yet</p>
           ) : (
             todos.map((todo) => (
               <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} onDelete={handleDelete} />
@@ -122,7 +122,7 @@ export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
 
         {/* Footer */}
         {stats.completed > 0 && (
-          <div className="border-t border-gray-800 px-4 py-3">
+          <div className="border-t border-border-default px-4 py-3">
             <button
               type="button"
               onClick={handleClearCompleted}

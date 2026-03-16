@@ -1,15 +1,21 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { serverRuntime } from "../api/$";
 import { ReviewService } from "../api/-lib/services/review.service";
 import { CommentService } from "../api/-lib/services/comment.service";
+import { clientRuntime } from "@/lib/client-runtime";
+import { ApiClient } from "@/api/api-client";
+import { ActionBar } from "../-shared/layout/action-bar";
+import { FileTree } from "../-shared/layout/file-tree";
+import { AnnotationsPanel } from "../-shared/layout/annotations-panel";
 import { DiffView } from "../-shared/diff/diff-view";
-import { Sidebar } from "../-shared/layout/sidebar";
-import { CommentList } from "../-shared/comments/comment-list";
 import type { Comment } from "@/api/schemas/comment";
 import type { DiffFile as DiffFileType, DiffSummary as DiffSummaryType } from "@/api/schemas/diff";
+import { ReviewId } from "@/api/schemas/review";
+import type { ReviewStatus } from "@/api/schemas/review";
 
 // ---------------------------------------------------------------------------
 // Server function
@@ -41,17 +47,21 @@ interface ReviewDetailData {
 }
 
 const loadReview = createServerFn({ method: "GET" })
-  .inputValidator((d: unknown) => d as { reviewId: string })
+  .inputValidator((d: unknown) => {
+    const obj = d as Record<string, unknown>;
+    if (typeof obj?.reviewId !== 'string') throw new Error('reviewId required');
+    return { reviewId: obj.reviewId };
+  })
   .handler(async ({ data }): Promise<ReviewDetailData> => {
-    const { reviewId } = data;
+    const id = ReviewId.make(data.reviewId);
     const result = await serverRuntime.runPromise(
       Effect.gen(function* () {
         const reviewSvc = yield* ReviewService;
         const commentSvc = yield* CommentService;
 
-        const review = yield* reviewSvc.getById(reviewId as any);
-        const comments = yield* commentSvc.getByReview(reviewId as any);
-        const commentStats = yield* commentSvc.getStats(reviewId as any);
+        const review = yield* reviewSvc.getById(id);
+        const comments = yield* commentSvc.getByReview(id);
+        const commentStats = yield* commentSvc.getStats(id);
 
         return { ...review, comments, commentStats };
       }),
@@ -77,15 +87,15 @@ function ReviewError({ error }: { error: unknown }) {
   const message =
     error instanceof Error ? error.message : "Review not found";
   return (
-    <div className="flex h-[calc(100vh-49px)] items-center justify-center">
-      <div className="rounded-lg border border-gray-800 bg-surface-elevated p-8 text-center">
-        <p className="text-lg font-medium text-red-400">Error</p>
-        <p className="mt-2 text-sm text-gray-400">{message}</p>
+    <div className="flex h-full items-center justify-center">
+      <div className="rounded-sm border border-border-default bg-surface-elevated p-8 text-center">
+        <p className="text-sm font-medium text-status-error">Error</p>
+        <p className="mt-2 text-xs text-text-secondary">{message}</p>
         <a
           href="/reviews"
-          className="mt-4 inline-block text-sm text-accent-cyan hover:underline"
+          className="mt-4 inline-block text-xs text-text-link hover:underline"
         >
-          ← Back to reviews
+          &larr; Back to reviews
         </a>
       </div>
     </div>
@@ -93,24 +103,25 @@ function ReviewError({ error }: { error: unknown }) {
 }
 
 // ---------------------------------------------------------------------------
-// Status helpers
+// Client-side Effects
 // ---------------------------------------------------------------------------
 
-const statusColors: Record<string, string> = {
-  in_progress: "bg-yellow-500/20 text-yellow-400",
-  approved: "bg-green-500/20 text-green-400",
-  changes_requested: "bg-red-500/20 text-red-400",
-};
-
-async function updateReviewStatus(reviewId: string, status: string) {
-  const res = await fetch(`/api/reviews/${reviewId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
+const updateStatus = (reviewId: string, status: string) =>
+  Effect.gen(function* () {
+    const { http } = yield* ApiClient;
+    return yield* http.reviews.update({
+      path: { id: ReviewId.make(reviewId) },
+      payload: { status: Option.some(status as ReviewStatus) },
+    });
   });
-  if (!res.ok) throw new Error(`Failed to update review: ${res.status}`);
-  return res.json();
-}
+
+const exportMarkdown = (reviewId: string) =>
+  Effect.gen(function* () {
+    const { http } = yield* ApiClient;
+    return yield* http.export.markdown({
+      path: { id: ReviewId.make(reviewId) },
+    });
+  });
 
 // ---------------------------------------------------------------------------
 // Page
@@ -120,22 +131,60 @@ function ReviewDetailPage() {
   const data = Route.useLoaderData();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [status, setStatus] = useState(data.status);
+  const [diffMode, setDiffMode] = useState<"split" | "unified">("split");
+  const [annotationsOpen, setAnnotationsOpen] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToFile = useCallback((path: string) => {
     setSelectedFile(path);
     const el = document.getElementById(
       `diff-file-${path.replace(/\//g, "-")}`,
     );
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (el && scrollContainerRef.current) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, []);
 
   const handleStatusChange = useCallback(
-    async (newStatus: string) => {
-      await updateReviewStatus(data.id, newStatus);
-      setStatus(newStatus);
+    (newStatus: string) => {
+      clientRuntime.runFork(
+        updateStatus(data.id, newStatus).pipe(
+          Effect.tap(() => Effect.sync(() => setStatus(newStatus))),
+          Effect.tapErrorCause((cause) =>
+            Effect.logError("Failed to update review status", cause),
+          ),
+        ),
+      );
     },
     [data.id],
   );
+
+  const toggleDiffMode = useCallback(() => {
+    setDiffMode((prev) => (prev === "split" ? "unified" : "split"));
+  }, []);
+
+  const toggleAnnotations = useCallback(() => {
+    setAnnotationsOpen((prev) => !prev);
+  }, []);
+
+  const handleExport = useCallback(() => {
+    clientRuntime.runFork(
+      exportMarkdown(data.id).pipe(
+        Effect.tap((markdown) =>
+          Effect.sync(() => {
+            const blob = new Blob([markdown], { type: "text/markdown" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `review-${data.id}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }),
+        ),
+        Effect.catchAllCause(() => Effect.void),
+      ),
+    );
+  }, [data.id]);
 
   // Build DiffFile array from metadata (hunks empty — loaded lazily by DiffFile)
   const diffFiles: ReadonlyArray<DiffFileType> = data.files.map((f: ReviewFileItem) => ({
@@ -149,119 +198,45 @@ function ReviewDetailPage() {
 
   const diffSummary: DiffSummaryType = data.summary;
 
-  // Sidebar metadata
-  const sidebarFiles = data.files.map((f: ReviewFileItem) => ({
-    oldPath: f.oldPath ?? f.filePath,
-    newPath: f.filePath,
-    status: f.status as DiffFileType["status"],
-    additions: f.additions,
-    deletions: f.deletions,
-  }));
-
-  // Group comments by file
-  const commentsByFile = new Map<string, Comment[]>();
-  for (const c of data.comments) {
-    const key = c.filePath;
-    const arr = commentsByFile.get(key);
-    if (arr) arr.push(c as Comment);
-    else commentsByFile.set(key, [c as Comment]);
-  }
-
   const repoName = data.repositoryPath.split("/").pop() ?? data.repositoryPath;
 
   return (
-    <div className="flex h-[calc(100vh-49px)] flex-col">
-      {/* Review header */}
-      <div className="shrink-0 border-b border-gray-800 bg-surface-secondary px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a
-              href="/reviews"
-              className="text-sm text-gray-500 hover:text-gray-300"
-            >
-              ← Reviews
-            </a>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[status] ?? "bg-gray-500/20 text-gray-400"}`}
-            >
-              {status.replace(/_/g, " ")}
-            </span>
-            <span className="font-mono text-sm text-gray-300">{repoName}</span>
-            {data.sourceRef && (
-              <span className="text-xs text-gray-500">{data.sourceRef}</span>
-            )}
-            <span className="text-xs text-gray-600">
-              {new Date(data.createdAt).toLocaleDateString()}
-            </span>
-          </div>
+    <div className="flex h-full flex-col">
+      <ActionBar
+        repoName={repoName}
+        reviewId={data.id}
+        status={status}
+        onStatusChange={handleStatusChange}
+        diffMode={diffMode}
+        onToggleDiffMode={toggleDiffMode}
+        commentCount={data.commentStats.total}
+        onToggleAnnotations={toggleAnnotations}
+        onExport={handleExport}
+      />
 
-          {/* Status actions */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">
-              {data.commentStats.total} comments · {data.commentStats.resolved}{" "}
-              resolved
-            </span>
-            {status !== "approved" && (
-              <button
-                type="button"
-                onClick={() => handleStatusChange("approved")}
-                className="rounded bg-green-500/20 px-3 py-1.5 text-xs font-medium text-green-400 transition hover:bg-green-500/30"
-              >
-                Approve
-              </button>
-            )}
-            {status !== "changes_requested" && (
-              <button
-                type="button"
-                onClick={() => handleStatusChange("changes_requested")}
-                className="rounded bg-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 transition hover:bg-red-500/30"
-              >
-                Request Changes
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
       <div className="flex min-h-0 flex-1">
-        {/* File sidebar */}
-        <Sidebar
-          files={sidebarFiles}
+        {/* File tree — left column */}
+        <FileTree
+          files={diffFiles}
           selectedFile={selectedFile}
           onSelectFile={scrollToFile}
         />
 
-        {/* Diff + comments */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <DiffView files={diffFiles} summary={diffSummary} />
-
-          {/* Comments panel */}
-          <div className="mt-8 space-y-6">
-            <h2 className="text-lg font-semibold text-gray-100">Comments</h2>
-
-            {data.files.length > 0 ? (
-              data.files.map((f: ReviewFileItem) => (
-                <div key={f.filePath}>
-                  <h3 className="mb-2 font-mono text-sm text-gray-400">
-                    {f.filePath}
-                  </h3>
-                  <CommentList
-                    reviewId={data.id}
-                    filePath={f.filePath}
-                    comments={(commentsByFile.get(f.filePath) ?? []) as Comment[]}
-                  />
-                </div>
-              ))
-            ) : (
-              <CommentList
-                reviewId={data.id}
-                filePath=""
-                comments={data.comments as Comment[]}
-              />
-            )}
-          </div>
+        {/* Diff view — center column */}
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto bg-surface-primary p-4"
+        >
+          <DiffView files={diffFiles} summary={diffSummary} reviewId={data.id} diffMode={diffMode} selectedFile={selectedFile} />
         </div>
+
+        {/* Annotations — right column */}
+        <AnnotationsPanel
+          comments={data.comments}
+          selectedFile={selectedFile}
+          reviewId={data.id}
+          isOpen={annotationsOpen}
+        />
       </div>
     </div>
   );

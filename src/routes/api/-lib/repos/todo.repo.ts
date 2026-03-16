@@ -2,7 +2,7 @@ import * as Effect from "effect/Effect";
 
 import type { Todo, TodoId } from "@/api/schemas/todo";
 
-import { SqliteService } from "../db/database";
+import { SqliteService, withTransaction } from "../db/database";
 
 // ---------------------------------------------------------------------------
 // Internal row shape (snake_case from SQLite)
@@ -194,9 +194,9 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
     const reorder = (
       orderedIds: ReadonlyArray<string>,
     ): Effect.Effect<number> =>
-      Effect.sync(() => {
-        db.exec("BEGIN");
-        try {
+      withTransaction(
+        db,
+        Effect.sync(() => {
           const stmt = db.prepare(
             "UPDATE todos SET position = ?, updated_at = datetime('now') WHERE id = ?",
           );
@@ -205,47 +205,38 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
             const result = stmt.run(i, orderedIds[i]!);
             updated += Number(result.changes);
           }
-          db.exec("COMMIT");
           return updated;
-        } catch (err) {
-          db.exec("ROLLBACK");
-          throw err;
-        }
-      });
+        }),
+      );
 
     const move = (
       id: TodoId,
       newPosition: number,
     ): Effect.Effect<Todo | null> =>
-      Effect.sync(() => {
+      Effect.gen(function* () {
         const row = stmtFindById.get(id) as TodoRow | undefined;
         if (!row) return null;
 
         const oldPosition = row.position;
 
-        db.exec("BEGIN");
-        try {
-          if (newPosition < oldPosition) {
-            // Moving up: shift items in [newPosition, oldPosition) down by 1
-            db.prepare(
-              "UPDATE todos SET position = position + 1, updated_at = datetime('now') WHERE position >= ? AND position < ? AND id != ?",
-            ).run(newPosition, oldPosition, id);
-          } else if (newPosition > oldPosition) {
-            // Moving down: shift items in (oldPosition, newPosition] up by 1
-            db.prepare(
-              "UPDATE todos SET position = position - 1, updated_at = datetime('now') WHERE position > ? AND position <= ? AND id != ?",
-            ).run(oldPosition, newPosition, id);
-          }
+        yield* withTransaction(
+          db,
+          Effect.sync(() => {
+            if (newPosition < oldPosition) {
+              db.prepare(
+                "UPDATE todos SET position = position + 1, updated_at = datetime('now') WHERE position >= ? AND position < ? AND id != ?",
+              ).run(newPosition, oldPosition, id);
+            } else if (newPosition > oldPosition) {
+              db.prepare(
+                "UPDATE todos SET position = position - 1, updated_at = datetime('now') WHERE position > ? AND position <= ? AND id != ?",
+              ).run(oldPosition, newPosition, id);
+            }
 
-          db.prepare(
-            "UPDATE todos SET position = ?, updated_at = datetime('now') WHERE id = ?",
-          ).run(newPosition, id);
-
-          db.exec("COMMIT");
-        } catch (err) {
-          db.exec("ROLLBACK");
-          throw err;
-        }
+            db.prepare(
+              "UPDATE todos SET position = ?, updated_at = datetime('now') WHERE id = ?",
+            ).run(newPosition, id);
+          }),
+        );
 
         return rowToTodo(stmtFindById.get(id) as unknown as TodoRow);
       });

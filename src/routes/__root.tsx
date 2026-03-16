@@ -1,7 +1,6 @@
 import { useMemo, useState, useCallback } from "react";
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import { RegistryProvider } from "@effect-atom/atom-react";
-import { Header } from "./-shared/layout/header";
 import { TodoPanel } from "./-shared/todos/todo-panel";
 import { useKeyboardShortcuts } from "./-shared/hooks/use-keyboard-shortcuts";
 import appCss from "../styles.css?url";
@@ -69,9 +68,8 @@ function RootLayout() {
   useKeyboardShortcuts(todosOpen ? [] : shortcuts);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-1">
+    <div className="flex h-screen flex-col bg-surface-primary">
+      <main className="flex-1 overflow-hidden">
         <Outlet />
       </main>
       <TodoPanel isOpen={todosOpen} onClose={closeTodos} />

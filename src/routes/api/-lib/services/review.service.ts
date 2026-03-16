@@ -51,20 +51,21 @@ const getHeadSha = (repoPath: string) =>
     catch: () => new ReviewError({ message: "Failed to get HEAD", code: "GIT_ERROR" }),
   });
 
+type SnapshotData = {
+  repository?: Record<string, unknown>;
+  files?: Array<DiffFile>;
+  version?: number;
+};
+
 /**
  * Parse snapshotData JSON. Handles both v1 and v2 formats gracefully.
  * v1: { files: DiffFile[], repository: {...} }
  * v2: { repository: {...}, version: 2 }
  */
-const parseSnapshotData = (
-  s: string,
-): { repository?: Record<string, unknown>; files?: Array<DiffFile>; version?: number } => {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return {};
-  }
-};
+const parseSnapshotData = (s: string): Effect.Effect<SnapshotData> =>
+  Effect.try(() => JSON.parse(s) as SnapshotData).pipe(
+    Effect.orElseSucceed((): SnapshotData => ({})),
+  );
 
 // ---------------------------------------------------------------------------
 // Service
@@ -193,7 +194,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
           const reviews = [];
           for (const review of result.data) {
             const fileCount = yield* fileRepo.countByReview(review.id);
-            const snapshot = parseSnapshotData(review.snapshotData);
+            const snapshot = yield* parseSnapshotData(review.snapshotData);
             reviews.push({
               ...review,
               fileCount,
@@ -232,7 +233,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
             deletions: r.deletions,
           }));
 
-          const snapshot = parseSnapshotData(review.snapshotData);
+          const snapshot = yield* parseSnapshotData(review.snapshotData);
           const summary = getDiffSummary(
             files.map((f) => ({
               oldPath: f.oldPath ?? f.filePath,
@@ -267,7 +268,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
           // Staged reviews store hunks in DB
           const fileRecord = yield* fileRepo.findByReviewAndPath(reviewId, filePath);
           if (fileRecord?.hunks_data) {
-            return parseHunks(fileRecord.hunks_data);
+            return yield* parseHunks(fileRecord.hunks_data);
           }
 
           // Branch reviews: regenerate from git
@@ -288,7 +289,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
           }
 
           // Legacy v1 fallback — hunks were embedded in snapshotData
-          const snapshot = parseSnapshotData(review.snapshotData);
+          const snapshot = yield* parseSnapshotData(review.snapshotData);
           if (snapshot.files) {
             const legacyFile = snapshot.files.find((f) => f.newPath === filePath);
             return (legacyFile?.hunks ?? []) as Array<DiffHunk>;

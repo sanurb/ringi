@@ -1,6 +1,7 @@
 onlyBuiltDependencies:
   - esbuild
   - msgpackr-extract
+  - msw
 
 patchedDependencies:
   nitro@3.0.1-alpha.1: patches/nitro@3.0.1-alpha.1.patch
