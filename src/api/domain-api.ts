@@ -9,6 +9,20 @@ import {
   ReviewNotFound,
   UpdateReviewInput,
 } from "./schemas/review";
+import {
+  Comment,
+  CommentId,
+  CommentNotFound,
+  CreateCommentInput,
+  UpdateCommentInput,
+} from "./schemas/comment";
+import {
+  CreateTodoInput,
+  Todo,
+  TodoId,
+  TodoNotFound,
+  UpdateTodoInput,
+} from "./schemas/todo";
 import { DiffFile, DiffHunk, DiffSummary } from "./schemas/diff";
 import { BranchInfo, CommitInfo, RepositoryInfo } from "./schemas/git";
 
@@ -136,10 +150,154 @@ export class GitApiGroup extends HttpApiGroup.make("git")
       .addSuccess(Schema.Struct({ success: Schema.Boolean, unstaged: Schema.Array(Schema.String) })),
   ) {}
 
+// ── Comments ─────────────────────────────────────────────────
+export class CommentsApiGroup extends HttpApiGroup.make("comments")
+  .add(
+    HttpApiEndpoint.get("getByReview", "/reviews/:reviewId/comments")
+      .setPath(Schema.Struct({ reviewId: ReviewId }))
+      .setUrlParams(Schema.Struct({ filePath: Schema.optionalWith(Schema.String, { default: () => "" }) }))
+      .addSuccess(Schema.Array(Comment)),
+  )
+  .add(
+    HttpApiEndpoint.get("getById", "/comments/:id")
+      .setPath(Schema.Struct({ id: CommentId }))
+      .addSuccess(Comment)
+      .addError(CommentNotFound),
+  )
+  .add(
+    HttpApiEndpoint.post("create", "/reviews/:reviewId/comments")
+      .setPath(Schema.Struct({ reviewId: ReviewId }))
+      .setPayload(CreateCommentInput)
+      .addSuccess(Comment)
+      .addError(ReviewNotFound),
+  )
+  .add(
+    HttpApiEndpoint.patch("update", "/comments/:id")
+      .setPath(Schema.Struct({ id: CommentId }))
+      .setPayload(UpdateCommentInput)
+      .addSuccess(Comment)
+      .addError(CommentNotFound),
+  )
+  .add(
+    HttpApiEndpoint.post("resolve", "/comments/:id/resolve")
+      .setPath(Schema.Struct({ id: CommentId }))
+      .addSuccess(Comment)
+      .addError(CommentNotFound),
+  )
+  .add(
+    HttpApiEndpoint.post("unresolve", "/comments/:id/unresolve")
+      .setPath(Schema.Struct({ id: CommentId }))
+      .addSuccess(Comment)
+      .addError(CommentNotFound),
+  )
+  .add(
+    HttpApiEndpoint.del("remove", "/comments/:id")
+      .setPath(Schema.Struct({ id: CommentId }))
+      .addSuccess(Schema.Struct({ success: Schema.Literal(true) }))
+      .addError(CommentNotFound),
+  )
+  .add(
+    HttpApiEndpoint.get("stats", "/reviews/:reviewId/comments/stats")
+      .setPath(Schema.Struct({ reviewId: ReviewId }))
+      .addSuccess(Schema.Struct({
+        total: Schema.Number,
+        resolved: Schema.Number,
+        unresolved: Schema.Number,
+        withSuggestions: Schema.Number,
+      })),
+  ) {}
+
+// ── Todos ───────────────────────────────────────────────────
+export class TodosApiGroup extends HttpApiGroup.make("todos")
+  .add(
+    HttpApiEndpoint.get("list", "/todos").addSuccess(
+      Schema.Struct({
+        data: Schema.Array(Todo),
+        total: Schema.Number,
+        limit: Schema.NullOr(Schema.Number),
+        offset: Schema.Number,
+      }),
+    ),
+  )
+  .add(
+    HttpApiEndpoint.get("getById", "/todos/:id")
+      .setPath(Schema.Struct({ id: TodoId }))
+      .addSuccess(Todo)
+      .addError(TodoNotFound),
+  )
+  .add(
+    HttpApiEndpoint.post("create", "/todos")
+      .setPayload(CreateTodoInput)
+      .addSuccess(Todo),
+  )
+  .add(
+    HttpApiEndpoint.patch("update", "/todos/:id")
+      .setPath(Schema.Struct({ id: TodoId }))
+      .setPayload(UpdateTodoInput)
+      .addSuccess(Todo)
+      .addError(TodoNotFound),
+  )
+  .add(
+    HttpApiEndpoint.patch("toggle", "/todos/:id/toggle")
+      .setPath(Schema.Struct({ id: TodoId }))
+      .addSuccess(Todo)
+      .addError(TodoNotFound),
+  )
+  .add(
+    HttpApiEndpoint.del("remove", "/todos/:id")
+      .setPath(Schema.Struct({ id: TodoId }))
+      .addSuccess(Schema.Struct({ success: Schema.Literal(true) }))
+      .addError(TodoNotFound),
+  )
+  .add(
+    HttpApiEndpoint.del("removeCompleted", "/todos/completed")
+      .addSuccess(Schema.Struct({ deleted: Schema.Number })),
+  )
+  .add(
+    HttpApiEndpoint.post("reorder", "/todos/reorder")
+      .setPayload(Schema.Struct({ orderedIds: Schema.Array(Schema.String) }))
+      .addSuccess(Schema.Struct({ updated: Schema.Number })),
+  )
+  .add(
+    HttpApiEndpoint.patch("move", "/todos/:id/move")
+      .setPath(Schema.Struct({ id: TodoId }))
+      .setPayload(Schema.Struct({ position: Schema.Number }))
+      .addSuccess(Todo)
+      .addError(TodoNotFound),
+  )
+  .add(
+    HttpApiEndpoint.get("stats", "/todos/stats").addSuccess(
+      Schema.Struct({
+        total: Schema.Number,
+        completed: Schema.Number,
+        pending: Schema.Number,
+      }),
+    ),
+  ) {}
+
+// ── Events ─────────────────────────────────────────────────
+export class EventsApiGroup extends HttpApiGroup.make("events")
+  .add(
+    HttpApiEndpoint.post("notify", "/events/notify")
+      .setPayload(Schema.Struct({
+        type: Schema.Literal("todos", "reviews", "comments", "files"),
+        action: Schema.optionalWith(Schema.Literal("created", "updated", "deleted"), { as: "Option" }),
+      }))
+      .addSuccess(Schema.Struct({ success: Schema.Boolean })),
+  )
+  .add(
+    HttpApiEndpoint.get("clients", "/events/clients")
+      .addSuccess(Schema.Struct({ count: Schema.Number })),
+  ) {}
+
+
 // ── Domain API ─────────────────────────────────────────────────
 export class DomainApi extends HttpApi.make("api")
   .add(ReviewsApiGroup)
   .add(ReviewFilesApiGroup)
+  .add(CommentsApiGroup)
+  .add(TodosApiGroup)
   .add(DiffApiGroup)
   .add(GitApiGroup)
+  .add(EventsApiGroup)
   .prefix("/api") {}
