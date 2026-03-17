@@ -118,15 +118,25 @@ function InlineCommentForm({
   );
 
   return (
-    <div className="col-span-full border-t border-border-subtle bg-surface-overlay px-4 py-2 animate-in fade-in slide-in-from-top-1 duration-150">
-      {/* Line context label */}
-      <div className="mb-1.5 flex items-center gap-1.5">
-        <span className="rounded bg-accent-muted px-1.5 py-0.5 font-mono text-[10px] text-accent-primary">
-          L{lineNumber}
-        </span>
-        <span className="text-[10px] text-text-tertiary truncate">
-          {filePath}
-        </span>
+    <div className="col-span-full border-t border-accent-primary/20 bg-surface-elevated px-4 py-3 shadow-md shadow-black/20 animate-in fade-in slide-in-from-top-1 duration-150">
+      {/* Header: line context + close */}
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="rounded bg-accent-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-accent-primary">
+            Line {lineNumber}
+          </span>
+          <span className="text-[10px] text-text-tertiary truncate max-w-[200px]">
+            {filePath}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          aria-label="Close comment form"
+          className="flex h-5 w-5 items-center justify-center rounded text-text-tertiary hover:text-text-secondary hover:bg-surface-overlay transition-colors"
+        >
+          ×
+        </button>
       </div>
       <textarea
         ref={textareaRef}
@@ -184,9 +194,8 @@ function GutterAddButton({
       }}
       aria-label="Add comment on this line"
       className={cn(
-        "absolute left-0 top-0 z-10 flex h-full w-8 items-center justify-center transition-opacity",
-        // Stay visible when comment is active for this line; otherwise show on hover
-        isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+        "absolute left-0 top-0 z-10 flex h-full w-8 items-center justify-center cursor-pointer transition-opacity",
+        isActive ? "opacity-100" : "opacity-0 group-hover/line:opacity-100",
       )}
     >
       <span
@@ -234,7 +243,7 @@ export function DiffLine({
     <>
       <div
         className={cn(
-          "group relative flex font-mono text-xs leading-6 transition-colors",
+          "group/line relative flex font-mono text-xs leading-6 transition-colors",
           bgClass[line.type],
           // Highlight the active comment line with a distinct background
           isCommentActive
@@ -252,7 +261,7 @@ export function DiffLine({
           // Decorative-only when no review context — fully inert
           <span
             aria-hidden
-            className="absolute left-0 top-0 flex h-full w-6 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+            className="absolute left-0 top-0 flex h-full w-6 items-center justify-center opacity-0 group-hover/line:opacity-100 transition-opacity pointer-events-none"
           >
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent-primary/50 text-[10px] text-white/60">
               +
@@ -263,7 +272,7 @@ export function DiffLine({
         {showOldLine && (
           <span
             className={cn(
-              "w-10 shrink-0 select-none text-right pr-2 text-[10px] leading-6",
+              "w-10 shrink-0 select-none text-right pr-2 text-[10px] leading-6 pointer-events-none",
               numClass[line.type],
             )}
           >
@@ -273,7 +282,7 @@ export function DiffLine({
         {showNewLine && (
           <span
             className={cn(
-              "w-10 shrink-0 select-none text-right pr-2 text-[10px] leading-6",
+              "w-10 shrink-0 select-none text-right pr-2 text-[10px] leading-6 pointer-events-none",
               numClass[line.type],
             )}
           >

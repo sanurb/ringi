@@ -72,7 +72,7 @@ export class ApiClient extends Effect.Service<ApiClient>()("ApiClient", {
     const rpcClient = yield* RpcClient.make(DomainRpc);
 
     const httpClient = yield* HttpApiClient.make(DomainApi, {
-      baseUrl: getBaseUrl() + "/api",
+      baseUrl: getBaseUrl(),
       transformClient: (client) =>
         client.pipe(
           HttpClient.filterStatusOk,
