@@ -2,6 +2,7 @@ import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import * as Effect from "effect/Effect";
 
 import { DomainApi } from "@/api/domain-api";
+
 import { ReviewService } from "../services/review.service";
 
 /**
@@ -17,46 +18,46 @@ export const ReviewsApiLive = HttpApiBuilder.group(
   (handlers) =>
     handlers
       .handle("list", (_) =>
-        Effect.gen(function* () {
+        Effect.gen(function* ReviewsApiLive() {
           const svc = yield* ReviewService;
           return yield* svc.list({});
-        }),
+        })
       )
       .handle("getById", (_) =>
-        Effect.gen(function* () {
+        Effect.gen(function* ReviewsApiLive() {
           const svc = yield* ReviewService;
           return yield* svc.getById(_.path.id);
-        }),
+        })
       )
       .handle("create", (_) =>
-        Effect.gen(function* () {
+        Effect.gen(function* ReviewsApiLive() {
           const svc = yield* ReviewService;
           return yield* svc.create(_.payload);
         }).pipe(
           // GitError and ReviewError are not declared on the endpoint schema;
           // surface them as defects (HTTP 500) until the API contract is updated.
           Effect.catchTags({
-            ReviewError: (e) => Effect.die(e),
             GitError: (e) => Effect.die(e),
-          }),
-        ),
+            ReviewError: (e) => Effect.die(e),
+          })
+        )
       )
       .handle("update", (_) =>
-        Effect.gen(function* () {
+        Effect.gen(function* ReviewsApiLive() {
           const svc = yield* ReviewService;
           return yield* svc.update(_.path.id, _.payload);
-        }),
+        })
       )
       .handle("remove", (_) =>
-        Effect.gen(function* () {
+        Effect.gen(function* ReviewsApiLive() {
           const svc = yield* ReviewService;
           return yield* svc.remove(_.path.id);
-        }),
+        })
       )
       .handle("stats", (_) =>
-        Effect.gen(function* () {
+        Effect.gen(function* ReviewsApiLive() {
           const svc = yield* ReviewService;
           return yield* svc.getStats;
-        }),
-      ),
+        })
+      )
 );

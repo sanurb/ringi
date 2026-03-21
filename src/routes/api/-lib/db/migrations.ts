@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-const migrations: ReadonlyArray<string> = [
+const migrations: readonly string[] = [
   // v1: reviews table
   `CREATE TABLE IF NOT EXISTS reviews (
     id TEXT PRIMARY KEY,
@@ -66,8 +66,7 @@ export const runMigrations = (db: DatabaseSync): void => {
   for (let i = currentVersion; i < migrations.length; i++) {
     // v3 (and any future multi-statement migration) uses semicolons to
     // separate statements — split and execute each independently.
-    const statements = migrations[i]!
-      .split(";")
+    const statements = migrations[i]!.split(";")
       .map((s) => s.trim())
       .filter(Boolean);
 

@@ -53,17 +53,16 @@ export interface CreateReviewFileInput {
 // ---------------------------------------------------------------------------
 
 export const parseHunks = (
-  hunksData: string | null,
-): Effect.Effect<ReadonlyArray<DiffHunk>> =>
+  hunksData: string | null
+): Effect.Effect<readonly DiffHunk[]> =>
   hunksData == null
     ? Effect.succeed([])
-    : Effect.try(() => JSON.parse(hunksData) as ReadonlyArray<DiffHunk>).pipe(
-        Effect.orElseSucceed(() => [] as ReadonlyArray<DiffHunk>),
+    : Effect.try(() => JSON.parse(hunksData) as readonly DiffHunk[]).pipe(
+        Effect.orElseSucceed(() => [] as readonly DiffHunk[])
       );
 
-export const serializeHunks = (
-  hunks: ReadonlyArray<DiffHunk>,
-): string => JSON.stringify(hunks);
+export const serializeHunks = (hunks: readonly DiffHunk[]): string =>
+  JSON.stringify(hunks);
 
 // ---------------------------------------------------------------------------
 // Service
@@ -73,51 +72,52 @@ export class ReviewFileRepo extends Effect.Service<ReviewFileRepo>()(
   "ReviewFileRepo",
   {
     dependencies: [SqliteService.Default],
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       const { db } = yield* SqliteService;
 
       // Cached prepared statements
       const stmtFindByReview = db.prepare(
         `SELECT id, review_id, file_path, old_path, status, additions, deletions, created_at
-         FROM review_files WHERE review_id = ? ORDER BY file_path`,
+         FROM review_files WHERE review_id = ? ORDER BY file_path`
       );
       const stmtFindByReviewAndPath = db.prepare(
-        "SELECT * FROM review_files WHERE review_id = ? AND file_path = ?",
+        "SELECT * FROM review_files WHERE review_id = ? AND file_path = ?"
       );
       const stmtInsert = db.prepare(
         `INSERT INTO review_files (id, review_id, file_path, old_path, status, additions, deletions, hunks_data, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
       );
       const stmtDeleteByReview = db.prepare(
-        "DELETE FROM review_files WHERE review_id = ?",
+        "DELETE FROM review_files WHERE review_id = ?"
       );
       const stmtCountByReview = db.prepare(
-        "SELECT COUNT(*) as count FROM review_files WHERE review_id = ?",
+        "SELECT COUNT(*) as count FROM review_files WHERE review_id = ?"
       );
 
       // ------------------------------------------------------------------
 
       const findByReview = (
-        reviewId: ReviewId,
-      ): Effect.Effect<ReadonlyArray<ReviewFileMetadataRow>> =>
+        reviewId: ReviewId
+      ): Effect.Effect<readonly ReviewFileMetadataRow[]> =>
         Effect.sync(
-          () => stmtFindByReview.all(reviewId) as unknown as Array<ReviewFileMetadataRow>,
+          () =>
+            stmtFindByReview.all(reviewId) as unknown as ReviewFileMetadataRow[]
         );
 
       const findByReviewAndPath = (
         reviewId: ReviewId,
-        filePath: string,
+        filePath: string
       ): Effect.Effect<ReviewFileRow | null> =>
         Effect.sync(() => {
           const row = stmtFindByReviewAndPath.get(
             reviewId,
-            filePath,
+            filePath
           ) as unknown as ReviewFileRow | undefined;
           return row ?? null;
         });
 
       const createBulk = (
-        files: ReadonlyArray<CreateReviewFileInput>,
+        files: readonly CreateReviewFileInput[]
       ): Effect.Effect<void> =>
         withTransaction(
           db,
@@ -131,10 +131,10 @@ export class ReviewFileRepo extends Effect.Service<ReviewFileRepo>()(
                 f.status,
                 f.additions,
                 f.deletions,
-                f.hunksData,
+                f.hunksData
               );
             }
-          }),
+          })
         );
 
       const deleteByReview = (reviewId: ReviewId): Effect.Effect<number> =>
@@ -150,12 +150,12 @@ export class ReviewFileRepo extends Effect.Service<ReviewFileRepo>()(
         });
 
       return {
-        findByReview,
-        findByReviewAndPath,
+        countByReview,
         createBulk,
         deleteByReview,
-        countByReview,
+        findByReview,
+        findByReviewAndPath,
       } as const;
     }),
-  },
+  }
 ) {}

@@ -9,29 +9,31 @@ export interface TypedSerializable<A, I> {
   };
 }
 
-export const serializable: {
-  <R extends Atom.Atom<any>, I>(options: {
+interface SerializableFactory {
+  <R extends Atom.Atom<unknown>, I>(options: {
     readonly key: string;
     readonly schema: Schema.Schema<Atom.Type<R>, I>;
   }): (self: R) => R & TypedSerializable<Atom.Type<R>, I>;
-  <R extends Atom.Atom<any>, I>(
+  <R extends Atom.Atom<unknown>, I>(
     self: R,
     options: {
       readonly key: string;
       readonly schema: Schema.Schema<Atom.Type<R>, I>;
     }
   ): R & TypedSerializable<Atom.Type<R>, I>;
-} = Atom.serializable as any;
+}
+
+export const serializable = Atom.serializable as unknown as SerializableFactory;
 
 export const dehydrate = <A, I>(
   atom: Atom.Atom<A> & TypedSerializable<A, I>,
   value: A
 ): {
   readonly key: string;
-  readonly value: {};
+  readonly value: I;
   readonly dehydratedAt: number;
 } => ({
-  key: atom[Atom.SerializableTypeId].key,
-  value: atom[Atom.SerializableTypeId].encode(value) as {},
   dehydratedAt: Date.now(),
+  key: atom[Atom.SerializableTypeId].key,
+  value: atom[Atom.SerializableTypeId].encode(value),
 });

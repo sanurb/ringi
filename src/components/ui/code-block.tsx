@@ -93,11 +93,9 @@ import {
   SiVuedotjs,
   SiWebassembly,
 } from "react-icons/si";
-import {
-  type BundledLanguage,
-  type CodeOptionsMultipleThemes,
-  codeToHtml,
-} from "shiki";
+import { codeToHtml } from "shiki";
+import type { BundledLanguage, CodeOptionsMultipleThemes } from "shiki";
+
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -106,85 +104,85 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { ringiTheme } from "@/lib/shiki-theme";
+import { cn } from "@/lib/utils";
 
 export type { BundledLanguage } from "shiki";
 
 const filenameIconMap = {
-  ".env": SiDotenv,
   "*.astro": SiAstro,
-  "biome.json": SiBiome,
-  ".bowerrc": SiBower,
-  "bun.lockb": SiBun,
   "*.c": SiC,
-  "*.cpp": SiCplusplus,
-  ".circleci/config.yml": SiCircleci,
   "*.coffee": SiCoffeescript,
-  "*.module.css": SiCssmodules,
+  "*.cpp": SiCplusplus,
   "*.css": SiCss3,
   "*.dart": SiDart,
-  Dockerfile: SiDocker,
-  "docusaurus.config.js": SiDocusaurus,
-  ".editorconfig": SiEditorconfig,
-  ".eslintrc": SiEslint,
-  "eslint.config.*": SiEslint,
-  "gatsby-config.*": SiGatsby,
-  ".gitignore": SiGitignoredotio,
   "*.go": SiGo,
   "*.graphql": SiGraphql,
-  "*.sh": SiGnubash,
-  "Gruntfile.*": SiGrunt,
-  "gulpfile.*": SiGulp,
   "*.hbs": SiHandlebarsdotjs,
   "*.html": SiHtml5,
   "*.js": SiJavascript,
   "*.json": SiJson,
-  "*.test.js": SiJest,
+  "*.jsx": SiReact,
   "*.less": SiLess,
   "*.md": SiMarkdown,
   "*.mdx": SiMdx,
-  "mintlify.json": SiMintlify,
-  "mocha.opts": SiMocha,
+  "*.module.css": SiCssmodules,
   "*.mustache": SiHandlebarsdotjs,
-  "*.sql": SiMysql,
-  "next.config.*": SiNextdotjs,
-  "*.pl": SiPerl,
   "*.php": SiPhp,
-  "postcss.config.*": SiPostcss,
-  "prettier.config.*": SiPrettier,
+  "*.pl": SiPerl,
   "*.prisma": SiPrisma,
   "*.pug": SiPug,
   "*.py": SiPython,
   "*.r": SiR,
   "*.rb": SiRuby,
-  "*.jsx": SiReact,
-  "*.tsx": SiReact,
-  "readme.md": SiReadme,
   "*.rdb": SiRedis,
-  "remix.config.*": SiRemix,
   "*.riv": SiRive,
-  "rollup.config.*": SiRollupdotjs,
-  "sanity.config.*": SiSanity,
   "*.sass": SiSass,
-  "*.scss": SiSass,
   "*.sc": SiScala,
   "*.scala": SiScala,
-  "sentry.client.config.*": SiSentry,
-  "components.json": SiShadcnui,
-  "storybook.config.*": SiStorybook,
-  "stylelint.config.*": SiStylelint,
-  ".sublime-settings": SiSublimetext,
+  "*.scss": SiSass,
+  "*.sh": SiGnubash,
+  "*.sql": SiMysql,
   "*.svelte": SiSvelte,
   "*.svg": SiSvg,
   "*.swift": SiSwift,
-  "tailwind.config.*": SiTailwindcss,
+  "*.test.js": SiJest,
   "*.toml": SiToml,
   "*.ts": SiTypescript,
-  "vercel.json": SiVercel,
-  "vite.config.*": SiVite,
+  "*.tsx": SiReact,
   "*.vue": SiVuedotjs,
   "*.wasm": SiWebassembly,
+  ".bowerrc": SiBower,
+  ".circleci/config.yml": SiCircleci,
+  ".editorconfig": SiEditorconfig,
+  ".env": SiDotenv,
+  ".eslintrc": SiEslint,
+  ".gitignore": SiGitignoredotio,
+  ".sublime-settings": SiSublimetext,
+  Dockerfile: SiDocker,
+  "Gruntfile.*": SiGrunt,
+  "biome.json": SiBiome,
+  "bun.lockb": SiBun,
+  "components.json": SiShadcnui,
+  "docusaurus.config.js": SiDocusaurus,
+  "eslint.config.*": SiEslint,
+  "gatsby-config.*": SiGatsby,
+  "gulpfile.*": SiGulp,
+  "mintlify.json": SiMintlify,
+  "mocha.opts": SiMocha,
+  "next.config.*": SiNextdotjs,
+  "postcss.config.*": SiPostcss,
+  "prettier.config.*": SiPrettier,
+  "readme.md": SiReadme,
+  "remix.config.*": SiRemix,
+  "rollup.config.*": SiRollupdotjs,
+  "sanity.config.*": SiSanity,
+  "sentry.client.config.*": SiSentry,
+  "storybook.config.*": SiStorybook,
+  "stylelint.config.*": SiStylelint,
+  "tailwind.config.*": SiTailwindcss,
+  "vercel.json": SiVercel,
+  "vite.config.*": SiVite,
 };
 
 const lineNumberClassNames = cn(
@@ -211,7 +209,7 @@ const lineHighlightClassNames = cn(
   "[&_.line.highlighted]:after:left-0",
   "[&_.line.highlighted]:after:top-0",
   "[&_.line.highlighted]:after:bottom-0",
-  "[&_.line.highlighted]:after:w-0.5",
+  "[&_.line.highlighted]:after:w-0.5"
 );
 
 const lineDiffClassNames = cn(
@@ -223,7 +221,7 @@ const lineDiffClassNames = cn(
   "[&_.line.diff.add]:bg-diff-add-line-bg",
   "[&_.line.diff.add]:after:bg-diff-add-border",
   "[&_.line.diff.remove]:bg-diff-remove-line-bg",
-  "[&_.line.diff.remove]:after:bg-diff-remove-border",
+  "[&_.line.diff.remove]:after:bg-diff-remove-border"
 );
 
 const lineFocusedClassNames = cn(
@@ -232,7 +230,7 @@ const lineFocusedClassNames = cn(
 );
 
 const wordHighlightClassNames = cn(
-  "[&_.highlighted-word]:bg-diff-highlight-bg",
+  "[&_.highlighted-word]:bg-diff-highlight-bg"
 );
 
 const codeBlockClassName = cn(
@@ -256,9 +254,7 @@ const highlight = (
 ) =>
   codeToHtml(html, {
     lang: language ?? "typescript",
-    ...(themes
-      ? { themes }
-      : { theme: ringiTheme }),
+    ...(themes ? { themes } : { theme: ringiTheme }),
     transformers: [
       transformerNotationDiff({ matchAlgorithm: "v3" }),
       transformerNotationHighlight({ matchAlgorithm: "v3" }),
@@ -268,22 +264,22 @@ const highlight = (
     ],
   });
 
-type CodeBlockData = {
+interface CodeBlockData {
   language: string;
   filename: string;
   code: string;
-};
+}
 
-type CodeBlockContextType = {
+interface CodeBlockContextType {
   value: string | undefined;
   onValueChange: ((value: string) => void) | undefined;
   data: CodeBlockData[];
-};
+}
 
 const CodeBlockContext = createContext<CodeBlockContextType>({
-  value: undefined,
-  onValueChange: undefined,
   data: [],
+  onValueChange: undefined,
+  value: undefined,
 });
 
 export type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
@@ -303,12 +299,12 @@ export const CodeBlock = ({
 }: CodeBlockProps) => {
   const [value, onValueChange] = useControllableState({
     defaultProp: defaultValue ?? "",
-    prop: controlledValue,
     onChange: controlledOnValueChange,
+    prop: controlledValue,
   });
 
   return (
-    <CodeBlockContext.Provider value={{ value, onValueChange, data }}>
+    <CodeBlockContext.Provider value={{ data, onValueChange, value }}>
       <div
         className={cn("size-full overflow-hidden rounded-md border", className)}
         {...props}
@@ -371,7 +367,7 @@ export const CodeBlockFilename = ({
   const { value: activeValue } = useContext(CodeBlockContext);
   const defaultIcon = Object.entries(filenameIconMap).find(([pattern]) => {
     const regex = new RegExp(
-      `^${pattern.replace(/\\/g, "\\\\").replace(/\./g, "\\.").replace(/\*/g, ".*")}$`
+      `^${pattern.replaceAll("\\", "\\\\").replaceAll(".", "\\.").replaceAll("*", ".*")}$`
     );
     return regex.test(children as string);
   })?.[1];

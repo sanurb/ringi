@@ -25,13 +25,12 @@
 import type { ThemeRegistration } from "shiki";
 
 export const ringiTheme: ThemeRegistration = {
-  name: "ringi",
-  type: "dark",
   colors: {
     // Editor chrome (only used by Shiki for the <pre> wrapper)
     "editor.background": "#00000000", // transparent — we control bg via CSS
     "editor.foreground": "#d1d5db",
   },
+  name: "ringi",
   settings: [
     // ── Base foreground ──
     {
@@ -44,8 +43,8 @@ export const ringiTheme: ThemeRegistration = {
     {
       scope: ["comment", "punctuation.definition.comment"],
       settings: {
-        foreground: "#6b7280",
         fontStyle: "italic",
+        foreground: "#6b7280",
       },
     },
 
@@ -87,11 +86,7 @@ export const ringiTheme: ThemeRegistration = {
 
     // ── Strings ──
     {
-      scope: [
-        "string",
-        "string.template",
-        "punctuation.definition.string",
-      ],
+      scope: ["string", "string.template", "punctuation.definition.string"],
       settings: {
         foreground: "#a5d6b7",
       },
@@ -192,9 +187,7 @@ export const ringiTheme: ThemeRegistration = {
 
     // ── JSX/HTML attributes ──
     {
-      scope: [
-        "entity.other.attribute-name",
-      ],
+      scope: ["entity.other.attribute-name"],
       settings: {
         foreground: "#dbbe91",
       },
@@ -210,10 +203,7 @@ export const ringiTheme: ThemeRegistration = {
 
     // ── Import/export paths ──
     {
-      scope: [
-        "string.quoted.module",
-        "meta.import string",
-      ],
+      scope: ["string.quoted.module", "meta.import string"],
       settings: {
         foreground: "#a5d6b7",
       },
@@ -229,10 +219,7 @@ export const ringiTheme: ThemeRegistration = {
 
     // ── CSS values ──
     {
-      scope: [
-        "support.constant.property-value.css",
-        "meta.property-value.css",
-      ],
+      scope: ["support.constant.property-value.css", "meta.property-value.css"],
       settings: {
         foreground: "#dbbe91",
       },
@@ -262,8 +249,8 @@ export const ringiTheme: ThemeRegistration = {
     {
       scope: ["markup.heading", "punctuation.definition.heading.markdown"],
       settings: {
-        foreground: "#c4a5e2",
         fontStyle: "bold",
+        foreground: "#c4a5e2",
       },
     },
     {
@@ -299,10 +286,7 @@ export const ringiTheme: ThemeRegistration = {
 
     // ── Decorators ──
     {
-      scope: [
-        "meta.decorator",
-        "punctuation.decorator",
-      ],
+      scope: ["meta.decorator", "punctuation.decorator"],
       settings: {
         foreground: "#dbbe91",
       },
@@ -316,4 +300,5 @@ export const ringiTheme: ThemeRegistration = {
       },
     },
   ],
+  type: "dark",
 };

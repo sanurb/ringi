@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect";
 
 import type { ReviewId } from "@/api/schemas/review";
 
-import { ReviewService } from "./review.service";
 import { CommentService } from "./comment.service";
+import { ReviewService } from "./review.service";
 import { TodoService } from "./todo.service";
 
 // ---------------------------------------------------------------------------
@@ -19,9 +19,9 @@ export class ExportService extends Effect.Service<ExportService>()(
       CommentService.Default,
       TodoService.Default,
     ],
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       const exportReview = (reviewId: ReviewId) =>
-        Effect.gen(function* () {
+        Effect.gen(function* exportReview() {
           const reviewSvc = yield* ReviewService;
           const commentSvc = yield* CommentService;
           const todoSvc = yield* TodoService;
@@ -29,9 +29,10 @@ export class ExportService extends Effect.Service<ExportService>()(
           const review = yield* reviewSvc.getById(reviewId);
 
           // review.repository is parsed from snapshotData
-          const repo = review.repository as
-            | { name?: string; branch?: string }
-            | null;
+          const repo = review.repository as {
+            name?: string;
+            branch?: string;
+          } | null;
           const repoName = repo?.name ?? "Unknown";
           const branch = repo?.branch ?? "unknown";
 
@@ -53,12 +54,8 @@ export class ExportService extends Effect.Service<ExportService>()(
             lines.push("");
             lines.push("## Files Changed");
             lines.push("");
-            lines.push(
-              "| File | Status | Additions | Deletions |",
-            );
-            lines.push(
-              "|------|--------|-----------|-----------|",
-            );
+            lines.push("| File | Status | Additions | Deletions |");
+            lines.push("|------|--------|-----------|-----------|");
             for (const f of review.files) {
               const statusLabel =
                 f.status === "modified"
@@ -69,7 +66,7 @@ export class ExportService extends Effect.Service<ExportService>()(
                       ? "D"
                       : f.status;
               lines.push(
-                `| ${f.filePath} | ${statusLabel} | +${f.additions} | -${f.deletions} |`,
+                `| ${f.filePath} | ${statusLabel} | +${f.additions} | -${f.deletions} |`
               );
             }
           }
@@ -78,11 +75,11 @@ export class ExportService extends Effect.Service<ExportService>()(
           if (comments.length > 0) {
             lines.push("");
             lines.push(
-              `## Comments (${commentStats.total} total, ${commentStats.resolved} resolved)`,
+              `## Comments (${commentStats.total} total, ${commentStats.resolved} resolved)`
             );
 
             // Group by file
-            const byFile = new Map<string, Array<(typeof comments)[number]>>();
+            const byFile = new Map<string, (typeof comments)[number][]>();
             for (const c of comments) {
               const key = c.filePath ?? "(general)";
               const arr = byFile.get(key) ?? [];
@@ -96,7 +93,7 @@ export class ExportService extends Effect.Service<ExportService>()(
               for (const c of fileComments) {
                 lines.push("");
                 lines.push(
-                  `**Line ${c.lineNumber ?? "–"}** (${c.lineType ?? "context"})`,
+                  `**Line ${c.lineNumber ?? "–"}** (${c.lineType ?? "context"})`
                 );
                 lines.push(`> ${c.content}`);
                 if (c.suggestion) {
@@ -111,14 +108,12 @@ export class ExportService extends Effect.Service<ExportService>()(
 
           // -- Todos --
           if (todos.data.length > 0) {
-            const completed = todos.data.filter(
-              (t) => t.completed,
-            ).length;
+            const completed = todos.data.filter((t) => t.completed).length;
             lines.push("");
             lines.push("---");
             lines.push("");
             lines.push(
-              `## Todos (${todos.total} total, ${completed} completed)`,
+              `## Todos (${todos.total} total, ${completed} completed)`
             );
             lines.push("");
             for (const t of todos.data) {
@@ -133,5 +128,5 @@ export class ExportService extends Effect.Service<ExportService>()(
 
       return { exportReview } as const;
     }),
-  },
+  }
 ) {}

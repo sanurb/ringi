@@ -7,49 +7,53 @@ interface ReviewListItem {
 }
 
 interface ReviewListData {
-  reviews: ReadonlyArray<ReviewListItem>;
+  reviews: readonly ReviewListItem[];
   total: number;
   page: number;
   pageSize: number;
   hasMore: boolean;
 }
 
-import { useMemo } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
+import { useMemo } from "react";
+
 import { cn } from "@/lib/utils";
+
+import { useKeyboardShortcuts } from "../-shared/hooks/use-keyboard-shortcuts";
+import { ActionBar } from "../-shared/layout/action-bar";
 import { serverRuntime } from "../api/$";
 import { ReviewService } from "../api/-lib/services/review.service";
-import { ActionBar } from "../-shared/layout/action-bar";
-import { useKeyboardShortcuts } from "../-shared/hooks/use-keyboard-shortcuts";
 
-const listReviews = createServerFn({ method: "GET" }).handler(async (): Promise<ReviewListData> => {
-  const result = await serverRuntime.runPromise(
-    Effect.gen(function* () {
-      const svc = yield* ReviewService;
-      return yield* svc.list({});
-    }),
-  );
-  // JSON roundtrip strips branded/opaque types for serialization
-  return JSON.parse(JSON.stringify(result));
-});
+const listReviews = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ReviewListData> => {
+    const result = await serverRuntime.runPromise(
+      Effect.gen(function* result() {
+        const svc = yield* ReviewService;
+        return yield* svc.list({});
+      })
+    );
+    // JSON roundtrip strips branded/opaque types for serialization
+    return JSON.parse(JSON.stringify(result));
+  }
+);
 
 export const Route = createFileRoute("/reviews/")({
-  loader: () => listReviews(),
   component: ReviewsListPage,
+  loader: () => listReviews(),
 });
 
 const statusStyles: Record<string, string> = {
-  in_progress: "bg-status-warning/15 text-status-warning",
   approved: "bg-status-success/15 text-status-success",
   changes_requested: "bg-status-error/15 text-status-error",
+  in_progress: "bg-status-warning/15 text-status-warning",
 };
 
 const sourceLabels: Record<string, string> = {
-  staged: "Staged",
   branch: "Branch",
   commits: "Commits",
+  staged: "Staged",
 };
 
 function ReviewsListPage() {
@@ -58,10 +62,20 @@ function ReviewsListPage() {
 
   const shortcuts = useMemo(
     () => [
-      { key: "n", description: "New review", handler: () => { window.location.href = "/reviews/new"; } },
-      { key: "c", description: "Go to Changes", handler: () => navigate({ to: "/" }) },
+      {
+        description: "New review",
+        handler: () => {
+          window.location.href = "/reviews/new";
+        },
+        key: "n",
+      },
+      {
+        description: "Go to Changes",
+        handler: () => navigate({ to: "/" }),
+        key: "c",
+      },
     ],
-    [navigate],
+    [navigate]
   );
   useKeyboardShortcuts(shortcuts);
 
@@ -74,7 +88,9 @@ function ReviewsListPage() {
           <div className="mb-5 flex items-center justify-between">
             <h1 className="text-sm font-semibold text-text-primary">Reviews</h1>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-text-tertiary">{data.total} total</span>
+              <span className="text-xs text-text-tertiary">
+                {data.total} total
+              </span>
               <Link
                 to="/reviews/new"
                 className="rounded-sm bg-accent-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-accent-primary/90"
@@ -116,7 +132,8 @@ function ReviewCard({ review }: { review: ReviewListItem }) {
           <span
             className={cn(
               "rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-              statusStyles[review.status] ?? "bg-surface-overlay text-text-tertiary",
+              statusStyles[review.status] ??
+                "bg-surface-overlay text-text-tertiary"
             )}
           >
             {review.status.replace("_", " ")}

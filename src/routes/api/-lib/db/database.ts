@@ -14,24 +14,27 @@ import { runMigrations } from "./migrations";
  */
 export const withTransaction = <A, E, R>(
   db: DatabaseSync,
-  body: Effect.Effect<A, E, R>,
+  body: Effect.Effect<A, E, R>
 ): Effect.Effect<A, E, R> =>
   Effect.acquireUseRelease(
     Effect.sync(() => db.exec("BEGIN")),
     () => body,
     (_, exit) =>
       Effect.sync(() => {
-        if (Exit.isSuccess(exit)) db.exec("COMMIT");
-        else db.exec("ROLLBACK");
-      }),
+        if (Exit.isSuccess(exit)) {
+          db.exec("COMMIT");
+        } else {
+          db.exec("ROLLBACK");
+        }
+      })
   );
 
 export class SqliteService extends Effect.Service<SqliteService>()(
   "SqliteService",
   {
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       const dbPath = yield* Config.string("DB_PATH").pipe(
-        Config.withDefault(".ringi/reviews.db"),
+        Config.withDefault(".ringi/reviews.db")
       );
 
       mkdirSync(dirname(dbPath), { recursive: true });
@@ -44,5 +47,5 @@ export class SqliteService extends Effect.Service<SqliteService>()(
 
       return { db } as const;
     }),
-  },
+  }
 ) {}

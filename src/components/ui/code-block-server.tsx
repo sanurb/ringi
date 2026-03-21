@@ -6,11 +6,9 @@ import {
   transformerNotationWordHighlight,
 } from "@shikijs/transformers";
 import type { HTMLAttributes } from "react";
-import {
-  type BundledLanguage,
-  type CodeOptionsMultipleThemes,
-  codeToHtml,
-} from "shiki";
+import { codeToHtml } from "shiki";
+import type { BundledLanguage, CodeOptionsMultipleThemes } from "shiki";
+
 import { ringiTheme } from "@/lib/shiki-theme";
 
 export type CodeBlockContentProps = HTMLAttributes<HTMLDivElement> & {
@@ -30,9 +28,7 @@ export const CodeBlockContent = async ({
   const html = syntaxHighlighting
     ? await codeToHtml(children as string, {
         lang: language ?? "typescript",
-        ...(themes
-          ? { themes }
-          : { theme: ringiTheme }),
+        ...(themes ? { themes } : { theme: ringiTheme }),
         transformers: [
           transformerNotationDiff({
             matchAlgorithm: "v3",

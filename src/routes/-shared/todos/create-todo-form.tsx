@@ -1,8 +1,9 @@
-import { useState } from "react";
 import * as Effect from "effect/Effect";
-import { clientRuntime } from "@/lib/client-runtime";
+import { useState } from "react";
+
 import { ApiClient } from "@/api/api-client";
 import type { Todo } from "@/api/schemas/todo";
+import { clientRuntime } from "@/lib/client-runtime";
 
 interface CreateTodoFormProps {
   onCreated: (todo: Todo) => void;
@@ -15,7 +16,9 @@ export function CreateTodoForm({ onCreated }: CreateTodoFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = content.trim();
-    if (!trimmed || submitting) return;
+    if (!trimmed || submitting) {
+      return;
+    }
 
     setSubmitting(true);
     clientRuntime.runFork(
@@ -29,11 +32,11 @@ export function CreateTodoForm({ onCreated }: CreateTodoFormProps) {
           Effect.sync(() => {
             setContent("");
             onCreated(todo);
-          }),
+          })
         ),
         Effect.catchAllCause(() => Effect.void),
-        Effect.ensuring(Effect.sync(() => setSubmitting(false))),
-      ),
+        Effect.ensuring(Effect.sync(() => setSubmitting(false)))
+      )
     );
   }
 

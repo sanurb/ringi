@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
+import { useState, useEffect, useRef } from "react";
 
 export type EventType = "todos" | "reviews" | "comments" | "files";
 
@@ -13,11 +13,11 @@ export interface SSEEvent {
 const decodeSSEEvent = Schema.decodeUnknownOption(
   Schema.parseJson(
     Schema.Struct({
-      type: Schema.Literal("todos", "reviews", "comments", "files"),
       data: Schema.optional(Schema.Unknown),
       timestamp: Schema.Number,
-    }),
-  ),
+      type: Schema.Literal("todos", "reviews", "comments", "files"),
+    })
+  )
 );
 
 interface UseEventSourceOptions {
@@ -32,11 +32,15 @@ export function useEventSource(options: UseEventSourceOptions = {}) {
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
 
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
+    if (!enabled || typeof window === "undefined") {
+      return;
+    }
 
     function connect() {
       const es = new EventSource(url);
@@ -53,13 +57,13 @@ export function useEventSource(options: UseEventSourceOptions = {}) {
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectTimeoutRef.current = null;
             connect();
-          }, 1_000);
+          }, 1000);
         }
       };
 
       es.onmessage = (event) => {
         Option.map(decodeSSEEvent(event.data), (data) =>
-          onEventRef.current?.(data),
+          onEventRef.current?.(data)
         );
       };
     }

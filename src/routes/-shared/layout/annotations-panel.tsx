@@ -1,17 +1,17 @@
-import { cn } from "@/lib/utils";
 import type { Comment } from "@/api/schemas/comment";
+import { cn } from "@/lib/utils";
 
 interface AnnotationsPanelProps {
-  comments: ReadonlyArray<Comment>;
+  comments: readonly Comment[];
   selectedFile: string | null;
   reviewId: string;
   isOpen: boolean;
 }
 
 function groupByFile(
-  comments: ReadonlyArray<Comment>,
-): ReadonlyArray<[filePath: string, comments: ReadonlyArray<Comment>]> {
-  const groups = new Map<string, Array<Comment>>();
+  comments: readonly Comment[]
+): readonly [filePath: string, comments: readonly Comment[]][] {
+  const groups = new Map<string, Comment[]>();
   for (const comment of comments) {
     const existing = groups.get(comment.filePath);
     if (existing) {
@@ -20,7 +20,7 @@ function groupByFile(
       groups.set(comment.filePath, [comment]);
     }
   }
-  return Array.from(groups.entries());
+  return [...groups.entries()];
 }
 
 function SpeechBubbleIcon() {
@@ -52,9 +52,12 @@ function EmptyState() {
   );
 }
 
-function CommentCard({ comment }: { comment: Comment }) {
+function CommentCard({ comment, index }: { comment: Comment; index: number }) {
   return (
-    <div className="flex flex-col gap-1 rounded border border-border-subtle bg-surface-elevated px-2.5 py-2">
+    <div
+      className="ringi-comment-card flex flex-col gap-1 rounded border border-border-subtle bg-surface-elevated px-2.5 py-2"
+      style={{ transitionDelay: `${index * 50}ms` }}
+    >
       {comment.lineNumber != null && (
         <span className="font-mono text-[10px] text-text-tertiary">
           L{comment.lineNumber}
@@ -75,32 +78,31 @@ function FileGroup({
   comments,
 }: {
   filePath: string;
-  comments: ReadonlyArray<Comment>;
+  comments: readonly Comment[];
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <span className="truncate font-mono text-[10px] text-text-tertiary">
         {filePath}
       </span>
-      {comments.map((comment) => (
-        <CommentCard key={comment.id} comment={comment} />
+      {comments.map((comment, index) => (
+        <CommentCard key={comment.id} comment={comment} index={index} />
       ))}
     </div>
   );
 }
 
-export function AnnotationsPanel({
-  comments,
-  isOpen,
-}: AnnotationsPanelProps) {
-  if (!isOpen) return null;
-
+export function AnnotationsPanel({ comments, isOpen }: AnnotationsPanelProps) {
   const groups = groupByFile(comments);
 
   return (
     <aside
+      aria-hidden={!isOpen}
       className={cn(
-        "flex w-64 shrink-0 flex-col border-l border-border-default bg-surface-secondary",
+        "ringi-annotations-panel flex w-64 shrink-0 flex-col overflow-hidden border-l border-border-default bg-surface-secondary",
+        isOpen
+          ? "translate-x-0 opacity-100"
+          : "pointer-events-none translate-x-full opacity-0"
       )}
     >
       {/* Header */}

@@ -1,20 +1,27 @@
-import { useMemo, useState, useCallback } from "react";
-import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import { RegistryProvider } from "@effect-atom/atom-react";
-import { TodoPanel } from "./-shared/todos/todo-panel";
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRoute,
+} from "@tanstack/react-router";
+import { useMemo, useState, useCallback } from "react";
+
 import { useKeyboardShortcuts } from "./-shared/hooks/use-keyboard-shortcuts";
+import { TodoPanel } from "./-shared/todos/todo-panel";
+
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
+  component: RootLayout,
   head: () => ({
+    links: [{ href: appCss, rel: "stylesheet" }],
     meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { charSet: "utf8" },
+      { content: "width=device-width, initial-scale=1", name: "viewport" },
       { title: "ringi" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
   }),
-  component: RootLayout,
   shellComponent: RootDocument,
 });
 
@@ -41,13 +48,11 @@ function RootLayout() {
   const shortcuts = useMemo(
     () => [
       {
-        key: "t",
         description: "Toggle Todos panel",
         handler: toggleTodos,
+        key: "t",
       },
       {
-        key: "?",
-        shift: true,
         description: "Show keyboard shortcuts",
         handler: () => {
           console.log(
@@ -56,12 +61,14 @@ function RootLayout() {
               "  ? — Show this help\n" +
               "  n — New review (on Changes/Reviews pages)\n" +
               "  r — Go to Reviews (on Changes page)\n" +
-              "  c — Go to Changes (on Reviews page)",
+              "  c — Go to Changes (on Reviews page)"
           );
         },
+        key: "?",
+        shift: true,
       },
     ],
-    [toggleTodos],
+    [toggleTodos]
   );
 
   // Skip global shortcuts when the todos panel is open (it has its own Escape handler)

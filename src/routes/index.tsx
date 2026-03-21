@@ -1,33 +1,33 @@
-import { useState, useCallback, useMemo, useRef } from "react";
-import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  useNavigate,
+  useRouter,
+} from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
-import { serverRuntime } from "./api/$";
-import { GitService } from "./api/-lib/services/git.service";
-import { parseDiff, getDiffSummary } from "./api/-lib/services/diff.service";
+import { useCallback, useMemo, useRef, useState } from "react";
+
+import { DiffView } from "./-shared/diff/diff-view";
+import { useEventSource } from "./-shared/hooks/use-event-source";
+import { useKeyboardShortcuts } from "./-shared/hooks/use-keyboard-shortcuts";
 import { ActionBar } from "./-shared/layout/action-bar";
 import { FileTree } from "./-shared/layout/file-tree";
-import { DiffView } from "./-shared/diff/diff-view";
-import { useKeyboardShortcuts } from "./-shared/hooks/use-keyboard-shortcuts";
-import { useEventSource } from "./-shared/hooks/use-event-source";
+import { serverRuntime } from "./api/$";
+import { getDiffSummary, parseDiff } from "./api/-lib/services/diff.service";
+import { GitService } from "./api/-lib/services/git.service";
 
-const loadStagedDiff = createServerFn({ method: "GET" }).handler(async () => {
-  return serverRuntime.runPromise(
-    Effect.gen(function* () {
+const loadStagedDiff = createServerFn({ method: "GET" }).handler(() =>
+  serverRuntime.runPromise(
+    Effect.gen(function* loadStagedDiff() {
       const git = yield* GitService;
       const diffText = yield* git.getStagedDiff;
       const files = parseDiff(diffText);
       const summary = getDiffSummary(files);
       const repository = yield* git.getRepositoryInfo;
-      return { files, summary, repository };
-    }),
-  );
-});
-
-export const Route = createFileRoute("/")({
-  loader: () => loadStagedDiff(),
-  component: StagedChangesPage,
-});
+      return { files, repository, summary };
+    })
+  )
+);
 
 function StagedChangesPage() {
   const data = Route.useLoaderData();
@@ -40,18 +40,27 @@ function StagedChangesPage() {
 
   const shortcuts = useMemo(
     () => [
-      { key: "n", description: "New review", handler: () => { window.location.href = "/reviews/new"; } },
-      { key: "r", description: "Go to Reviews", handler: () => navigate({ to: "/reviews" }) },
+      {
+        description: "New review",
+        handler: () => {
+          window.location.href = "/reviews/new";
+        },
+        key: "n",
+      },
+      {
+        description: "Go to Reviews",
+        handler: () => navigate({ to: "/reviews" }),
+        key: "r",
+      },
     ],
-    [navigate],
+    [navigate]
   );
   useKeyboardShortcuts(shortcuts);
 
   const scrollToFile = useCallback((path: string) => {
     setSelectedFile(path);
-    const el = document.getElementById(
-      `diff-file-${path.replace(/\//g, "-")}`,
-    );
+    const id = `diff-file-${path.replaceAll("/", "-")}`;
+    const el = document.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
     if (el && scrollContainerRef.current) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -71,7 +80,6 @@ function StagedChangesPage() {
       />
 
       <div className="flex min-h-0 flex-1">
-        {/* File tree — left column */}
         <FileTree
           files={data.files}
           selectedFile={selectedFile}
@@ -79,14 +87,23 @@ function StagedChangesPage() {
           groupLabel="Staged"
         />
 
-        {/* Diff view — center column */}
         <div
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto bg-surface-primary p-4"
         >
-          <DiffView files={data.files} summary={data.summary} diffMode={diffMode} selectedFile={selectedFile} />
+          <DiffView
+            files={data.files}
+            summary={data.summary}
+            diffMode={diffMode}
+            selectedFile={selectedFile}
+          />
         </div>
       </div>
     </div>
   );
 }
+
+export const Route = createFileRoute("/")({
+  component: StagedChangesPage,
+  loader: () => loadStagedDiff(),
+});

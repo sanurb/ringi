@@ -31,11 +31,11 @@
   --color-accent-muted: rgba(94, 92, 230, 0.15);
 
   /* Diff */
-  --color-diff-add-bg: rgba(46, 160, 67, 0.10);
-  --color-diff-add-border: rgba(46, 160, 67, 0.30);
+  --color-diff-add-bg: rgba(46, 160, 67, 0.1);
+  --color-diff-add-border: rgba(46, 160, 67, 0.3);
   --color-diff-add-text: #3fb950;
-  --color-diff-remove-bg: rgba(248, 81, 73, 0.10);
-  --color-diff-remove-border: rgba(248, 81, 73, 0.30);
+  --color-diff-remove-bg: rgba(248, 81, 73, 0.1);
+  --color-diff-remove-border: rgba(248, 81, 73, 0.3);
   --color-diff-remove-text: #f85149;
 
   /* Code surfaces */
@@ -43,7 +43,7 @@
   --color-code-gutter: #6b7280;
   --color-code-line-hover: rgba(255, 255, 255, 0.03);
   --color-code-line-active: rgba(255, 255, 255, 0.05);
-  --color-code-selection: rgba(94, 92, 230, 0.20);
+  --color-code-selection: rgba(94, 92, 230, 0.2);
 
   /* Diff — text emphasis (high-contrast text on tinted backgrounds) */
   --color-diff-add-text-emphasis: #56d364;
@@ -52,25 +52,91 @@
   /* Diff — line highlight (for Kibo code block internal diff classes) */
   --color-diff-add-line-bg: rgba(46, 160, 67, 0.08);
   --color-diff-remove-line-bg: rgba(248, 81, 73, 0.08);
-  --color-diff-highlight-bg: rgba(94, 92, 230, 0.10);
-  --color-diff-highlight-border: rgba(94, 92, 230, 0.40);
+  --color-diff-highlight-bg: rgba(94, 92, 230, 0.1);
+  --color-diff-highlight-border: rgba(94, 92, 230, 0.4);
 
   /* Status */
   --color-status-success: #3fb950;
   --color-status-warning: #d29922;
   --color-status-error: #f85149;
   --color-status-info: #58a6ff;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 body {
   @apply m-0 bg-surface-primary text-text-primary antialiased;
-  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    "Geist Variable",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
 }
 
 code {
-  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, monospace;
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", Menlo, monospace;
 }
 
+/* ─── Pierre Diffs: shadow-DOM theme overrides ──────────────────────────────── */
+:root {
+  --diffs-dark-bg: var(--color-code-bg);
+  --diffs-light-bg: var(--color-code-bg);
+  --diffs-dark: var(--color-text-primary);
+  --diffs-light: var(--color-text-primary);
+  --diffs-font-family:
+    "JetBrains Mono", "Fira Code", "SF Mono", Menlo, monospace;
+  --diffs-header-font-family:
+    "Geist Variable", -apple-system, BlinkMacSystemFont, sans-serif;
+  --diffs-font-size: 13px;
+  --diffs-line-height: 20px;
+  --diffs-added-dark: var(--color-diff-add-text);
+  --diffs-deleted-dark: var(--color-diff-remove-text);
+  --diffs-modified-dark: var(--color-status-info);
+  --diffs-tab-size: 2;
+  --diffs-bg-buffer-override: var(--color-surface-secondary);
+  --diffs-bg-hover-override: var(--color-code-line-hover);
+  --diffs-bg-context-override: var(--color-surface-elevated);
+  --diffs-bg-separator-override: var(--color-surface-secondary);
+  --diffs-fg-number-override: var(--color-text-secondary);
+  --diffs-bg-addition-override: var(--color-diff-add-bg);
+  --diffs-bg-addition-number-override: color-mix(
+    in srgb,
+    var(--color-diff-add-bg) 82%,
+    var(--color-code-bg)
+  );
+  --diffs-bg-addition-hover-override: color-mix(
+    in srgb,
+    var(--color-diff-add-bg) 88%,
+    var(--color-code-line-hover)
+  );
+  --diffs-bg-addition-emphasis-override: color-mix(
+    in srgb,
+    var(--color-diff-add-bg) 70%,
+    transparent
+  );
+  --diffs-bg-deletion-override: var(--color-diff-remove-bg);
+  --diffs-bg-deletion-number-override: color-mix(
+    in srgb,
+    var(--color-diff-remove-bg) 82%,
+    var(--color-code-bg)
+  );
+  --diffs-bg-deletion-hover-override: color-mix(
+    in srgb,
+    var(--color-diff-remove-bg) 88%,
+    var(--color-code-line-hover)
+  );
+  --diffs-bg-deletion-emphasis-override: color-mix(
+    in srgb,
+    var(--color-diff-remove-bg) 70%,
+    transparent
+  );
+  --diffs-bg-selection-override: var(--color-code-selection);
+  --diffs-bg-selection-number-override: color-mix(
+    in srgb,
+    var(--color-code-selection) 78%,
+    var(--color-code-bg)
+  );
+}
 /* ─── Shadcn CSS variable themes ─── */
 
 :root {
@@ -111,7 +177,7 @@ code {
 .dark {
   --background: oklch(0.07 0 0);
   --foreground: oklch(0.91 0 0);
-  --card: oklch(0.10 0 0);
+  --card: oklch(0.1 0 0);
   --card-foreground: oklch(0.91 0 0);
   --popover: oklch(0.13 0 0);
   --popover-foreground: oklch(0.91 0 0);
@@ -123,7 +189,7 @@ code {
   --muted-foreground: oklch(0.55 0 0);
   --accent: oklch(0.12 0 0);
   --accent-foreground: oklch(0.91 0 0);
-  --destructive: oklch(0.60 0.20 25);
+  --destructive: oklch(0.6 0.2 25);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 10%);
   --ring: oklch(0.55 0.15 275);
@@ -132,7 +198,7 @@ code {
   --chart-3: oklch(0.546 0.245 262.881);
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.10 0 0);
+  --sidebar: oklch(0.1 0 0);
   --sidebar-foreground: oklch(0.91 0 0);
   --sidebar-primary: oklch(0.55 0.15 275);
   --sidebar-primary-foreground: oklch(0.98 0 0);
@@ -144,7 +210,7 @@ code {
 
 /* ─── Tailwind v4 inline bridge: maps shadcn CSS vars to Tailwind utilities ─── */
 @theme inline {
-  --font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: "Geist Variable", -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* shadcn bridge */
   --color-background: var(--background);
@@ -198,5 +264,108 @@ code {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* ─── @pierre/diffs host-level theme overrides ─── */
+
+pierrediffs-file,
+pierrediffs-diff,
+[data-diff],
+[data-file] {
+  --diffs-dark-bg: #161618;
+  --diffs-light-bg: #161618;
+  --diffs-dark: #e8e8e8;
+  --diffs-light: #e8e8e8;
+  --diffs-font-family:
+    "JetBrains Mono", "Fira Code", "SF Mono", Menlo, monospace;
+  --diffs-header-font-family:
+    "Geist Variable", -apple-system, BlinkMacSystemFont, sans-serif;
+  --diffs-font-size: 13px;
+  --diffs-line-height: 20px;
+  --diffs-added-dark: #3fb950;
+  --diffs-deleted-dark: #f85149;
+  --diffs-modified-dark: #58a6ff;
+  --diffs-tab-size: 2;
+  --diffs-bg-hover-override: rgba(255, 255, 255, 0.03);
+  --diffs-bg-separator-override: #141414;
+  --diffs-bg-buffer-override: #0a0a0a;
+  --diffs-bg-context-override: #161618;
+  --diffs-gap-style: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ringi-annotations-panel {
+  transition-property: transform, opacity;
+  transition-duration: 200ms;
+  transition-timing-function: var(--ease-out);
+  will-change: transform, opacity;
+}
+
+.ringi-comment-card {
+  transition-property: transform, opacity;
+  transition-duration: 200ms;
+  transition-timing-function: var(--ease-out);
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.ringi-tree-item {
+  transition-property: background-color, border-color, opacity, transform;
+  transition-duration: 100ms;
+  transition-timing-function: var(--ease-out);
+}
+
+.ringi-tree-item:active {
+  transform: scale(0.97);
+}
+
+.ringi-disclosure-arrow {
+  transition-property: transform;
+  transition-duration: 150ms;
+  transition-timing-function: var(--ease-out);
+}
+
+.ringi-status-badge {
+  opacity: 0.9;
+  transition-property: transform, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ringi-tree-item:hover:not(.bg-accent-muted) {
+    background-color: var(--color-surface-elevated);
+  }
+
+  .ringi-file-tree-item:hover .ringi-status-badge {
+    opacity: 1;
+    transform: translateX(1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ringi-pierre-diff,
+  [data-diff],
+  [data-file] {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+
+  .ringi-annotations-panel,
+  .ringi-comment-card,
+  .ringi-disclosure-arrow,
+  .ringi-status-badge,
+  .ringi-tree-item {
+    transform: none !important;
+  }
+
+  .ringi-annotations-panel,
+  .ringi-comment-card,
+  .ringi-status-badge,
+  .ringi-tree-item {
+    transition-property: opacity, background-color, border-color !important;
   }
 }

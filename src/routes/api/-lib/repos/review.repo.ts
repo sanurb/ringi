@@ -25,14 +25,14 @@ interface ReviewRow {
 // ---------------------------------------------------------------------------
 
 const rowToReview = (row: ReviewRow): Review => ({
+  baseRef: row.base_ref,
+  createdAt: row.created_at,
   id: row.id as ReviewId,
   repositoryPath: row.repository_path,
-  baseRef: row.base_ref,
-  sourceType: row.source_type as Review["sourceType"],
-  sourceRef: row.source_ref,
   snapshotData: row.snapshot_data,
+  sourceRef: row.source_ref,
+  sourceType: row.source_type as Review["sourceType"],
   status: row.status as Review["status"],
-  createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
 
@@ -50,22 +50,22 @@ interface FindAllOpts {
 
 export class ReviewRepo extends Effect.Service<ReviewRepo>()("ReviewRepo", {
   dependencies: [SqliteService.Default],
-  effect: Effect.gen(function* () {
+  effect: Effect.gen(function* effect() {
     const { db } = yield* SqliteService;
 
     // Cached prepared statements for static queries
     const stmtFindById = db.prepare("SELECT * FROM reviews WHERE id = ?");
     const stmtInsert = db.prepare(
       `INSERT INTO reviews (id, repository_path, base_ref, source_type, source_ref, snapshot_data, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
     );
     const stmtUpdate = db.prepare(
-      `UPDATE reviews SET status = COALESCE(?, status), updated_at = datetime('now') WHERE id = ?`,
+      `UPDATE reviews SET status = COALESCE(?, status), updated_at = datetime('now') WHERE id = ?`
     );
     const stmtDelete = db.prepare("DELETE FROM reviews WHERE id = ?");
     const stmtCountAll = db.prepare("SELECT COUNT(*) as count FROM reviews");
     const stmtCountByStatus = db.prepare(
-      "SELECT COUNT(*) as count FROM reviews WHERE status = ?",
+      "SELECT COUNT(*) as count FROM reviews WHERE status = ?"
     );
 
     // ------------------------------------------------------------------
@@ -77,11 +77,11 @@ export class ReviewRepo extends Effect.Service<ReviewRepo>()("ReviewRepo", {
       });
 
     const findAll = (
-      opts: FindAllOpts = {},
-    ): Effect.Effect<{ data: ReadonlyArray<Review>; total: number }> =>
+      opts: FindAllOpts = {}
+    ): Effect.Effect<{ data: readonly Review[]; total: number }> =>
       Effect.sync(() => {
-        const conditions: Array<string> = [];
-        const params: Array<unknown> = [];
+        const conditions: string[] = [];
+        const params: unknown[] = [];
 
         if (opts.status != null) {
           conditions.push("status = ?");
@@ -105,13 +105,19 @@ export class ReviewRepo extends Effect.Service<ReviewRepo>()("ReviewRepo", {
 
         const totalRow = db
           .prepare(`SELECT COUNT(*) as count FROM reviews${where}`)
-          .get(...(params as Array<import("node:sqlite").SQLInputValue>)) as unknown as { count: number };
+          .get(
+            ...(params as import("node:sqlite").SQLInputValue[])
+          ) as unknown as { count: number };
 
         const rows = db
           .prepare(
-            `SELECT * FROM reviews${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+            `SELECT * FROM reviews${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`
           )
-          .all(...(params as Array<import("node:sqlite").SQLInputValue>), pageSize, offset) as unknown as Array<ReviewRow>;
+          .all(
+            ...(params as import("node:sqlite").SQLInputValue[]),
+            pageSize,
+            offset
+          ) as unknown as ReviewRow[];
 
         return { data: rows.map(rowToReview), total: totalRow.count };
       });
@@ -133,7 +139,7 @@ export class ReviewRepo extends Effect.Service<ReviewRepo>()("ReviewRepo", {
           input.sourceType,
           input.sourceRef,
           input.snapshotData,
-          input.status,
+          input.status
         );
         // Row guaranteed to exist after successful insert
         return rowToReview(stmtFindById.get(input.id) as unknown as ReviewRow);
@@ -141,7 +147,7 @@ export class ReviewRepo extends Effect.Service<ReviewRepo>()("ReviewRepo", {
 
     const update = (
       id: ReviewId,
-      status: string | null,
+      status: string | null
     ): Effect.Effect<Review | null> =>
       Effect.sync(() => {
         stmtUpdate.run(status, id);
@@ -168,13 +174,13 @@ export class ReviewRepo extends Effect.Service<ReviewRepo>()("ReviewRepo", {
       });
 
     return {
-      findById,
-      findAll,
-      create,
-      update,
-      remove,
       countAll,
       countByStatus,
+      create,
+      findAll,
+      findById,
+      remove,
+      update,
     } as const;
   }),
 }) {}

@@ -1,8 +1,8 @@
 import * as Schema from "effect/Schema";
 
 export const HealthResponse = Schema.Struct({
-  status: Schema.Literal("ok"),
   authRequired: Schema.Boolean,
+  status: Schema.Literal("ok"),
 });
 export type HealthResponse = typeof HealthResponse.Type;
 

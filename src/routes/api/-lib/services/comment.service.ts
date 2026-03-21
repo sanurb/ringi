@@ -22,22 +22,22 @@ export class CommentService extends Effect.Service<CommentService>()(
   "CommentService",
   {
     dependencies: [CommentRepo.Default],
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       // -----------------------------------------------------------------------
       // create
       // -----------------------------------------------------------------------
       const create = (reviewId: ReviewId, input: CreateCommentInput) =>
-        Effect.gen(function* () {
+        Effect.gen(function* create() {
           const repo = yield* CommentRepo;
           const id = randomUUID() as CommentId;
 
           return yield* repo.create({
-            id,
-            reviewId,
+            content: input.content,
             filePath: input.filePath,
+            id,
             lineNumber: input.lineNumber,
             lineType: input.lineType,
-            content: input.content,
+            reviewId,
             suggestion: input.suggestion,
           });
         });
@@ -46,10 +46,12 @@ export class CommentService extends Effect.Service<CommentService>()(
       // getById
       // -----------------------------------------------------------------------
       const getById = (id: CommentId) =>
-        Effect.gen(function* () {
+        Effect.gen(function* getById() {
           const repo = yield* CommentRepo;
           const comment = yield* repo.findById(id);
-          if (!comment) return yield* new CommentNotFound({ id });
+          if (!comment) {
+            return yield* new CommentNotFound({ id });
+          }
           return comment;
         });
 
@@ -57,7 +59,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // getByReview
       // -----------------------------------------------------------------------
       const getByReview = (reviewId: ReviewId) =>
-        Effect.gen(function* () {
+        Effect.gen(function* getByReview() {
           const repo = yield* CommentRepo;
           return yield* repo.findByReview(reviewId);
         });
@@ -66,7 +68,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // getByFile
       // -----------------------------------------------------------------------
       const getByFile = (reviewId: ReviewId, filePath: string) =>
-        Effect.gen(function* () {
+        Effect.gen(function* getByFile() {
           const repo = yield* CommentRepo;
           return yield* repo.findByFile(reviewId, filePath);
         });
@@ -75,7 +77,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // update
       // -----------------------------------------------------------------------
       const update = (id: CommentId, input: UpdateCommentInput) =>
-        Effect.gen(function* () {
+        Effect.gen(function* update() {
           const repo = yield* CommentRepo;
 
           const updates: { content?: string; suggestion?: string | null } = {};
@@ -87,7 +89,9 @@ export class CommentService extends Effect.Service<CommentService>()(
           }
 
           const comment = yield* repo.update(id, updates);
-          if (!comment) return yield* new CommentNotFound({ id });
+          if (!comment) {
+            return yield* new CommentNotFound({ id });
+          }
           return comment;
         });
 
@@ -95,18 +99,22 @@ export class CommentService extends Effect.Service<CommentService>()(
       // resolve / unresolve
       // -----------------------------------------------------------------------
       const resolve = (id: CommentId) =>
-        Effect.gen(function* () {
+        Effect.gen(function* resolve() {
           const repo = yield* CommentRepo;
           const comment = yield* repo.setResolved(id, true);
-          if (!comment) return yield* new CommentNotFound({ id });
+          if (!comment) {
+            return yield* new CommentNotFound({ id });
+          }
           return comment;
         });
 
       const unresolve = (id: CommentId) =>
-        Effect.gen(function* () {
+        Effect.gen(function* unresolve() {
           const repo = yield* CommentRepo;
           const comment = yield* repo.setResolved(id, false);
-          if (!comment) return yield* new CommentNotFound({ id });
+          if (!comment) {
+            return yield* new CommentNotFound({ id });
+          }
           return comment;
         });
 
@@ -114,10 +122,12 @@ export class CommentService extends Effect.Service<CommentService>()(
       // remove
       // -----------------------------------------------------------------------
       const remove = (id: CommentId) =>
-        Effect.gen(function* () {
+        Effect.gen(function* remove() {
           const repo = yield* CommentRepo;
           const existed = yield* repo.remove(id);
-          if (!existed) return yield* new CommentNotFound({ id });
+          if (!existed) {
+            return yield* new CommentNotFound({ id });
+          }
           return { success: true as const };
         });
 
@@ -125,7 +135,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // getStats
       // -----------------------------------------------------------------------
       const getStats = (reviewId: ReviewId) =>
-        Effect.gen(function* () {
+        Effect.gen(function* getStats() {
           const repo = yield* CommentRepo;
           return yield* repo.countByReview(reviewId);
         });
@@ -135,15 +145,15 @@ export class CommentService extends Effect.Service<CommentService>()(
       // -----------------------------------------------------------------------
       return {
         create,
+        getByFile,
         getById,
         getByReview,
-        getByFile,
-        update,
+        getStats,
+        remove,
         resolve,
         unresolve,
-        remove,
-        getStats,
+        update,
       } as const;
     }),
-  },
+  }
 ) {}

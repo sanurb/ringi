@@ -1,7 +1,9 @@
 import { useState, useCallback } from "react";
+
 import type { Comment } from "@/api/schemas/comment";
-import { CommentItem } from "./comment-item";
+
 import { CommentForm } from "./comment-form";
+import { CommentItem } from "./comment-item";
 
 export function CommentList({
   reviewId,
@@ -18,36 +20,35 @@ export function CommentList({
   const resolved = comments.filter((c) => c.resolved).length;
   const unresolved = comments.length - resolved;
 
-  const handleResolve = useCallback(
-    async (id: string) => {
-      const res = await fetch(`/api/comments/${id}/resolve`, { method: "POST" });
-      if (!res.ok) return;
-      setComments((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, resolved: true } : c)),
-      );
-    },
-    [],
-  );
+  const handleResolve = useCallback(async (id: string) => {
+    const res = await fetch(`/api/comments/${id}/resolve`, { method: "POST" });
+    if (!res.ok) {
+      return;
+    }
+    setComments((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, resolved: true } : c))
+    );
+  }, []);
 
-  const handleUnresolve = useCallback(
-    async (id: string) => {
-      const res = await fetch(`/api/comments/${id}/unresolve`, { method: "POST" });
-      if (!res.ok) return;
-      setComments((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, resolved: false } : c)),
-      );
-    },
-    [],
-  );
+  const handleUnresolve = useCallback(async (id: string) => {
+    const res = await fetch(`/api/comments/${id}/unresolve`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      return;
+    }
+    setComments((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, resolved: false } : c))
+    );
+  }, []);
 
-  const handleDelete = useCallback(
-    async (id: string) => {
-      const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
-      if (!res.ok) return;
-      setComments((prev) => prev.filter((c) => c.id !== id));
-    },
-    [],
-  );
+  const handleDelete = useCallback(async (id: string) => {
+    const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      return;
+    }
+    setComments((prev) => prev.filter((c) => c.id !== id));
+  }, []);
 
   const handleSubmit = useCallback((created: Comment) => {
     setComments((prev) => [...prev, created]);
@@ -59,8 +60,11 @@ export function CommentList({
   for (const c of comments) {
     const key = c.lineNumber != null ? `L${c.lineNumber}` : "file";
     const arr = grouped.get(key);
-    if (arr) arr.push(c);
-    else grouped.set(key, [c]);
+    if (arr) {
+      arr.push(c);
+    } else {
+      grouped.set(key, [c]);
+    }
   }
 
   return (

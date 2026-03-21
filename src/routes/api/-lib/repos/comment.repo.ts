@@ -27,15 +27,15 @@ interface CommentRow {
 // ---------------------------------------------------------------------------
 
 const rowToComment = (row: CommentRow): Comment => ({
-  id: row.id as CommentId,
-  reviewId: row.review_id as ReviewId,
+  content: row.content,
+  createdAt: row.created_at,
   filePath: row.file_path,
+  id: row.id as CommentId,
   lineNumber: row.line_number,
   lineType: row.line_type as Comment["lineType"],
-  content: row.content,
-  suggestion: row.suggestion,
   resolved: row.resolved === 1,
-  createdAt: row.created_at,
+  reviewId: row.review_id as ReviewId,
+  suggestion: row.suggestion,
   updatedAt: row.updated_at,
 });
 
@@ -45,25 +45,27 @@ const rowToComment = (row: CommentRow): Comment => ({
 
 export class CommentRepo extends Effect.Service<CommentRepo>()("CommentRepo", {
   dependencies: [SqliteService.Default],
-  effect: Effect.gen(function* () {
+  effect: Effect.gen(function* effect() {
     const { db } = yield* SqliteService;
 
     // Cached prepared statements for static queries
     const stmtFindById = db.prepare("SELECT * FROM comments WHERE id = ?");
     const stmtFindByReview = db.prepare(
-      "SELECT * FROM comments WHERE review_id = ? ORDER BY created_at ASC",
+      "SELECT * FROM comments WHERE review_id = ? ORDER BY created_at ASC"
     );
     const stmtFindByFile = db.prepare(
-      "SELECT * FROM comments WHERE review_id = ? AND file_path = ? ORDER BY line_number ASC, created_at ASC",
+      "SELECT * FROM comments WHERE review_id = ? AND file_path = ? ORDER BY line_number ASC, created_at ASC"
     );
     const stmtInsert = db.prepare(
       `INSERT INTO comments (id, review_id, file_path, line_number, line_type, content, suggestion, resolved, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))`
     );
     const stmtDelete = db.prepare("DELETE FROM comments WHERE id = ?");
-    const stmtDeleteByReview = db.prepare("DELETE FROM comments WHERE review_id = ?");
+    const stmtDeleteByReview = db.prepare(
+      "DELETE FROM comments WHERE review_id = ?"
+    );
     const stmtSetResolved = db.prepare(
-      "UPDATE comments SET resolved = ?, updated_at = datetime('now') WHERE id = ?",
+      "UPDATE comments SET resolved = ?, updated_at = datetime('now') WHERE id = ?"
     );
     const stmtCountByReview = db.prepare(
       `SELECT
@@ -71,7 +73,7 @@ export class CommentRepo extends Effect.Service<CommentRepo>()("CommentRepo", {
          SUM(CASE WHEN resolved = 1 THEN 1 ELSE 0 END) as resolved,
          SUM(CASE WHEN resolved = 0 THEN 1 ELSE 0 END) as unresolved,
          SUM(CASE WHEN suggestion IS NOT NULL THEN 1 ELSE 0 END) as with_suggestions
-       FROM comments WHERE review_id = ?`,
+       FROM comments WHERE review_id = ?`
     );
 
     // ------------------------------------------------------------------
@@ -82,18 +84,23 @@ export class CommentRepo extends Effect.Service<CommentRepo>()("CommentRepo", {
         return row ? rowToComment(row) : null;
       });
 
-    const findByReview = (reviewId: ReviewId): Effect.Effect<ReadonlyArray<Comment>> =>
+    const findByReview = (
+      reviewId: ReviewId
+    ): Effect.Effect<readonly Comment[]> =>
       Effect.sync(() => {
-        const rows = stmtFindByReview.all(reviewId) as unknown as Array<CommentRow>;
+        const rows = stmtFindByReview.all(reviewId) as unknown as CommentRow[];
         return rows.map(rowToComment);
       });
 
     const findByFile = (
       reviewId: ReviewId,
-      filePath: string,
-    ): Effect.Effect<ReadonlyArray<Comment>> =>
+      filePath: string
+    ): Effect.Effect<readonly Comment[]> =>
       Effect.sync(() => {
-        const rows = stmtFindByFile.all(reviewId, filePath) as unknown as Array<CommentRow>;
+        const rows = stmtFindByFile.all(
+          reviewId,
+          filePath
+        ) as unknown as CommentRow[];
         return rows.map(rowToComment);
       });
 
@@ -114,18 +121,20 @@ export class CommentRepo extends Effect.Service<CommentRepo>()("CommentRepo", {
           input.lineNumber,
           input.lineType,
           input.content,
-          input.suggestion,
+          input.suggestion
         );
-        return rowToComment(stmtFindById.get(input.id) as unknown as CommentRow);
+        return rowToComment(
+          stmtFindById.get(input.id) as unknown as CommentRow
+        );
       });
 
     const update = (
       id: CommentId,
-      updates: { content?: string; suggestion?: string | null },
+      updates: { content?: string; suggestion?: string | null }
     ): Effect.Effect<Comment | null> =>
       Effect.sync(() => {
-        const setClauses: Array<string> = [];
-        const params: Array<unknown> = [];
+        const setClauses: string[] = [];
+        const params: unknown[] = [];
 
         if (updates.content !== undefined) {
           setClauses.push("content = ?");
@@ -145,14 +154,17 @@ export class CommentRepo extends Effect.Service<CommentRepo>()("CommentRepo", {
         params.push(id);
 
         db.prepare(
-          `UPDATE comments SET ${setClauses.join(", ")} WHERE id = ?`,
-        ).run(...(params as Array<import("node:sqlite").SQLInputValue>));
+          `UPDATE comments SET ${setClauses.join(", ")} WHERE id = ?`
+        ).run(...(params as import("node:sqlite").SQLInputValue[]));
 
         const row = stmtFindById.get(id) as CommentRow | undefined;
         return row ? rowToComment(row) : null;
       });
 
-    const setResolved = (id: CommentId, resolved: boolean): Effect.Effect<Comment | null> =>
+    const setResolved = (
+      id: CommentId,
+      resolved: boolean
+    ): Effect.Effect<Comment | null> =>
       Effect.sync(() => {
         stmtSetResolved.run(resolved ? 1 : 0, id);
         const row = stmtFindById.get(id) as CommentRow | undefined;
@@ -172,8 +184,13 @@ export class CommentRepo extends Effect.Service<CommentRepo>()("CommentRepo", {
       });
 
     const countByReview = (
-      reviewId: ReviewId,
-    ): Effect.Effect<{ total: number; resolved: number; unresolved: number; withSuggestions: number }> =>
+      reviewId: ReviewId
+    ): Effect.Effect<{
+      total: number;
+      resolved: number;
+      unresolved: number;
+      withSuggestions: number;
+    }> =>
       Effect.sync(() => {
         const row = stmtCountByReview.get(reviewId) as unknown as {
           total: number;
@@ -182,23 +199,23 @@ export class CommentRepo extends Effect.Service<CommentRepo>()("CommentRepo", {
           with_suggestions: number;
         };
         return {
-          total: row.total,
           resolved: row.resolved,
+          total: row.total,
           unresolved: row.unresolved,
           withSuggestions: row.with_suggestions,
         };
       });
 
     return {
+      countByReview,
+      create,
+      findByFile,
       findById,
       findByReview,
-      findByFile,
-      create,
-      update,
-      setResolved,
       remove,
       removeByReview,
-      countByReview,
+      setResolved,
+      update,
     } as const;
   }),
 }) {}

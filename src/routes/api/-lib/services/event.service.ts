@@ -1,10 +1,11 @@
+import { platform } from "node:os";
+import { relative } from "node:path";
+
+import chokidar from "chokidar";
 import * as Effect from "effect/Effect";
+import * as Queue from "effect/Queue";
 import * as Runtime from "effect/Runtime";
 import * as Stream from "effect/Stream";
-import * as Queue from "effect/Queue";
-import chokidar from "chokidar";
-import { relative } from "node:path";
-import { platform } from "node:os";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,7 +27,7 @@ export interface SSEEvent {
 export class EventService extends Effect.Service<EventService>()(
   "EventService",
   {
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       const rt = yield* Effect.runtime<never>();
       const runFork = Runtime.runFork(rt);
       const subscribers = new Set<Queue.Queue<SSEEvent>>();
@@ -34,8 +35,8 @@ export class EventService extends Effect.Service<EventService>()(
       // -- broadcast ---------------------------------------------------------
 
       const broadcast = (type: EventType, data?: unknown) =>
-        Effect.gen(function* () {
-          const event: SSEEvent = { type, data, timestamp: Date.now() };
+        Effect.gen(function* broadcast() {
+          const event: SSEEvent = { data, timestamp: Date.now(), type };
           for (const queue of subscribers) {
             yield* Queue.offer(queue, event);
           }
@@ -44,7 +45,7 @@ export class EventService extends Effect.Service<EventService>()(
       // -- subscribe ---------------------------------------------------------
 
       const subscribe = () =>
-        Effect.gen(function* () {
+        Effect.gen(function* subscribe() {
           const queue = yield* Queue.sliding<SSEEvent>(100);
           subscribers.add(queue);
 
@@ -65,6 +66,7 @@ export class EventService extends Effect.Service<EventService>()(
             let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
             const watcher = chokidar.watch(repoPath, {
+              ignoreInitial: true,
               ignored: [
                 "**/node_modules/**",
                 "**/.git/**",
@@ -72,14 +74,15 @@ export class EventService extends Effect.Service<EventService>()(
                 "**/dist/**",
               ],
               persistent: true,
-              ignoreInitial: true,
               ...(platform() === "darwin"
-                ? { usePolling: true, interval: 1000 }
+                ? { interval: 1000, usePolling: true }
                 : {}),
             });
 
             const debouncedBroadcast = (filePath: string) => {
-              if (debounceTimer) clearTimeout(debounceTimer);
+              if (debounceTimer) {
+                clearTimeout(debounceTimer);
+              }
               debounceTimer = setTimeout(() => {
                 const rel = relative(repoPath, filePath);
                 runFork(broadcast("files", { path: rel }));
@@ -92,8 +95,7 @@ export class EventService extends Effect.Service<EventService>()(
 
             return watcher;
           }),
-          (watcher) =>
-            Effect.promise(() => watcher.close()),
+          (watcher) => Effect.promise(() => watcher.close())
         );
 
       // -- client count ------------------------------------------------------
@@ -102,10 +104,10 @@ export class EventService extends Effect.Service<EventService>()(
 
       return {
         broadcast,
-        subscribe,
-        startFileWatcher,
         getClientCount,
+        startFileWatcher,
+        subscribe,
       } as const;
     }),
-  },
+  }
 ) {}

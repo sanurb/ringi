@@ -23,12 +23,12 @@ interface TodoRow {
 // ---------------------------------------------------------------------------
 
 const rowToTodo = (row: TodoRow): Todo => ({
-  id: row.id as TodoId,
-  content: row.content,
   completed: row.completed === 1,
-  reviewId: row.review_id as Todo["reviewId"],
-  position: row.position,
+  content: row.content,
   createdAt: row.created_at,
+  id: row.id as TodoId,
+  position: row.position,
+  reviewId: row.review_id as Todo["reviewId"],
   updatedAt: row.updated_at,
 });
 
@@ -45,30 +45,28 @@ interface FindAllOpts {
 
 export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
   dependencies: [SqliteService.Default],
-  effect: Effect.gen(function* () {
+  effect: Effect.gen(function* effect() {
     const { db } = yield* SqliteService;
 
     // Cached prepared statements for static queries
     const stmtFindById = db.prepare("SELECT * FROM todos WHERE id = ?");
     const stmtInsert = db.prepare(
       `INSERT INTO todos (id, content, completed, review_id, position, created_at, updated_at)
-       VALUES (?, ?, 0, ?, ?, datetime('now'), datetime('now'))`,
+       VALUES (?, ?, 0, ?, ?, datetime('now'), datetime('now'))`
     );
     const stmtDelete = db.prepare("DELETE FROM todos WHERE id = ?");
     const stmtDeleteCompleted = db.prepare(
-      "DELETE FROM todos WHERE completed = 1",
+      "DELETE FROM todos WHERE completed = 1"
     );
     const stmtNextPosition = db.prepare(
-      "SELECT COALESCE(MAX(position), -1) + 1 AS next_pos FROM todos",
+      "SELECT COALESCE(MAX(position), -1) + 1 AS next_pos FROM todos"
     );
-    const stmtCountAll = db.prepare(
-      "SELECT COUNT(*) as count FROM todos",
-    );
+    const stmtCountAll = db.prepare("SELECT COUNT(*) as count FROM todos");
     const stmtCountCompleted = db.prepare(
-      "SELECT COUNT(*) as count FROM todos WHERE completed = 1",
+      "SELECT COUNT(*) as count FROM todos WHERE completed = 1"
     );
     const stmtCountPending = db.prepare(
-      "SELECT COUNT(*) as count FROM todos WHERE completed = 0",
+      "SELECT COUNT(*) as count FROM todos WHERE completed = 0"
     );
 
     // ------------------------------------------------------------------
@@ -80,11 +78,11 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
       });
 
     const findAll = (
-      opts: FindAllOpts = {},
-    ): Effect.Effect<{ data: ReadonlyArray<Todo>; total: number }> =>
+      opts: FindAllOpts = {}
+    ): Effect.Effect<{ data: readonly Todo[]; total: number }> =>
       Effect.sync(() => {
-        const conditions: Array<string> = [];
-        const params: Array<unknown> = [];
+        const conditions: string[] = [];
+        const params: unknown[] = [];
 
         if (opts.reviewId != null) {
           conditions.push("review_id = ?");
@@ -100,10 +98,11 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
 
         const totalRow = db
           .prepare(`SELECT COUNT(*) as count FROM todos${where}`)
-          .get(...(params as Array<import("node:sqlite").SQLInputValue>)) as unknown as { count: number };
+          .get(
+            ...(params as import("node:sqlite").SQLInputValue[])
+          ) as unknown as { count: number };
 
-        const limitClause =
-          opts.limit != null ? ` LIMIT ? OFFSET ?` : "";
+        const limitClause = opts.limit != null ? ` LIMIT ? OFFSET ?` : "";
         const queryParams =
           opts.limit != null
             ? [...params, opts.limit, opts.offset ?? 0]
@@ -111,9 +110,11 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
 
         const rows = db
           .prepare(
-            `SELECT * FROM todos${where} ORDER BY position ASC${limitClause}`,
+            `SELECT * FROM todos${where} ORDER BY position ASC${limitClause}`
           )
-          .all(...(queryParams as Array<import("node:sqlite").SQLInputValue>)) as unknown as Array<TodoRow>;
+          .all(
+            ...(queryParams as import("node:sqlite").SQLInputValue[])
+          ) as unknown as TodoRow[];
 
         return { data: rows.map(rowToTodo), total: totalRow.count };
       });
@@ -133,11 +134,11 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
 
     const update = (
       id: TodoId,
-      updates: { content?: string; completed?: boolean },
+      updates: { content?: string; completed?: boolean }
     ): Effect.Effect<Todo | null> =>
       Effect.sync(() => {
-        const sets: Array<string> = [];
-        const params: Array<unknown> = [];
+        const sets: string[] = [];
+        const params: unknown[] = [];
 
         if (updates.content != null) {
           sets.push("content = ?");
@@ -156,9 +157,9 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
         sets.push("updated_at = datetime('now')");
         params.push(id);
 
-        db.prepare(
-          `UPDATE todos SET ${sets.join(", ")} WHERE id = ?`,
-        ).run(...(params as Array<import("node:sqlite").SQLInputValue>));
+        db.prepare(`UPDATE todos SET ${sets.join(", ")} WHERE id = ?`).run(
+          ...(params as import("node:sqlite").SQLInputValue[])
+        );
 
         const row = stmtFindById.get(id) as TodoRow | undefined;
         return row ? rowToTodo(row) : null;
@@ -167,16 +168,16 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
     const toggle = (id: TodoId): Effect.Effect<Todo | null> =>
       Effect.sync(() => {
         const row = stmtFindById.get(id) as TodoRow | undefined;
-        if (!row) return null;
+        if (!row) {
+          return null;
+        }
 
         const newCompleted = row.completed === 1 ? 0 : 1;
         db.prepare(
-          "UPDATE todos SET completed = ?, updated_at = datetime('now') WHERE id = ?",
+          "UPDATE todos SET completed = ?, updated_at = datetime('now') WHERE id = ?"
         ).run(newCompleted, id);
 
-        return rowToTodo(
-          stmtFindById.get(id) as unknown as TodoRow,
-        );
+        return rowToTodo(stmtFindById.get(id) as unknown as TodoRow);
       });
 
     const remove = (id: TodoId): Effect.Effect<boolean> =>
@@ -191,14 +192,12 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
         return Number(result.changes);
       });
 
-    const reorder = (
-      orderedIds: ReadonlyArray<string>,
-    ): Effect.Effect<number> =>
+    const reorder = (orderedIds: readonly string[]): Effect.Effect<number> =>
       withTransaction(
         db,
         Effect.sync(() => {
           const stmt = db.prepare(
-            "UPDATE todos SET position = ?, updated_at = datetime('now') WHERE id = ?",
+            "UPDATE todos SET position = ?, updated_at = datetime('now') WHERE id = ?"
           );
           let updated = 0;
           for (let i = 0; i < orderedIds.length; i++) {
@@ -206,16 +205,18 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
             updated += Number(result.changes);
           }
           return updated;
-        }),
+        })
       );
 
     const move = (
       id: TodoId,
-      newPosition: number,
+      newPosition: number
     ): Effect.Effect<Todo | null> =>
-      Effect.gen(function* () {
+      Effect.gen(function* move() {
         const row = stmtFindById.get(id) as TodoRow | undefined;
-        if (!row) return null;
+        if (!row) {
+          return null;
+        }
 
         const oldPosition = row.position;
 
@@ -224,18 +225,18 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
           Effect.sync(() => {
             if (newPosition < oldPosition) {
               db.prepare(
-                "UPDATE todos SET position = position + 1, updated_at = datetime('now') WHERE position >= ? AND position < ? AND id != ?",
+                "UPDATE todos SET position = position + 1, updated_at = datetime('now') WHERE position >= ? AND position < ? AND id != ?"
               ).run(newPosition, oldPosition, id);
             } else if (newPosition > oldPosition) {
               db.prepare(
-                "UPDATE todos SET position = position - 1, updated_at = datetime('now') WHERE position > ? AND position <= ? AND id != ?",
+                "UPDATE todos SET position = position - 1, updated_at = datetime('now') WHERE position > ? AND position <= ? AND id != ?"
               ).run(oldPosition, newPosition, id);
             }
 
             db.prepare(
-              "UPDATE todos SET position = ?, updated_at = datetime('now') WHERE id = ?",
+              "UPDATE todos SET position = ?, updated_at = datetime('now') WHERE id = ?"
             ).run(newPosition, id);
-          }),
+          })
         );
 
         return rowToTodo(stmtFindById.get(id) as unknown as TodoRow);
@@ -260,18 +261,18 @@ export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
       });
 
     return {
-      findById,
-      findAll,
-      create,
-      update,
-      toggle,
-      remove,
-      removeCompleted,
-      reorder,
-      move,
       countAll,
       countCompleted,
       countPending,
+      create,
+      findAll,
+      findById,
+      move,
+      remove,
+      removeCompleted,
+      reorder,
+      toggle,
+      update,
     } as const;
   }),
 }) {}

@@ -8,24 +8,25 @@ import * as Layer from "effect/Layer";
 import { hasProperty } from "effect/Predicate";
 import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
+
 import { DomainApi } from "./domain-api";
 import { DomainRpc } from "./domain-rpc";
 
 export const addRpcErrorLogging = <Client>(client: Client): Client => {
   const isStream = (
-    u: unknown,
+    u: unknown
   ): u is Stream.Stream<unknown, unknown, unknown> =>
     hasProperty(u, Stream.StreamTypeId);
 
-  const wrapCall = <F extends (...args: Array<any>) => any>(
+  const wrapCall = <F extends (...args: never[]) => unknown>(
     fn: F,
-    path: ReadonlyArray<string>,
+    path: readonly string[]
   ): F => {
     const rpcId = path.join(".");
     const logCause = (cause: unknown) =>
       Effect.logError(`[API] ${rpcId} failed`, cause);
 
-    return function (
+    return function wrappedCall(
       this: ThisParameterType<F>,
       ...args: Parameters<F>
     ): ReturnType<F> {
@@ -36,11 +37,11 @@ export const addRpcErrorLogging = <Client>(client: Client): Client => {
       if (isStream(result)) {
         return result.pipe(Stream.tapErrorCause(logCause)) as ReturnType<F>;
       }
-      return result;
+      return result as ReturnType<F>;
     } as F;
   };
 
-  const visit = (node: unknown, path: ReadonlyArray<string>) => {
+  const visit = (node: unknown, path: readonly string[]) => {
     if (node && typeof node === "object") {
       for (const [key, value] of Object.entries(node)) {
         const nextPath = [...path, key];
@@ -58,17 +59,17 @@ export const addRpcErrorLogging = <Client>(client: Client): Client => {
 };
 
 const getBaseUrl = (): string =>
-  typeof window !== "undefined"
-    ? window.location.origin
-    : "http://localhost:3000";
+  typeof window === "undefined"
+    ? "http://localhost:3000"
+    : window.location.origin;
 
 const RpcConfigLive = RpcClient.layerProtocolHttp({
-  url: getBaseUrl() + "/api/rpc",
+  url: `${getBaseUrl()}/api/rpc`,
 }).pipe(Layer.provide([FetchHttpClient.layer, RpcSerialization.layerNdjson]));
 
 export class ApiClient extends Effect.Service<ApiClient>()("ApiClient", {
   dependencies: [RpcConfigLive, FetchHttpClient.layer],
-  scoped: Effect.gen(function* () {
+  scoped: Effect.gen(function* scoped() {
     const rpcClient = yield* RpcClient.make(DomainRpc);
 
     const httpClient = yield* HttpApiClient.make(DomainApi, {
@@ -77,15 +78,15 @@ export class ApiClient extends Effect.Service<ApiClient>()("ApiClient", {
         client.pipe(
           HttpClient.filterStatusOk,
           HttpClient.retryTransient({
-            times: 3,
             schedule: Schedule.exponential("1 second"),
-          }),
+            times: 3,
+          })
         ),
     });
 
     return {
-      rpc: addRpcErrorLogging(rpcClient),
       http: httpClient,
+      rpc: addRpcErrorLogging(rpcClient),
     };
   }),
 }) {}

@@ -5,6 +5,7 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
+import type { DiffFile, DiffHunk } from "@/api/schemas/diff";
 import type {
   CreateReviewInput,
   ReviewId,
@@ -12,12 +13,15 @@ import type {
   UpdateReviewInput,
 } from "@/api/schemas/review";
 import { ReviewNotFound } from "@/api/schemas/review";
-import type { DiffFile, DiffHunk } from "@/api/schemas/diff";
 
+import {
+  ReviewFileRepo,
+  parseHunks,
+  serializeHunks,
+} from "../repos/review-file.repo";
 import { ReviewRepo } from "../repos/review.repo";
-import { ReviewFileRepo, parseHunks, serializeHunks } from "../repos/review-file.repo";
-import { GitService } from "./git.service";
 import { parseDiff, getDiffSummary } from "./diff.service";
+import { GitService } from "./git.service";
 
 // ---------------------------------------------------------------------------
 // Error
@@ -25,8 +29,8 @@ import { parseDiff, getDiffSummary } from "./diff.service";
 
 export class ReviewError extends Schema.TaggedError<ReviewError>()(
   "ReviewError",
-  { message: Schema.String, code: Schema.String },
-  HttpApiSchema.annotations({ status: 400 }),
+  { code: Schema.String, message: Schema.String },
+  HttpApiSchema.annotations({ status: 400 })
 ) {}
 
 // ---------------------------------------------------------------------------
@@ -36,6 +40,8 @@ export class ReviewError extends Schema.TaggedError<ReviewError>()(
 /** Get HEAD SHA via git rev-parse. */
 const getHeadSha = (repoPath: string) =>
   Effect.tryPromise({
+    catch: () =>
+      new ReviewError({ code: "GIT_ERROR", message: "Failed to get HEAD" }),
     try: () =>
       new Promise<string>((resolve, reject) => {
         execFile(
@@ -43,19 +49,21 @@ const getHeadSha = (repoPath: string) =>
           ["rev-parse", "HEAD"],
           { cwd: repoPath },
           (err, stdout) => {
-            if (err) reject(err);
-            else resolve(stdout.trim());
-          },
+            if (err) {
+              reject(err);
+            } else {
+              resolve(stdout.trim());
+            }
+          }
         );
       }),
-    catch: () => new ReviewError({ message: "Failed to get HEAD", code: "GIT_ERROR" }),
   });
 
-type SnapshotData = {
+interface SnapshotData {
   repository?: Record<string, unknown>;
-  files?: Array<DiffFile>;
+  files?: DiffFile[];
   version?: number;
-};
+}
 
 /**
  * Parse snapshotData JSON. Handles both v1 and v2 formats gracefully.
@@ -64,7 +72,7 @@ type SnapshotData = {
  */
 const parseSnapshotData = (s: string): Effect.Effect<SnapshotData> =>
   Effect.try(() => JSON.parse(s) as SnapshotData).pipe(
-    Effect.orElseSucceed((): SnapshotData => ({})),
+    Effect.orElseSucceed((): SnapshotData => ({}))
   );
 
 // ---------------------------------------------------------------------------
@@ -75,13 +83,17 @@ const parseSnapshotData = (s: string): Effect.Effect<SnapshotData> =>
 export class ReviewService extends Effect.Service<ReviewService>()(
   "ReviewService",
   {
-    dependencies: [ReviewRepo.Default, ReviewFileRepo.Default, GitService.Default],
-    effect: Effect.gen(function* () {
+    dependencies: [
+      ReviewRepo.Default,
+      ReviewFileRepo.Default,
+      GitService.Default,
+    ],
+    effect: Effect.gen(function* effect() {
       // -----------------------------------------------------------------------
       // create
       // -----------------------------------------------------------------------
       const create = (input: CreateReviewInput) =>
-        Effect.gen(function* () {
+        Effect.gen(function* create() {
           const git = yield* GitService;
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
@@ -89,7 +101,10 @@ export class ReviewService extends Effect.Service<ReviewService>()(
           const repoPath = yield* git.getRepositoryPath;
           const hasCommitsResult = yield* git.hasCommits;
           if (!hasCommitsResult) {
-            return yield* new ReviewError({ message: "Repository has no commits", code: "NO_COMMITS" });
+            return yield* new ReviewError({
+              code: "NO_COMMITS",
+              message: "Repository has no commits",
+            });
           }
 
           let diffText: string;
@@ -100,14 +115,20 @@ export class ReviewService extends Effect.Service<ReviewService>()(
             case "staged": {
               diffText = yield* git.getStagedDiff;
               if (!diffText.trim()) {
-                return yield* new ReviewError({ message: "No staged changes", code: "NO_STAGED_CHANGES" });
+                return yield* new ReviewError({
+                  code: "NO_STAGED_CHANGES",
+                  message: "No staged changes",
+                });
               }
               baseRef = yield* getHeadSha(repoPath);
               break;
             }
             case "branch": {
               if (!sourceRef) {
-                return yield* new ReviewError({ message: "Branch name required", code: "INVALID_SOURCE" });
+                return yield* new ReviewError({
+                  code: "INVALID_SOURCE",
+                  message: "Branch name required",
+                });
               }
               diffText = yield* git.getBranchDiff(sourceRef);
               baseRef = sourceRef;
@@ -115,24 +136,33 @@ export class ReviewService extends Effect.Service<ReviewService>()(
             }
             case "commits": {
               if (!sourceRef) {
-                return yield* new ReviewError({ message: "Commit SHAs required", code: "INVALID_SOURCE" });
+                return yield* new ReviewError({
+                  code: "INVALID_SOURCE",
+                  message: "Commit SHAs required",
+                });
               }
               const shas = sourceRef
                 .split(",")
                 .map((s) => s.trim())
                 .filter(Boolean);
               if (shas.length === 0) {
-                return yield* new ReviewError({ message: "No valid commit SHAs", code: "INVALID_SOURCE" });
+                return yield* new ReviewError({
+                  code: "INVALID_SOURCE",
+                  message: "No valid commit SHAs",
+                });
               }
               diffText = yield* git.getCommitDiff(shas);
-              baseRef = shas[shas.length - 1] ?? null;
+              baseRef = shas.at(-1) ?? null;
               break;
             }
           }
 
           const files = parseDiff(diffText);
           if (files.length === 0) {
-            return yield* new ReviewError({ message: "No changes found", code: "NO_CHANGES" });
+            return yield* new ReviewError({
+              code: "NO_CHANGES",
+              message: "No changes found",
+            });
           }
 
           const repoInfo = yield* git.getRepositoryInfo;
@@ -140,24 +170,29 @@ export class ReviewService extends Effect.Service<ReviewService>()(
           const storeHunks = sourceType === "staged";
 
           const fileInputs = files.map((f) => ({
-            reviewId,
-            filePath: f.newPath,
-            oldPath: f.oldPath !== f.newPath ? f.oldPath : null,
-            status: f.status,
             additions: f.additions,
             deletions: f.deletions,
-            hunksData: storeHunks ? serializeHunks(f.hunks as Array<DiffHunk>) : null,
+            filePath: f.newPath,
+            hunksData: storeHunks
+              ? serializeHunks(f.hunks as DiffHunk[])
+              : null,
+            oldPath: f.oldPath !== f.newPath ? f.oldPath : null,
+            reviewId,
+            status: f.status,
           }));
 
-          const snapshotData = JSON.stringify({ repository: repoInfo, version: 2 });
+          const snapshotData = JSON.stringify({
+            repository: repoInfo,
+            version: 2,
+          });
 
           const review = yield* repo.create({
+            baseRef,
             id: reviewId,
             repositoryPath: repoPath,
-            baseRef,
-            sourceType,
-            sourceRef: sourceRef ?? null,
             snapshotData,
+            sourceRef: sourceRef ?? null,
+            sourceType,
             status: "in_progress",
           });
 
@@ -176,7 +211,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
         repositoryPath?: string;
         sourceType?: string;
       }) =>
-        Effect.gen(function* () {
+        Effect.gen(function* list() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
 
@@ -186,9 +221,9 @@ export class ReviewService extends Effect.Service<ReviewService>()(
           const result = yield* repo.findAll({
             page,
             pageSize,
-            status: opts.status,
             repositoryPath: opts.repositoryPath,
             sourceType: opts.sourceType,
+            status: opts.status,
           });
 
           const reviews = [];
@@ -203,11 +238,11 @@ export class ReviewService extends Effect.Service<ReviewService>()(
           }
 
           return {
-            reviews,
-            total: result.total,
+            hasMore: page * pageSize < result.total,
             page,
             pageSize,
-            hasMore: page * pageSize < result.total,
+            reviews,
+            total: result.total,
           };
         });
 
@@ -215,41 +250,43 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // getById
       // -----------------------------------------------------------------------
       const getById = (id: ReviewId) =>
-        Effect.gen(function* () {
+        Effect.gen(function* getById() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
 
           const review = yield* repo.findById(id);
-          if (!review) return yield* new ReviewNotFound({ id });
+          if (!review) {
+            return yield* new ReviewNotFound({ id });
+          }
 
           // findByReview returns metadata rows (snake_case from DB)
           const fileRows = yield* fileRepo.findByReview(id);
           const files = fileRows.map((r) => ({
-            id: r.id,
-            filePath: r.file_path,
-            oldPath: r.old_path,
-            status: r.status,
             additions: r.additions,
             deletions: r.deletions,
+            filePath: r.file_path,
+            id: r.id,
+            oldPath: r.old_path,
+            status: r.status,
           }));
 
           const snapshot = yield* parseSnapshotData(review.snapshotData);
           const summary = getDiffSummary(
             files.map((f) => ({
-              oldPath: f.oldPath ?? f.filePath,
-              newPath: f.filePath,
-              status: f.status as DiffFile["status"],
               additions: f.additions,
               deletions: f.deletions,
               hunks: [],
-            })),
+              newPath: f.filePath,
+              oldPath: f.oldPath ?? f.filePath,
+              status: f.status as DiffFile["status"],
+            }))
           );
 
           return {
             ...review,
             files,
-            summary,
             repository: snapshot.repository ?? null,
+            summary,
           };
         });
 
@@ -257,16 +294,21 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // getFileHunks — lazy load hunks for a single file
       // -----------------------------------------------------------------------
       const getFileHunks = (reviewId: ReviewId, filePath: string) =>
-        Effect.gen(function* () {
+        Effect.gen(function* getFileHunks() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
           const git = yield* GitService;
 
           const review = yield* repo.findById(reviewId);
-          if (!review) return yield* new ReviewNotFound({ id: reviewId });
+          if (!review) {
+            return yield* new ReviewNotFound({ id: reviewId });
+          }
 
           // Staged reviews store hunks in DB
-          const fileRecord = yield* fileRepo.findByReviewAndPath(reviewId, filePath);
+          const fileRecord = yield* fileRepo.findByReviewAndPath(
+            reviewId,
+            filePath
+          );
           if (fileRecord?.hunks_data) {
             return yield* parseHunks(fileRecord.hunks_data);
           }
@@ -276,7 +318,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
             const diff = yield* git.getBranchDiff(review.sourceRef);
             const diffFiles = parseDiff(diff);
             const file = diffFiles.find((f) => f.newPath === filePath);
-            return (file?.hunks ?? []) as Array<DiffHunk>;
+            return (file?.hunks ?? []) as DiffHunk[];
           }
 
           // Commits reviews: regenerate from git
@@ -285,32 +327,38 @@ export class ReviewService extends Effect.Service<ReviewService>()(
             const diff = yield* git.getCommitDiff(shas);
             const diffFiles = parseDiff(diff);
             const file = diffFiles.find((f) => f.newPath === filePath);
-            return (file?.hunks ?? []) as Array<DiffHunk>;
+            return (file?.hunks ?? []) as DiffHunk[];
           }
 
           // Legacy v1 fallback — hunks were embedded in snapshotData
           const snapshot = yield* parseSnapshotData(review.snapshotData);
           if (snapshot.files) {
-            const legacyFile = snapshot.files.find((f) => f.newPath === filePath);
-            return (legacyFile?.hunks ?? []) as Array<DiffHunk>;
+            const legacyFile = snapshot.files.find(
+              (f) => f.newPath === filePath
+            );
+            return (legacyFile?.hunks ?? []) as DiffHunk[];
           }
 
-          return [] as Array<DiffHunk>;
+          return [] as DiffHunk[];
         });
 
       // -----------------------------------------------------------------------
       // update
       // -----------------------------------------------------------------------
       const update = (id: ReviewId, input: UpdateReviewInput) =>
-        Effect.gen(function* () {
+        Effect.gen(function* update() {
           const repo = yield* ReviewRepo;
 
           const existing = yield* repo.findById(id);
-          if (!existing) return yield* new ReviewNotFound({ id });
+          if (!existing) {
+            return yield* new ReviewNotFound({ id });
+          }
 
           const status = Option.getOrNull(input.status);
           const review = yield* repo.update(id, status);
-          if (!review) return yield* new ReviewNotFound({ id });
+          if (!review) {
+            return yield* new ReviewNotFound({ id });
+          }
 
           return review;
         });
@@ -319,12 +367,14 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // remove
       // -----------------------------------------------------------------------
       const remove = (id: ReviewId) =>
-        Effect.gen(function* () {
+        Effect.gen(function* remove() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
 
           const existing = yield* repo.findById(id);
-          if (!existing) return yield* new ReviewNotFound({ id });
+          if (!existing) {
+            return yield* new ReviewNotFound({ id });
+          }
 
           yield* fileRepo.deleteByReview(id);
           yield* repo.remove(id);
@@ -335,7 +385,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // -----------------------------------------------------------------------
       // getStats
       // -----------------------------------------------------------------------
-      const getStats = Effect.gen(function* () {
+      const getStats = Effect.gen(function* getStats() {
         const repo = yield* ReviewRepo;
 
         const total = yield* repo.countAll();
@@ -343,7 +393,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
         const approved = yield* repo.countByStatus("approved");
         const changesRequested = yield* repo.countByStatus("changes_requested");
 
-        return { total, inProgress, approved, changesRequested };
+        return { approved, changesRequested, inProgress, total };
       });
 
       // -----------------------------------------------------------------------
@@ -351,13 +401,13 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // -----------------------------------------------------------------------
       return {
         create,
-        list,
         getById,
         getFileHunks,
-        update,
-        remove,
         getStats,
+        list,
+        remove,
+        update,
       } as const;
     }),
-  },
+  }
 ) {}

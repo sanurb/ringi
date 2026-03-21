@@ -1,10 +1,11 @@
-import { useState } from "react";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
-import { clientRuntime } from "@/lib/client-runtime";
+import { useState } from "react";
+
 import { ApiClient } from "@/api/api-client";
-import type { ReviewId } from "@/api/schemas/review";
 import type { Comment } from "@/api/schemas/comment";
+import type { ReviewId } from "@/api/schemas/review";
+import { clientRuntime } from "@/lib/client-runtime";
 
 export function CommentForm({
   reviewId,
@@ -28,20 +29,23 @@ export function CommentForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      return;
+    }
 
     setSubmitting(true);
     clientRuntime.runFork(
-      Effect.gen(function* () {
+      Effect.gen(function* handleSubmit() {
         const { http } = yield* ApiClient;
         return yield* http.comments.create({
           path: { reviewId: reviewId as ReviewId },
           payload: {
+            content: content.trim(),
             filePath,
             lineNumber: lineNumber ?? null,
             lineType: (lineType ?? null) as Comment["lineType"],
-            content: content.trim(),
-            suggestion: showSuggestion && suggestion.trim() ? suggestion.trim() : null,
+            suggestion:
+              showSuggestion && suggestion.trim() ? suggestion.trim() : null,
           },
         });
       }).pipe(
@@ -51,13 +55,13 @@ export function CommentForm({
             setContent("");
             setSuggestion("");
             setShowSuggestion(false);
-          }),
+          })
         ),
         Effect.tapErrorCause((cause) =>
-          Effect.logError("Failed to create comment", Cause.pretty(cause)),
+          Effect.logError("Failed to create comment", Cause.pretty(cause))
         ),
-        Effect.ensuring(Effect.sync(() => setSubmitting(false))),
-      ),
+        Effect.ensuring(Effect.sync(() => setSubmitting(false)))
+      )
     );
   };
 

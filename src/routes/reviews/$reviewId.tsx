@@ -1,21 +1,26 @@
-import { useState, useCallback, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
-import { serverRuntime } from "../api/$";
-import { ReviewService } from "../api/-lib/services/review.service";
-import { CommentService } from "../api/-lib/services/comment.service";
-import { clientRuntime } from "@/lib/client-runtime";
+import { useState, useCallback, useRef } from "react";
+
 import { ApiClient } from "@/api/api-client";
-import { ActionBar } from "../-shared/layout/action-bar";
-import { FileTree } from "../-shared/layout/file-tree";
-import { AnnotationsPanel } from "../-shared/layout/annotations-panel";
-import { DiffView } from "../-shared/diff/diff-view";
 import type { Comment } from "@/api/schemas/comment";
-import type { DiffFile as DiffFileType, DiffSummary as DiffSummaryType } from "@/api/schemas/diff";
+import type {
+  DiffFile as DiffFileType,
+  DiffSummary as DiffSummaryType,
+} from "@/api/schemas/diff";
 import { ReviewId } from "@/api/schemas/review";
 import type { ReviewStatus } from "@/api/schemas/review";
+import { clientRuntime } from "@/lib/client-runtime";
+
+import { DiffView } from "../-shared/diff/diff-view";
+import { ActionBar } from "../-shared/layout/action-bar";
+import { AnnotationsPanel } from "../-shared/layout/annotations-panel";
+import { FileTree } from "../-shared/layout/file-tree";
+import { serverRuntime } from "../api/$";
+import { CommentService } from "../api/-lib/services/comment.service";
+import { ReviewService } from "../api/-lib/services/review.service";
 
 // ---------------------------------------------------------------------------
 // Server function
@@ -39,23 +44,25 @@ interface ReviewDetailData {
   status: string;
   createdAt: string;
   updatedAt: string;
-  files: ReadonlyArray<ReviewFileItem>;
+  files: readonly ReviewFileItem[];
   summary: DiffSummaryType;
   repository: string | null;
-  comments: ReadonlyArray<Comment>;
+  comments: readonly Comment[];
   commentStats: { total: number; resolved: number; unresolved: number };
 }
 
 const loadReview = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => {
     const obj = d as Record<string, unknown>;
-    if (typeof obj?.reviewId !== 'string') throw new Error('reviewId required');
+    if (typeof obj?.reviewId !== "string") {
+      throw new TypeError("reviewId required");
+    }
     return { reviewId: obj.reviewId };
   })
   .handler(async ({ data }): Promise<ReviewDetailData> => {
     const id = ReviewId.make(data.reviewId);
     const result = await serverRuntime.runPromise(
-      Effect.gen(function* () {
+      Effect.gen(function* result() {
         const reviewSvc = yield* ReviewService;
         const commentSvc = yield* CommentService;
 
@@ -63,29 +70,18 @@ const loadReview = createServerFn({ method: "GET" })
         const comments = yield* commentSvc.getByReview(id);
         const commentStats = yield* commentSvc.getStats(id);
 
-        return { ...review, comments, commentStats };
-      }),
+        return { ...review, commentStats, comments };
+      })
     );
     return JSON.parse(JSON.stringify(result));
   });
-
-// ---------------------------------------------------------------------------
-// Route
-// ---------------------------------------------------------------------------
-
-export const Route = createFileRoute("/reviews/$reviewId")({
-  loader: ({ params }) => loadReview({ data: { reviewId: params.reviewId } }),
-  component: ReviewDetailPage,
-  errorComponent: ReviewError,
-});
 
 // ---------------------------------------------------------------------------
 // Error component
 // ---------------------------------------------------------------------------
 
 function ReviewError({ error }: { error: unknown }) {
-  const message =
-    error instanceof Error ? error.message : "Review not found";
+  const message = error instanceof Error ? error.message : "Review not found";
   return (
     <div className="flex h-full items-center justify-center">
       <div className="rounded-sm border border-border-default bg-surface-elevated p-8 text-center">
@@ -107,7 +103,7 @@ function ReviewError({ error }: { error: unknown }) {
 // ---------------------------------------------------------------------------
 
 const updateStatus = (reviewId: string, status: string) =>
-  Effect.gen(function* () {
+  Effect.gen(function* updateReviewStatus() {
     const { http } = yield* ApiClient;
     return yield* http.reviews.update({
       path: { id: ReviewId.make(reviewId) },
@@ -116,7 +112,7 @@ const updateStatus = (reviewId: string, status: string) =>
   });
 
 const exportMarkdown = (reviewId: string) =>
-  Effect.gen(function* () {
+  Effect.gen(function* exportReviewMarkdown() {
     const { http } = yield* ApiClient;
     return yield* http.export.markdown({
       path: { id: ReviewId.make(reviewId) },
@@ -127,7 +123,7 @@ const exportMarkdown = (reviewId: string) =>
 // Page
 // ---------------------------------------------------------------------------
 
-function ReviewDetailPage() {
+const ReviewDetailPage = () => {
   const data = Route.useLoaderData();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [status, setStatus] = useState(data.status);
@@ -137,8 +133,8 @@ function ReviewDetailPage() {
 
   const scrollToFile = useCallback((path: string) => {
     setSelectedFile(path);
-    const el = document.getElementById(
-      `diff-file-${path.replace(/\//g, "-")}`,
+    const el = document.querySelector<HTMLElement>(
+      `#${CSS.escape(`diff-file-${path.replaceAll("/", "-")}`)}`
     );
     if (el && scrollContainerRef.current) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -151,12 +147,12 @@ function ReviewDetailPage() {
         updateStatus(data.id, newStatus).pipe(
           Effect.tap(() => Effect.sync(() => setStatus(newStatus))),
           Effect.tapErrorCause((cause) =>
-            Effect.logError("Failed to update review status", cause),
-          ),
-        ),
+            Effect.logError("Failed to update review status", cause)
+          )
+        )
       );
     },
-    [data.id],
+    [data.id]
   );
 
   const toggleDiffMode = useCallback(() => {
@@ -179,22 +175,24 @@ function ReviewDetailPage() {
             a.download = `review-${data.id}.md`;
             a.click();
             URL.revokeObjectURL(url);
-          }),
+          })
         ),
-        Effect.catchAllCause(() => Effect.void),
-      ),
+        Effect.catchAllCause(() => Effect.void)
+      )
     );
   }, [data.id]);
 
   // Build DiffFile array from metadata (hunks empty — loaded lazily by DiffFile)
-  const diffFiles: ReadonlyArray<DiffFileType> = data.files.map((f: ReviewFileItem) => ({
-    oldPath: f.oldPath ?? f.filePath,
-    newPath: f.filePath,
-    status: f.status as DiffFileType["status"],
-    additions: f.additions,
-    deletions: f.deletions,
-    hunks: [],
-  }));
+  const diffFiles: readonly DiffFileType[] = data.files.map(
+    (f: ReviewFileItem) => ({
+      additions: f.additions,
+      deletions: f.deletions,
+      hunks: [],
+      newPath: f.filePath,
+      oldPath: f.oldPath ?? f.filePath,
+      status: f.status as DiffFileType["status"],
+    })
+  );
 
   const diffSummary: DiffSummaryType = data.summary;
 
@@ -210,6 +208,7 @@ function ReviewDetailPage() {
         diffMode={diffMode}
         onToggleDiffMode={toggleDiffMode}
         commentCount={data.commentStats.total}
+        isAnnotationsOpen={annotationsOpen}
         onToggleAnnotations={toggleAnnotations}
         onExport={handleExport}
       />
@@ -227,7 +226,14 @@ function ReviewDetailPage() {
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto bg-surface-primary p-4"
         >
-          <DiffView files={diffFiles} summary={diffSummary} reviewId={data.id} diffMode={diffMode} selectedFile={selectedFile} />
+          <DiffView
+            files={diffFiles}
+            summary={diffSummary}
+            reviewId={data.id}
+            diffMode={diffMode}
+            selectedFile={selectedFile}
+            comments={data.comments}
+          />
         </div>
 
         {/* Annotations — right column */}
@@ -240,4 +246,14 @@ function ReviewDetailPage() {
       </div>
     </div>
   );
-}
+};
+
+// ---------------------------------------------------------------------------
+// Route
+// ---------------------------------------------------------------------------
+
+export const Route = createFileRoute("/reviews/$reviewId")({
+  component: ReviewDetailPage,
+  errorComponent: ReviewError,
+  loader: ({ params }) => loadReview({ data: { reviewId: params.reviewId } }),
+});

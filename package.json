@@ -7,7 +7,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check": "ultracite check",
+    "fix": "ultracite fix",
+    "prepare": "lefthook install"
   },
   "dependencies": {
     "@effect-atom/atom": "^0.4.8",
@@ -17,6 +20,7 @@
     "@effect/platform-browser": "^0.73.0",
     "@effect/rpc": "^0.72.2",
     "@fontsource-variable/geist": "^5.2.8",
+    "@pierre/diffs": "^1.1.3",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@shikijs/transformers": "^4.0.2",
     "@tailwindcss/vite": "^4.0.6",
@@ -52,7 +56,11 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
     "jsdom": "^27.0.0",
+    "lefthook": "^2.1.4",
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0",
     "typescript": "^5.7.2",
+    "ultracite": "7.3.2",
     "vite": "^7.1.7",
     "vitest": "^3.0.5",
     "web-vitals": "^5.1.0"

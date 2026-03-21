@@ -16,7 +16,9 @@ export function useKeyboardShortcuts(shortcuts: Shortcut[]) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+        return;
+      }
 
       for (const shortcut of shortcuts) {
         if (
