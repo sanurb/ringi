@@ -2,6 +2,10 @@ node_modules
 .DS_Store
 dist
 dist-ssr
+/build/
+/api/
+/server/build
+/public/build
 *.local
 count.txt
 .env
