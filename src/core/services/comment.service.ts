@@ -24,119 +24,130 @@ export class CommentService extends Effect.Service<CommentService>()(
       // -----------------------------------------------------------------------
       // create
       // -----------------------------------------------------------------------
-      const create = (reviewId: ReviewId, input: CreateCommentInput) =>
-        Effect.gen(function* create() {
-          const repo = yield* CommentRepo;
-          const id = randomUUID() as CommentId;
+      const create = Effect.fn("CommentService.create")(function* create(
+        reviewId: ReviewId,
+        input: CreateCommentInput
+      ) {
+        const repo = yield* CommentRepo;
+        const id = randomUUID() as CommentId;
 
-          return yield* repo.create({
-            content: input.content,
-            filePath: input.filePath,
-            id,
-            lineNumber: input.lineNumber,
-            lineType: input.lineType,
-            reviewId,
-            suggestion: input.suggestion,
-          });
+        return yield* repo.create({
+          content: input.content,
+          filePath: input.filePath,
+          id,
+          lineNumber: input.lineNumber,
+          lineType: input.lineType,
+          reviewId,
+          suggestion: input.suggestion,
         });
+      });
 
       // -----------------------------------------------------------------------
       // getById
       // -----------------------------------------------------------------------
-      const getById = (id: CommentId) =>
-        Effect.gen(function* getById() {
-          const repo = yield* CommentRepo;
-          const comment = yield* repo.findById(id);
-          if (!comment) {
-            return yield* new CommentNotFound({ id });
-          }
-          return comment;
-        });
+      const getById = Effect.fn("CommentService.getById")(function* getById(
+        id: CommentId
+      ) {
+        const repo = yield* CommentRepo;
+        const comment = yield* repo.findById(id);
+        if (!comment) {
+          return yield* new CommentNotFound({ id });
+        }
+        return comment;
+      });
 
       // -----------------------------------------------------------------------
       // getByReview
       // -----------------------------------------------------------------------
-      const getByReview = (reviewId: ReviewId) =>
-        Effect.gen(function* getByReview() {
+      const getByReview = Effect.fn("CommentService.getByReview")(
+        function* getByReview(reviewId: ReviewId) {
           const repo = yield* CommentRepo;
           return yield* repo.findByReview(reviewId);
-        });
+        }
+      );
 
       // -----------------------------------------------------------------------
       // getByFile
       // -----------------------------------------------------------------------
-      const getByFile = (reviewId: ReviewId, filePath: string) =>
-        Effect.gen(function* getByFile() {
+      const getByFile = Effect.fn("CommentService.getByFile")(
+        function* getByFile(reviewId: ReviewId, filePath: string) {
           const repo = yield* CommentRepo;
           return yield* repo.findByFile(reviewId, filePath);
-        });
+        }
+      );
 
       // -----------------------------------------------------------------------
       // update
       // -----------------------------------------------------------------------
-      const update = (id: CommentId, input: UpdateCommentInput) =>
-        Effect.gen(function* update() {
-          const repo = yield* CommentRepo;
+      const update = Effect.fn("CommentService.update")(function* update(
+        id: CommentId,
+        input: UpdateCommentInput
+      ) {
+        const repo = yield* CommentRepo;
 
-          const updates: { content?: string; suggestion?: string | null } = {};
-          if (Option.isSome(input.content)) {
-            updates.content = input.content.value;
-          }
-          if (Option.isSome(input.suggestion)) {
-            updates.suggestion = input.suggestion.value;
-          }
+        const updates: { content?: string; suggestion?: string | null } = {};
+        if (Option.isSome(input.content)) {
+          updates.content = input.content.value;
+        }
+        if (Option.isSome(input.suggestion)) {
+          updates.suggestion = input.suggestion.value;
+        }
 
-          const comment = yield* repo.update(id, updates);
-          if (!comment) {
-            return yield* new CommentNotFound({ id });
-          }
-          return comment;
-        });
+        const comment = yield* repo.update(id, updates);
+        if (!comment) {
+          return yield* new CommentNotFound({ id });
+        }
+        return comment;
+      });
 
       // -----------------------------------------------------------------------
       // resolve / unresolve
       // -----------------------------------------------------------------------
-      const resolve = (id: CommentId) =>
-        Effect.gen(function* resolve() {
-          const repo = yield* CommentRepo;
-          const comment = yield* repo.setResolved(id, true);
-          if (!comment) {
-            return yield* new CommentNotFound({ id });
-          }
-          return comment;
-        });
+      const resolve = Effect.fn("CommentService.resolve")(function* resolve(
+        id: CommentId
+      ) {
+        const repo = yield* CommentRepo;
+        const comment = yield* repo.setResolved(id, true);
+        if (!comment) {
+          return yield* new CommentNotFound({ id });
+        }
+        return comment;
+      });
 
-      const unresolve = (id: CommentId) =>
-        Effect.gen(function* unresolve() {
+      const unresolve = Effect.fn("CommentService.unresolve")(
+        function* unresolve(id: CommentId) {
           const repo = yield* CommentRepo;
           const comment = yield* repo.setResolved(id, false);
           if (!comment) {
             return yield* new CommentNotFound({ id });
           }
           return comment;
-        });
+        }
+      );
 
       // -----------------------------------------------------------------------
       // remove
       // -----------------------------------------------------------------------
-      const remove = (id: CommentId) =>
-        Effect.gen(function* remove() {
-          const repo = yield* CommentRepo;
-          const existed = yield* repo.remove(id);
-          if (!existed) {
-            return yield* new CommentNotFound({ id });
-          }
-          return { success: true as const };
-        });
+      const remove = Effect.fn("CommentService.remove")(function* remove(
+        id: CommentId
+      ) {
+        const repo = yield* CommentRepo;
+        const existed = yield* repo.remove(id);
+        if (!existed) {
+          return yield* new CommentNotFound({ id });
+        }
+        return { success: true as const };
+      });
 
       // -----------------------------------------------------------------------
       // getStats
       // -----------------------------------------------------------------------
-      const getStats = (reviewId: ReviewId) =>
-        Effect.gen(function* getStats() {
-          const repo = yield* CommentRepo;
-          return yield* repo.countByReview(reviewId);
-        });
+      const getStats = Effect.fn("CommentService.getStats")(function* getStats(
+        reviewId: ReviewId
+      ) {
+        const repo = yield* CommentRepo;
+        return yield* repo.countByReview(reviewId);
+      });
 
       // -----------------------------------------------------------------------
       // Public interface

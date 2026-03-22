@@ -91,215 +91,214 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // -----------------------------------------------------------------------
       // create
       // -----------------------------------------------------------------------
-      const create = (input: CreateReviewInput) =>
-        Effect.gen(function* create() {
-          const git = yield* GitService;
-          const repo = yield* ReviewRepo;
-          const fileRepo = yield* ReviewFileRepo;
+      const create = Effect.fn("ReviewService.create")(function* create(
+        input: CreateReviewInput
+      ) {
+        const git = yield* GitService;
+        const repo = yield* ReviewRepo;
+        const fileRepo = yield* ReviewFileRepo;
 
-          const repoPath = yield* git.getRepositoryPath;
-          const hasCommitsResult = yield* git.hasCommits;
-          if (!hasCommitsResult) {
-            return yield* new ReviewError({
-              code: "NO_COMMITS",
-              message: "Repository has no commits",
-            });
-          }
+        const repoPath = yield* git.getRepositoryPath;
+        const hasCommitsResult = yield* git.hasCommits;
+        if (!hasCommitsResult) {
+          return yield* new ReviewError({
+            code: "NO_COMMITS",
+            message: "Repository has no commits",
+          });
+        }
 
-          let diffText: string;
-          let baseRef: string | null = null;
-          const { sourceType, sourceRef } = input;
+        let diffText: string;
+        let baseRef: string | null = null;
+        const { sourceType, sourceRef } = input;
 
-          switch (sourceType) {
-            case "staged": {
-              diffText = yield* git.getStagedDiff;
-              if (!diffText.trim()) {
-                return yield* new ReviewError({
-                  code: "NO_STAGED_CHANGES",
-                  message: "No staged changes",
-                });
-              }
-              baseRef = yield* getHeadSha(repoPath);
-              break;
-            }
-            case "branch": {
-              if (!sourceRef) {
-                return yield* new ReviewError({
-                  code: "INVALID_SOURCE",
-                  message: "Branch name required",
-                });
-              }
-              diffText = yield* git.getBranchDiff(sourceRef);
-              baseRef = sourceRef;
-              break;
-            }
-            case "commits": {
-              if (!sourceRef) {
-                return yield* new ReviewError({
-                  code: "INVALID_SOURCE",
-                  message: "Commit SHAs required",
-                });
-              }
-              const shas = sourceRef
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean);
-              if (shas.length === 0) {
-                return yield* new ReviewError({
-                  code: "INVALID_SOURCE",
-                  message: "No valid commit SHAs",
-                });
-              }
-              diffText = yield* git.getCommitDiff(shas);
-              baseRef = shas.at(-1) ?? null;
-              break;
-            }
-            default: {
+        switch (sourceType) {
+          case "staged": {
+            diffText = yield* git.getStagedDiff;
+            if (!diffText.trim()) {
               return yield* new ReviewError({
-                code: "INVALID_SOURCE",
-                message: "Unsupported review source",
+                code: "NO_STAGED_CHANGES",
+                message: "No staged changes",
               });
             }
+            baseRef = yield* getHeadSha(repoPath);
+            break;
           }
-
-          const files = parseDiff(diffText);
-          if (files.length === 0) {
+          case "branch": {
+            if (!sourceRef) {
+              return yield* new ReviewError({
+                code: "INVALID_SOURCE",
+                message: "Branch name required",
+              });
+            }
+            diffText = yield* git.getBranchDiff(sourceRef);
+            baseRef = sourceRef;
+            break;
+          }
+          case "commits": {
+            if (!sourceRef) {
+              return yield* new ReviewError({
+                code: "INVALID_SOURCE",
+                message: "Commit SHAs required",
+              });
+            }
+            const shas = sourceRef
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+            if (shas.length === 0) {
+              return yield* new ReviewError({
+                code: "INVALID_SOURCE",
+                message: "No valid commit SHAs",
+              });
+            }
+            diffText = yield* git.getCommitDiff(shas);
+            baseRef = shas.at(-1) ?? null;
+            break;
+          }
+          default: {
             return yield* new ReviewError({
-              code: "NO_CHANGES",
-              message: "No changes found",
+              code: "INVALID_SOURCE",
+              message: "Unsupported review source",
             });
           }
+        }
 
-          const repoInfo = yield* git.getRepositoryInfo;
-          const reviewId = crypto.randomUUID() as ReviewId;
-          const storeHunks = sourceType === "staged";
-
-          const fileInputs = files.map((f) => ({
-            additions: f.additions,
-            deletions: f.deletions,
-            filePath: f.newPath,
-            hunksData: storeHunks
-              ? serializeHunks(f.hunks as DiffHunk[])
-              : null,
-            oldPath: f.oldPath !== f.newPath ? f.oldPath : null,
-            reviewId,
-            status: f.status,
-          }));
-
-          const snapshotData = JSON.stringify({
-            repository: repoInfo,
-            version: 2,
+        const files = parseDiff(diffText);
+        if (files.length === 0) {
+          return yield* new ReviewError({
+            code: "NO_CHANGES",
+            message: "No changes found",
           });
+        }
 
-          const review = yield* repo.create({
-            baseRef,
-            id: reviewId,
-            repositoryPath: repoPath,
-            snapshotData,
-            sourceRef: sourceRef ?? null,
-            sourceType,
-            status: "in_progress",
-          });
+        const repoInfo = yield* git.getRepositoryInfo;
+        const reviewId = crypto.randomUUID() as ReviewId;
+        const storeHunks = sourceType === "staged";
 
-          yield* fileRepo.createBulk(fileInputs);
+        const fileInputs = files.map((f) => ({
+          additions: f.additions,
+          deletions: f.deletions,
+          filePath: f.newPath,
+          hunksData: storeHunks ? serializeHunks(f.hunks as DiffHunk[]) : null,
+          oldPath: f.oldPath !== f.newPath ? f.oldPath : null,
+          reviewId,
+          status: f.status,
+        }));
 
-          return review;
+        const snapshotData = JSON.stringify({
+          repository: repoInfo,
+          version: 2,
         });
+
+        const review = yield* repo.create({
+          baseRef,
+          id: reviewId,
+          repositoryPath: repoPath,
+          snapshotData,
+          sourceRef: sourceRef ?? null,
+          sourceType,
+          status: "in_progress",
+        });
+
+        yield* fileRepo.createBulk(fileInputs);
+
+        return review;
+      });
 
       // -----------------------------------------------------------------------
       // list
       // -----------------------------------------------------------------------
-      const list = (opts: {
+      const list = Effect.fn("ReviewService.list")(function* list(opts: {
         page?: number;
         pageSize?: number;
         status?: ReviewStatus;
         repositoryPath?: string;
         sourceType?: string;
-      }) =>
-        Effect.gen(function* list() {
-          const repo = yield* ReviewRepo;
-          const fileRepo = yield* ReviewFileRepo;
+      }) {
+        const repo = yield* ReviewRepo;
+        const fileRepo = yield* ReviewFileRepo;
 
-          const page = opts.page ?? 1;
-          const pageSize = opts.pageSize ?? 20;
+        const page = opts.page ?? 1;
+        const pageSize = opts.pageSize ?? 20;
 
-          const result = yield* repo.findAll({
-            page,
-            pageSize,
-            repositoryPath: opts.repositoryPath,
-            sourceType: opts.sourceType,
-            status: opts.status,
-          });
-
-          const reviews = [];
-          for (const review of result.data) {
-            const fileCount = yield* fileRepo.countByReview(review.id);
-            const snapshot = yield* parseSnapshotData(review.snapshotData);
-            reviews.push({
-              ...review,
-              fileCount,
-              repository: snapshot.repository ?? null,
-            });
-          }
-
-          return {
-            hasMore: page * pageSize < result.total,
-            page,
-            pageSize,
-            reviews,
-            total: result.total,
-          };
+        const result = yield* repo.findAll({
+          page,
+          pageSize,
+          repositoryPath: opts.repositoryPath,
+          sourceType: opts.sourceType,
+          status: opts.status,
         });
+
+        const reviews = [];
+        for (const review of result.data) {
+          const fileCount = yield* fileRepo.countByReview(review.id);
+          const snapshot = yield* parseSnapshotData(review.snapshotData);
+          reviews.push({
+            ...review,
+            fileCount,
+            repository: snapshot.repository ?? null,
+          });
+        }
+
+        return {
+          hasMore: page * pageSize < result.total,
+          page,
+          pageSize,
+          reviews,
+          total: result.total,
+        };
+      });
 
       // -----------------------------------------------------------------------
       // getById
       // -----------------------------------------------------------------------
-      const getById = (id: ReviewId) =>
-        Effect.gen(function* getById() {
-          const repo = yield* ReviewRepo;
-          const fileRepo = yield* ReviewFileRepo;
+      const getById = Effect.fn("ReviewService.getById")(function* getById(
+        id: ReviewId
+      ) {
+        const repo = yield* ReviewRepo;
+        const fileRepo = yield* ReviewFileRepo;
 
-          const review = yield* repo.findById(id);
-          if (!review) {
-            return yield* new ReviewNotFound({ id });
-          }
+        const review = yield* repo.findById(id);
+        if (!review) {
+          return yield* new ReviewNotFound({ id });
+        }
 
-          // findByReview returns metadata rows (snake_case from DB)
-          const fileRows = yield* fileRepo.findByReview(id);
-          const files = fileRows.map((r) => ({
-            additions: r.additions,
-            deletions: r.deletions,
-            filePath: r.file_path,
-            id: r.id,
-            oldPath: r.old_path,
-            status: r.status,
-          }));
+        // findByReview returns metadata rows (snake_case from DB)
+        const fileRows = yield* fileRepo.findByReview(id);
+        const files = fileRows.map((r) => ({
+          additions: r.additions,
+          deletions: r.deletions,
+          filePath: r.file_path,
+          id: r.id,
+          oldPath: r.old_path,
+          status: r.status,
+        }));
 
-          const snapshot = yield* parseSnapshotData(review.snapshotData);
-          const summary = getDiffSummary(
-            files.map((f) => ({
-              additions: f.additions,
-              deletions: f.deletions,
-              hunks: [],
-              newPath: f.filePath,
-              oldPath: f.oldPath ?? f.filePath,
-              status: f.status as DiffFile["status"],
-            }))
-          );
+        const snapshot = yield* parseSnapshotData(review.snapshotData);
+        const summary = getDiffSummary(
+          files.map((f) => ({
+            additions: f.additions,
+            deletions: f.deletions,
+            hunks: [],
+            newPath: f.filePath,
+            oldPath: f.oldPath ?? f.filePath,
+            status: f.status as DiffFile["status"],
+          }))
+        );
 
-          return {
-            ...review,
-            files,
-            repository: snapshot.repository ?? null,
-            summary,
-          };
-        });
+        return {
+          ...review,
+          files,
+          repository: snapshot.repository ?? null,
+          summary,
+        };
+      });
 
       // -----------------------------------------------------------------------
       // getFileHunks — lazy load hunks for a single file
       // -----------------------------------------------------------------------
-      const getFileHunks = (reviewId: ReviewId, filePath: string) =>
-        Effect.gen(function* getFileHunks() {
+      const getFileHunks = Effect.fn("ReviewService.getFileHunks")(
+        function* getFileHunks(reviewId: ReviewId, filePath: string) {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
           const git = yield* GitService;
@@ -345,61 +344,68 @@ export class ReviewService extends Effect.Service<ReviewService>()(
           }
 
           return [] as DiffHunk[];
-        });
+        }
+      );
 
       // -----------------------------------------------------------------------
       // update
       // -----------------------------------------------------------------------
-      const update = (id: ReviewId, input: UpdateReviewInput) =>
-        Effect.gen(function* update() {
-          const repo = yield* ReviewRepo;
+      const update = Effect.fn("ReviewService.update")(function* update(
+        id: ReviewId,
+        input: UpdateReviewInput
+      ) {
+        const repo = yield* ReviewRepo;
 
-          const existing = yield* repo.findById(id);
-          if (!existing) {
-            return yield* new ReviewNotFound({ id });
-          }
+        const existing = yield* repo.findById(id);
+        if (!existing) {
+          return yield* new ReviewNotFound({ id });
+        }
 
-          const status = Option.getOrNull(input.status);
-          const review = yield* repo.update(id, status);
-          if (!review) {
-            return yield* new ReviewNotFound({ id });
-          }
+        const status = Option.getOrNull(input.status);
+        const review = yield* repo.update(id, status);
+        if (!review) {
+          return yield* new ReviewNotFound({ id });
+        }
 
-          return review;
-        });
+        return review;
+      });
 
       // -----------------------------------------------------------------------
       // remove
       // -----------------------------------------------------------------------
-      const remove = (id: ReviewId) =>
-        Effect.gen(function* remove() {
-          const repo = yield* ReviewRepo;
-          const fileRepo = yield* ReviewFileRepo;
+      const remove = Effect.fn("ReviewService.remove")(function* remove(
+        id: ReviewId
+      ) {
+        const repo = yield* ReviewRepo;
+        const fileRepo = yield* ReviewFileRepo;
 
-          const existing = yield* repo.findById(id);
-          if (!existing) {
-            return yield* new ReviewNotFound({ id });
-          }
+        const existing = yield* repo.findById(id);
+        if (!existing) {
+          return yield* new ReviewNotFound({ id });
+        }
 
-          yield* fileRepo.deleteByReview(id);
-          yield* repo.remove(id);
+        yield* fileRepo.deleteByReview(id);
+        yield* repo.remove(id);
 
-          return { success: true as const };
-        });
+        return { success: true as const };
+      });
 
       // -----------------------------------------------------------------------
       // getStats
       // -----------------------------------------------------------------------
-      const getStats = Effect.gen(function* getStats() {
-        const repo = yield* ReviewRepo;
+      const getStats = Effect.fn("ReviewService.getStats")(
+        function* getStats() {
+          const repo = yield* ReviewRepo;
 
-        const total = yield* repo.countAll();
-        const inProgress = yield* repo.countByStatus("in_progress");
-        const approved = yield* repo.countByStatus("approved");
-        const changesRequested = yield* repo.countByStatus("changes_requested");
+          const total = yield* repo.countAll();
+          const inProgress = yield* repo.countByStatus("in_progress");
+          const approved = yield* repo.countByStatus("approved");
+          const changesRequested =
+            yield* repo.countByStatus("changes_requested");
 
-        return { approved, changesRequested, inProgress, total };
-      });
+          return { approved, changesRequested, inProgress, total };
+        }
+      );
 
       // -----------------------------------------------------------------------
       // Public interface

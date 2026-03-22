@@ -14,9 +14,9 @@ import * as Stream from "effect/Stream";
 export type EventType = "todos" | "reviews" | "comments" | "files";
 
 export interface SSEEvent {
-  type: EventType;
-  data?: unknown;
-  timestamp: number;
+  readonly type: EventType;
+  readonly data?: unknown;
+  readonly timestamp: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -33,18 +33,20 @@ export class EventService extends Effect.Service<EventService>()(
 
       // -- broadcast ---------------------------------------------------------
 
-      const broadcast = (type: EventType, data?: unknown) =>
-        Effect.gen(function* broadcast() {
-          const event: SSEEvent = { data, timestamp: Date.now(), type };
-          for (const queue of subscribers) {
-            yield* Queue.offer(queue, event);
-          }
-        });
+      const broadcast = Effect.fn("EventService.broadcast")(function* broadcast(
+        type: EventType,
+        data?: unknown
+      ) {
+        const event: SSEEvent = { data, timestamp: Date.now(), type };
+        for (const queue of subscribers) {
+          yield* Queue.offer(queue, event);
+        }
+      });
 
       // -- subscribe ---------------------------------------------------------
 
-      const subscribe = () =>
-        Effect.gen(function* subscribe() {
+      const subscribe = Effect.fn("EventService.subscribe")(
+        function* subscribe() {
           const queue = yield* Queue.sliding<SSEEvent>(100);
           subscribers.add(queue);
 
@@ -55,7 +57,8 @@ export class EventService extends Effect.Service<EventService>()(
           }).pipe(Effect.andThen(Queue.shutdown(queue)));
 
           return { stream, unsubscribe } as const;
-        });
+        }
+      );
 
       // -- file watcher ------------------------------------------------------
 
@@ -99,7 +102,11 @@ export class EventService extends Effect.Service<EventService>()(
 
       // -- client count ------------------------------------------------------
 
-      const getClientCount = () => Effect.sync(() => subscribers.size);
+      const getClientCount = Effect.fn("EventService.getClientCount")(
+        function* getClientCount() {
+          return subscribers.size;
+        }
+      );
 
       return {
         broadcast,

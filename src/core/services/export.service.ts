@@ -18,8 +18,8 @@ export class ExportService extends Effect.Service<ExportService>()(
       TodoService.Default,
     ],
     effect: Effect.sync(() => {
-      const exportReview = (reviewId: ReviewId) =>
-        Effect.gen(function* exportReview() {
+      const exportReview = Effect.fn("ExportService.exportReview")(
+        function* exportReview(reviewId: ReviewId) {
           const reviewSvc = yield* ReviewService;
           const commentSvc = yield* CommentService;
           const todoSvc = yield* TodoService;
@@ -122,7 +122,8 @@ export class ExportService extends Effect.Service<ExportService>()(
 
           lines.push("");
           return lines.join("\n");
-        });
+        }
+      );
 
       return { exportReview } as const;
     }),

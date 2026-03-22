@@ -27,5 +27,5 @@
     "pnpm-lock.yaml",
     "*.tsbuildinfo",
     "**/routeTree.gen.ts",
-  ]
+  ],
 }

@@ -68,7 +68,8 @@ export class GitService extends Effect.Service<GitService>()(
 
       const hasCommits = execGit(["rev-parse", "HEAD"], repoPath).pipe(
         Effect.as(true),
-        Effect.catchAll(() => Effect.succeed(false))
+        Effect.catchTag("GitError", () => Effect.succeed(false)),
+        Effect.withSpan("GitService.hasCommits")
       );
 
       // -- repository info --------------------------------------------------
@@ -89,104 +90,119 @@ export class GitService extends Effect.Service<GitService>()(
           repoPath
         ).pipe(
           Effect.map((s) => s.trim() || null),
-          Effect.catchAll(() => Effect.succeed(null))
+          Effect.catchTag("GitError", () => Effect.succeed(null))
         );
 
         return { branch, name, path: repoPath, remote };
-      });
+      }).pipe(Effect.withSpan("GitService.getRepositoryInfo"));
 
       // -- diffs -------------------------------------------------------------
 
       const getStagedDiff = execGit(
         ["diff", "--cached", "--no-color", "--unified=3"],
         repoPath
-      );
+      ).pipe(Effect.withSpan("GitService.getStagedDiff"));
 
       const getUncommittedDiff = hasCommits.pipe(
-        Effect.flatMap((hasCommits) =>
-          hasCommits
+        Effect.flatMap((has) =>
+          has
             ? execGit(["diff", "HEAD", "--no-color", "--unified=3"], repoPath)
             : Effect.succeed("")
-        )
+        ),
+        Effect.withSpan("GitService.getUncommittedDiff")
       );
 
       const getUnstagedDiff = execGit(
         ["diff", "--no-color", "--unified=3"],
         repoPath
-      );
+      ).pipe(Effect.withSpan("GitService.getUnstagedDiff"));
 
       const getLastCommitDiff = hasCommits.pipe(
-        Effect.flatMap((hasCommits) =>
-          hasCommits
+        Effect.flatMap((has) =>
+          has
             ? execGit(
                 ["show", "HEAD", "--format=", "--no-color", "--unified=3"],
                 repoPath
               )
             : Effect.succeed("")
-        )
+        ),
+        Effect.withSpan("GitService.getLastCommitDiff")
       );
 
-      const getBranchDiff = (branch: string) =>
-        execGit(
-          ["diff", `${branch}...HEAD`, "--no-color", "--unified=3"],
-          repoPath
-        );
-
-      const getCommitDiff = (shas: readonly string[]) => {
-        if (shas.length === 1) {
-          return execGit(
-            ["show", shas[0]!, "--format=", "--no-color", "--unified=3"],
+      const getBranchDiff = Effect.fn("GitService.getBranchDiff")(
+        function* getBranchDiff(branch: string) {
+          return yield* execGit(
+            ["diff", `${branch}...HEAD`, "--no-color", "--unified=3"],
             repoPath
           );
         }
-        const first = shas.at(-1)!;
-        const last = shas[0]!;
-        return execGit(
-          ["diff", `${first}~1..${last}`, "--no-color", "--unified=3"],
-          repoPath
-        );
-      };
+      );
+
+      const getCommitDiff = Effect.fn("GitService.getCommitDiff")(
+        function* getCommitDiff(shas: readonly string[]) {
+          if (shas.length === 1) {
+            return yield* execGit(
+              ["show", shas[0]!, "--format=", "--no-color", "--unified=3"],
+              repoPath
+            );
+          }
+          const first = shas.at(-1)!;
+          const last = shas[0]!;
+          return yield* execGit(
+            ["diff", `${first}~1..${last}`, "--no-color", "--unified=3"],
+            repoPath
+          );
+        }
+      );
 
       // -- file lists --------------------------------------------------------
 
       const getStagedFiles = execGit(
         ["diff", "--cached", "--name-status"],
         repoPath
-      ).pipe(Effect.map(parseNameStatus));
+      ).pipe(
+        Effect.map(parseNameStatus),
+        Effect.withSpan("GitService.getStagedFiles")
+      );
 
       const getUncommittedFiles = hasCommits.pipe(
-        Effect.flatMap((hasCommits) =>
-          hasCommits
+        Effect.flatMap((has) =>
+          has
             ? execGit(["diff", "HEAD", "--name-status"], repoPath).pipe(
                 Effect.map(parseNameStatus)
               )
             : Effect.succeed([])
-        )
+        ),
+        Effect.withSpan("GitService.getUncommittedFiles")
       );
 
       const getUnstagedFiles = execGit(
         ["diff", "--name-status"],
         repoPath
-      ).pipe(Effect.map(parseNameStatus));
+      ).pipe(
+        Effect.map(parseNameStatus),
+        Effect.withSpan("GitService.getUnstagedFiles")
+      );
 
       const getLastCommitFiles = hasCommits.pipe(
-        Effect.flatMap((hasCommits) =>
-          hasCommits
+        Effect.flatMap((has) =>
+          has
             ? execGit(
                 ["show", "HEAD", "--format=", "--name-status"],
                 repoPath
               ).pipe(Effect.map(parseNameStatus))
             : Effect.succeed([])
-        )
+        ),
+        Effect.withSpan("GitService.getLastCommitFiles")
       );
 
       // -- file content ------------------------------------------------------
 
-      const getFileContent = (
-        filePath: string,
-        version: "staged" | "head" | "working"
-      ) =>
-        Effect.gen(function* getFileContent() {
+      const getFileContent = Effect.fn("GitService.getFileContent")(
+        function* getFileContent(
+          filePath: string,
+          version: "staged" | "head" | "working"
+        ) {
           switch (version) {
             case "staged": {
               return yield* execGit(["show", `:${filePath}`], repoPath);
@@ -205,14 +221,19 @@ export class GitService extends Effect.Service<GitService>()(
               });
             }
           }
-        });
+        }
+      );
 
       // -- tree / branches / commits -----------------------------------------
 
-      const getFileTree = (ref: string) =>
-        execGit(["ls-tree", "-r", "--name-only", ref], repoPath).pipe(
-          Effect.map(lines)
-        );
+      const getFileTree = Effect.fn("GitService.getFileTree")(
+        function* getFileTree(ref: string) {
+          return yield* execGit(
+            ["ls-tree", "-r", "--name-only", ref],
+            repoPath
+          ).pipe(Effect.map(lines));
+        }
+      );
 
       const getBranches = execGit(
         ["branch", "--format=%(refname:short)\t%(HEAD)"],
@@ -223,15 +244,16 @@ export class GitService extends Effect.Service<GitService>()(
             const [name, head] = line.split("\t");
             return { current: head === "*", name: name! };
           })
-        )
+        ),
+        Effect.withSpan("GitService.getBranches")
       );
 
-      const getCommits = (opts: {
-        limit?: number;
-        offset?: number;
-        search?: string;
-      }) =>
-        Effect.gen(function* getCommits() {
+      const getCommits = Effect.fn("GitService.getCommits")(
+        function* getCommits(opts: {
+          limit?: number;
+          offset?: number;
+          search?: string;
+        }) {
           const limit = (opts.limit ?? 20) + 1; // +1 to detect hasMore
           const args = [
             "log",
@@ -256,27 +278,41 @@ export class GitService extends Effect.Service<GitService>()(
             };
           });
           return { commits, hasMore };
-        });
+        }
+      );
 
       // -- staging operations ------------------------------------------------
 
-      const stageFiles = (files: readonly string[]) =>
-        execGit(["add", "--", ...files], repoPath).pipe(Effect.as(files));
+      const stageFiles = Effect.fn("GitService.stageFiles")(
+        function* stageFiles(files: readonly string[]) {
+          return yield* execGit(["add", "--", ...files], repoPath).pipe(
+            Effect.as(files)
+          );
+        }
+      );
 
       const stageAll = execGit(["add", "-A"], repoPath).pipe(
         Effect.flatMap(() => getStagedFiles),
-        Effect.map((files) => files.map((f) => f.path))
+        Effect.map((files) => files.map((f) => f.path)),
+        Effect.withSpan("GitService.stageAll")
       );
 
-      const unstageFiles = (files: readonly string[]) =>
-        execGit(["reset", "HEAD", "--", ...files], repoPath).pipe(
-          Effect.as(files)
-        );
+      const unstageFiles = Effect.fn("GitService.unstageFiles")(
+        function* unstageFiles(files: readonly string[]) {
+          return yield* execGit(
+            ["reset", "HEAD", "--", ...files],
+            repoPath
+          ).pipe(Effect.as(files));
+        }
+      );
 
       const getRepositoryPath = execGit(
         ["rev-parse", "--show-toplevel"],
         repoPath
-      ).pipe(Effect.map((s) => s.trim()));
+      ).pipe(
+        Effect.map((s) => s.trim()),
+        Effect.withSpan("GitService.getRepositoryPath")
+      );
 
       // -- public interface --------------------------------------------------
 
