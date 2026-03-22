@@ -2,8 +2,7 @@ import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import * as Effect from "effect/Effect";
 
 import { DomainApi } from "@/api/domain-api";
-
-import { CommentService } from "../services/comment.service";
+import { CommentService } from "@/core/services/comment.service";
 
 export const CommentsApiLive = HttpApiBuilder.group(
   DomainApi,

@@ -2,8 +2,7 @@ import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import * as Effect from "effect/Effect";
 
 import { DomainApi } from "@/api/domain-api";
-
-import { EventService } from "../services/event.service";
+import { EventService } from "@/core/services/event.service";
 
 export const EventsApiLive = HttpApiBuilder.group(
   DomainApi,

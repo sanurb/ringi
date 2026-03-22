@@ -1,15 +1,19 @@
 # SPEC-009: Impact Analysis and Code Intelligence
 
 ## Status
+
 Draft
 
 ## Purpose
+
 Define Ringi's implementation-grade contract for review-scoped intelligence: how a persisted review snapshot is analyzed during `workflow_state = 'analyzing'`, how the resulting impact and confidence artifacts are stored, how those artifacts drive the impact minimap and graph-diff bridging, and how the same artifacts are exposed to UI, CLI, and MCP without turning Ringi into a generic code exploration product.
 
 This spec closes the gap between the documented architecture in `docs/ARCHITECTURE.md`, the MCP surface in `docs/MCP.md`, and the current `src/` tree, which has review, comment, todo, export, event, git, and diff services but no shipped intelligence service or intelligence persistence yet.
 
 ## Scope
+
 This spec covers:
+
 - review-scoped intelligence bounded to one persisted review snapshot and its immediate blast radius
 - the analysis pipeline executed between `created -> analyzing -> ready`
 - impact minimap artifacts and graph-diff bridging artifacts
@@ -20,7 +24,9 @@ This spec covers:
 - failure, timeout, invalidation, and partial-result behavior for intelligence generation
 
 ## Non-Goals
+
 This spec does not cover:
+
 - generic repository exploration, full-codebase navigation, or IDE-like code intelligence
 - a persistent global repository knowledge graph
 - arbitrary code search, semantic search, or full-text search as a product surface
@@ -30,6 +36,7 @@ This spec does not cover:
 - UI pixel design for the minimap beyond the data contract it consumes
 
 ## Canonical References
+
 - `docs/ARCHITECTURE.md`
   - §1, §2, §3 — review-scoped intelligence as a product pillar
   - §9 — Intelligence bounded context ownership
@@ -68,6 +75,7 @@ This spec does not cover:
 - `src/api/schemas/review.ts`
 
 ## Terminology
+
 - **Review-scoped intelligence** — analysis limited to one persisted review snapshot and its immediate blast radius, never the whole repository as a first-class product model.
 - **Immediate blast radius** — unchanged files or symbols directly connected to changed review files by first-order relationships such as imports, calls, re-exports, renames, configuration linkage, or test coverage references.
 - **Analyzer** — one deterministic pipeline step that reads the review snapshot plus bounded repository context and emits structured artifacts such as relationships, impact coverage, provenance enrichment, or confidence inputs.
@@ -80,6 +88,7 @@ This spec does not cover:
 - **Stale intelligence** — persisted intelligence artifacts generated from an earlier snapshot or row version and therefore no longer authoritative for the current review snapshot.
 
 ## Requirements
+
 1. **REQ-009-001 — Review-scoped boundary**  
    Intelligence SHALL be review-scoped only. It SHALL answer what the current review snapshot affects and why, and SHALL NOT expose generic repository exploration or persistent whole-codebase graph behavior.
 2. **REQ-009-002 — Snapshot-bound inputs**  
@@ -122,7 +131,9 @@ This spec does not cover:
     Timeouts, skipped analyzers, stale artifacts, and partial intelligence SHALL be visible through structured diagnostics and review-scoped status reads.
 
 ## Workflow / State Model
+
 ### Intelligence pipeline in lifecycle context
+
 Per SPEC-001, review creation persists the snapshot first. Intelligence then executes inside the review lifecycle boundary.
 
 ```text
@@ -148,6 +159,7 @@ source ingestion complete
 ```
 
 ### Required pipeline stages
+
 1. **Plan** — enumerate analyzers appropriate for the review snapshot from source type, changed files, and language/file eligibility.
 2. **Extract relationships** — derive first-order relationships from changed files using the current parser layer.
 3. **Bridge to diff** — attach every relationship and impact node to concrete `review_file` ids and evidence locations.
@@ -156,21 +168,26 @@ source ingestion complete
 6. **Persist runs and summary** — record analyzer runs, artifacts, and partial/degraded summary.
 
 ### Transition rules
+
 - `created -> analyzing` is entered after snapshot persistence succeeds and before analyzer execution begins.
 - `analyzing -> ready` requires complete accounting for required analyzers, not universal analyzer success.
 - If the intelligence orchestrator crashes before accounting is written, the review SHALL remain `analyzing` until recovery or retry determines the truth.
 - **AMBIGUITY:** SPEC-001 defines `analyzing -> ready` as an internal `ReviewService.create()` step. Current `src/routes/api/-lib/services/review.service.ts` does not implement any intelligence stage yet. This spec defines the target cutover contract; implementation must move from the current coarse `status = 'in_progress'` model to split lifecycle ownership before these states can be observed truthfully.
 
 ### Partial-result rule
+
 `ready` does not mean every analyzer succeeded. It means the snapshot is reviewable, required analyzer accounting exists, and any gaps are explicit. That preserves workflow truth without lying about intelligence completeness.
 
 ## API / CLI / MCP Implications
+
 ### UI and CLI
+
 - UI surfaces such as grouped file tree and impact minimap SHALL read persisted review-scoped intelligence, not recompute graph data client-side.
 - CLI read paths MAY expose intelligence summaries later, but they SHALL read the same persisted artifacts used by UI and MCP.
 - Review status or diagnostics views SHOULD surface whether intelligence is complete, partial, stale, or phase unavailable.
 
 ### MCP `intelligence` namespace
+
 The MCP contract comes from `docs/MCP.md` and SPEC-004. This spec fixes how those calls map to persisted artifacts.
 
 ```ts
@@ -184,7 +201,12 @@ type RelationshipKind =
 
 type ValidateOptions = {
   reviewId: string;
-  checks?: Array<"changed_exports" | "unresolved_comments" | "impact_coverage" | "confidence_gaps">;
+  checks?: Array<
+    | "changed_exports"
+    | "unresolved_comments"
+    | "impact_coverage"
+    | "confidence_gaps"
+  >;
 };
 
 interface IntelligenceNamespace {
@@ -196,36 +218,44 @@ interface IntelligenceNamespace {
 ```
 
 #### Method implications
+
 - `getRelationships(reviewId)` SHALL return only persisted review-scoped relationships tied to the current snapshot.
 - `getImpacts(reviewId)` SHALL return the impact minimap input set, including `impactedBy`, `uncoveredDependents`, and confidence.
 - `getConfidence(reviewId)` SHALL return inspectable reasons, not just numeric scores.
 - `validate(options)` SHALL execute deterministic checks over persisted review state plus intelligence artifacts. A timeout or phase-unavailable result is inconclusive and SHALL NOT be reported as successful validation.
 
 #### Phase behavior
+
 - Before intelligence services are implemented, all four methods SHALL fail as phase unavailable per SPEC-004.
 - Once implemented, readonly enforcement remains adapter-owned, but all current `intelligence` methods are read-only by contract.
 
 ## Data Model Impact
+
 This spec extends the persistence direction documented in `docs/ARCHITECTURE.md` §12 and the roadmap storage guidance.
 
 ### Reviews table
+
 `reviews` remains the snapshot anchor. Intelligence-specific summary fields SHOULD be additive and versioned rather than replacing snapshot truth.
 
 Recommended additive fields:
+
 - `intelligence_status` — `pending | complete | partial | stale | unavailable`
 - `intelligence_summary` — versioned JSON summary of analyzer accounting and top-level counts
 
 **AMBIGUITY:** `docs/ARCHITECTURE.md` and the roadmap establish storage direction but do not yet define exact `reviews` DDL for intelligence summary columns. Current `src/routes/api/-lib/db/migrations.ts` contains no such columns. This spec requires additive summary storage; the exact column-vs-derived-view split remains open.
 
 ### `review_files`
+
 The roadmap already points to `review_files` as the first place for provenance, confidence payload, and grouping key. This spec requires additive, review-scoped intelligence fields on changed files.
 
 Recommended additive fields:
+
 - `provenance_data TEXT NULL` — versioned structured provenance payload
 - `confidence_data TEXT NULL` — versioned structured confidence payload
 - `group_key TEXT NULL` — stable grouping/minimap bucket key
 
 ### `review_relationships`
+
 Create a dedicated table for queryable review-scoped edges instead of burying all graph data in opaque JSON.
 
 ```sql
@@ -249,6 +279,7 @@ CREATE TABLE review_relationships (
 ```
 
 ### `review_impacts`
+
 Persist minimap-ready impact records so UI and MCP do not have to recompute blast radius on every read.
 
 ```sql
@@ -268,6 +299,7 @@ CREATE TABLE review_impacts (
 ```
 
 ### `review_analyzer_runs`
+
 Persist execution truth for every analyzer.
 
 ```sql
@@ -286,13 +318,14 @@ CREATE TABLE review_analyzer_runs (
 ```
 
 ### Impact minimap data structure
+
 The persisted `minimap_node_data` SHALL normalize to the following shape regardless of storage layout:
 
 ```ts
 type ImpactMinimapNode = {
   fileId: string;
   path: string;
-  status: 'changed' | 'dependent' | 'uncovered_dependent';
+  status: "changed" | "dependent" | "uncovered_dependent";
   groupKey: string | null;
   impactedBy: string[];
   uncoveredDependents: string[];
@@ -311,6 +344,7 @@ type ImpactMinimapNode = {
 This shape is intentionally aligned with `docs/MCP.md` `getImpacts()` while adding the bridge fields required for UI graph-diff synchronization.
 
 ## Service Boundaries
+
 - **ReviewService owns** lifecycle orchestration around intelligence: entering `analyzing`, invoking the intelligence pipeline against a persisted snapshot, and transitioning to `ready` once analyzer accounting is complete.
 - **Intelligence services own** analyzer planning, relationship extraction, impact derivation, graph-diff bridge assembly, confidence derivation, and persistence of intelligence artifacts.
 - **GitService owns** repository inspection required by analyzers for bounded dependent lookup or file content reads outside the changed diff. It MUST NOT own intelligence persistence, lifecycle state, minimap semantics, or confidence rules.
@@ -320,6 +354,7 @@ This shape is intentionally aligned with `docs/MCP.md` `getImpacts()` while addi
 **AMBIGUITY:** `docs/specs/core-service-boundaries.md` names intelligence services architecturally, but current `src/routes/api/-lib/services/` contains no shipped intelligence service. This spec defines the missing target boundary. Implementation may introduce `IntelligenceService` and language-specific analyzer modules, but it MUST preserve the ownership split above.
 
 ## Edge Cases
+
 - **Analyzer timeout** — if an analyzer exceeds budget, persist `review_analyzer_runs.status = 'timed_out'`, mark intelligence partial, and keep the raw review usable. The timeout does not imply validation success or failure.
 - **Review stuck in `analyzing`** — if orchestration crashes before analyzer accounting is persisted, diagnostics MUST show an incomplete run. Recovery MUST either retry the pipeline or mark the review partial/stale; it MUST NOT silently flip to `ready`.
 - **Partial analyzer failure** — one failed analyzer does not invalidate snapshot anchoring. Persist the failure, exclude unsupported artifacts from authoritative reads, and expose partial status.
@@ -330,7 +365,9 @@ This shape is intentionally aligned with `docs/MCP.md` `getImpacts()` while addi
 - **No intelligence service in current source** — current MCP intelligence methods are documented but not implemented. Until storage and service layers exist, phase-unavailable is the only truthful behavior.
 
 ## Observability
+
 Structured diagnostics SHALL record:
+
 - review id, snapshot id, and row version used for analysis
 - analyzer names selected for the review
 - per-analyzer status, duration, and error/timeout reason
@@ -340,6 +377,7 @@ Structured diagnostics SHALL record:
 - budget-triggered degradation events
 
 `ringi doctor` or equivalent local diagnostics SHOULD surface:
+
 - reviews currently stuck in `analyzing`
 - reviews with partial or stale intelligence
 - analyzer timeout counts
@@ -347,6 +385,7 @@ Structured diagnostics SHALL record:
 - last successful intelligence run timestamp per review
 
 ## Rollout Considerations
+
 1. Land SPEC-001 lifecycle cutover first so `created`, `analyzing`, and `ready` can be represented truthfully.
 2. Land SPEC-002 immutable snapshot cutover first so analyzers consume anchored hunks instead of live git re-diffs.
 3. Add intelligence persistence tables and additive `review_files` fields before exposing UI or MCP intelligence reads.
@@ -356,6 +395,7 @@ Structured diagnostics SHALL record:
 7. Preserve raw diff review usability throughout rollout. Intelligence is an additive trust layer, not a gate that can break review access.
 
 ## Open Questions
+
 1. **AMBIGUITY:** Should `intelligence_status` live as explicit columns on `reviews`, inside versioned `snapshot_data`, or as a derived projection from analyzer runs?  
    Current docs require truthful status but do not yet fix the exact storage shape.
 2. **AMBIGUITY:** Should impact minimap nodes be stored in a dedicated `review_impacts` table, or derived on read from `review_relationships` plus `review_files`?  
@@ -368,6 +408,7 @@ Structured diagnostics SHALL record:
    Current lifecycle docs model workflow readiness, not intelligence completeness, so this spec keeps lifecycle and intelligence truth separate.
 
 ## Acceptance Criteria
+
 - `docs/specs/impact-analysis-code-intelligence.md` exists.
 - The document contains all 17 mandatory sections required by the assignment.
 - The spec explicitly states that intelligence is review-scoped and names generic code exploration as a non-goal.

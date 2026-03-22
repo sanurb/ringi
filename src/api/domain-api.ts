@@ -14,6 +14,7 @@ import { DiffFile, DiffHunk, DiffSummary } from "./schemas/diff";
 import { BranchInfo, CommitInfo, RepositoryInfo } from "./schemas/git";
 import {
   CreateReviewInput,
+  DIFF_SCOPES,
   Review,
   ReviewId,
   ReviewNotFound,
@@ -84,24 +85,23 @@ export class ReviewFilesApiGroup extends HttpApiGroup.make("reviewFiles").add(
 ) {}
 
 // ── Diff ──────────────────────────────────────────────────────
+const DiffResponse = Schema.Struct({
+  files: Schema.Array(DiffFile),
+  repository: RepositoryInfo,
+  summary: DiffSummary,
+});
+
+const DiffScopeSchema = Schema.Literal(...DIFF_SCOPES);
+
 export class DiffApiGroup extends HttpApiGroup.make("diff")
+  .add(HttpApiEndpoint.get("staged", "/diff/staged").addSuccess(DiffResponse))
   .add(
-    HttpApiEndpoint.get("staged", "/diff/staged").addSuccess(
-      Schema.Struct({
-        files: Schema.Array(DiffFile),
-        repository: RepositoryInfo,
-        summary: DiffSummary,
-      })
-    )
+    HttpApiEndpoint.get("unstaged", "/diff/unstaged").addSuccess(DiffResponse)
   )
   .add(
-    HttpApiEndpoint.get("unstaged", "/diff/unstaged").addSuccess(
-      Schema.Struct({
-        files: Schema.Array(DiffFile),
-        repository: RepositoryInfo,
-        summary: DiffSummary,
-      })
-    )
+    HttpApiEndpoint.get("scoped", "/diff/scoped")
+      .setUrlParams(Schema.Struct({ scope: DiffScopeSchema }))
+      .addSuccess(DiffResponse)
   )
   .add(
     HttpApiEndpoint.get("files", "/diff/files").addSuccess(

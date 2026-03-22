@@ -1,8 +1,7 @@
 import * as Effect from "effect/Effect";
 
 import type { Review, ReviewId } from "@/api/schemas/review";
-
-import { SqliteService } from "../db/database";
+import { SqliteService } from "@/core/db/database";
 
 // ---------------------------------------------------------------------------
 // Internal row shape (snake_case from SQLite)

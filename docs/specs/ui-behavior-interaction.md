@@ -154,24 +154,24 @@ This spec does not define:
 
 ### 8.1 Route table
 
-| Route | Current component | What it shows now | Target canonical role | Lifecycle relevance |
-| --- | --- | --- | --- | --- |
-| `/` | `src/routes/index.tsx` | Current staged diff, file tree, diff mode toggle, SSE invalidation, shortcuts for new review/reviews list | Pre-review staging workspace for local-first review creation | Not tied to persisted review lifecycle; it precedes review creation |
-| `/reviews/` | `src/routes/reviews/index.tsx` | Review list with status/source badges and navigation to new/detail pages | Persisted review session index | Must show derived lifecycle state, not legacy status only |
-| `/reviews/new` | `src/routes/reviews/new.tsx` | Repository metadata, staged summary, create button | Review creation entrypoint | Enters review at `created` then `analyzing`; current UI immediately navigates to detail after create response |
-| `/reviews/$reviewId` | `src/routes/reviews/$reviewId.tsx` | Action bar, file tree, diff viewer, annotations panel | Primary review workbench | Must express `created → analyzing → ready → in_review → approved|changes_requested → exported` |
+| Route                | Current component                  | What it shows now                                                                                         | Target canonical role                                        | Lifecycle relevance                                                                                           |
+| -------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `/`                  | `src/routes/index.tsx`             | Current staged diff, file tree, diff mode toggle, SSE invalidation, shortcuts for new review/reviews list | Pre-review staging workspace for local-first review creation | Not tied to persisted review lifecycle; it precedes review creation                                           |
+| `/reviews/`          | `src/routes/reviews/index.tsx`     | Review list with status/source badges and navigation to new/detail pages                                  | Persisted review session index                               | Must show derived lifecycle state, not legacy status only                                                     |
+| `/reviews/new`       | `src/routes/reviews/new.tsx`       | Repository metadata, staged summary, create button                                                        | Review creation entrypoint                                   | Enters review at `created` then `analyzing`; current UI immediately navigates to detail after create response |
+| `/reviews/$reviewId` | `src/routes/reviews/$reviewId.tsx` | Action bar, file tree, diff viewer, annotations panel                                                     | Primary review workbench                                     | Must express `created → analyzing → ready → in_review → approved                                              | changes_requested → exported` |
 
 ### 8.2 Lifecycle-to-UI mapping
 
-| Lifecycle state (SPEC-001) | Expected UI treatment | Current implementation evidence | Current gap |
-| --- | --- | --- | --- |
-| `created` | Skeleton/placeholder review shell; actions disabled except navigation | Not represented; review detail loads immediately from `loadReview()` | Legacy status model collapses this into `in_progress` |
-| `analyzing` | Analysis-in-progress state with read-only or partial content | Not represented | No page-level analysis state or SSE-driven transition handling |
-| `ready` | Diff visible, reviewer can begin annotation, no final verdict yet | Approximated by current review detail with status badge | Badge/action model uses legacy `status` only |
-| `in_review` | Same workspace as `ready`, but annotations/todos now exist or explicit review start recorded | Not represented separately | No distinction between ready vs active review |
-| `approved` | Verdict badge, approve action disabled, export available | `ActionBar` disables Approve when `status === "approved"` | Based on legacy single status; not derived from SPEC-001 split fields |
-| `changes_requested` | Verdict badge, request-changes visible, export policy depends on lifecycle rules | Implemented as a status action | Not reconciled with workflow/review-decision split |
-| `exported` | Read-only snapshot view with export fact visible | Not represented | No exported read-only UI state |
+| Lifecycle state (SPEC-001) | Expected UI treatment                                                                        | Current implementation evidence                                      | Current gap                                                           |
+| -------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `created`                  | Skeleton/placeholder review shell; actions disabled except navigation                        | Not represented; review detail loads immediately from `loadReview()` | Legacy status model collapses this into `in_progress`                 |
+| `analyzing`                | Analysis-in-progress state with read-only or partial content                                 | Not represented                                                      | No page-level analysis state or SSE-driven transition handling        |
+| `ready`                    | Diff visible, reviewer can begin annotation, no final verdict yet                            | Approximated by current review detail with status badge              | Badge/action model uses legacy `status` only                          |
+| `in_review`                | Same workspace as `ready`, but annotations/todos now exist or explicit review start recorded | Not represented separately                                           | No distinction between ready vs active review                         |
+| `approved`                 | Verdict badge, approve action disabled, export available                                     | `ActionBar` disables Approve when `status === "approved"`            | Based on legacy single status; not derived from SPEC-001 split fields |
+| `changes_requested`        | Verdict badge, request-changes visible, export policy depends on lifecycle rules             | Implemented as a status action                                       | Not reconciled with workflow/review-decision split                    |
+| `exported`                 | Read-only snapshot view with export fact visible                                             | Not represented                                                      | No exported read-only UI state                                        |
 
 ### 8.3 Review-detail interaction model
 

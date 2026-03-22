@@ -96,14 +96,14 @@ Default output is human-readable and optimized for terminal scanning. Machine co
 
 ### Exit codes
 
-| Code | Meaning |
-| --- | --- |
-| `0` | Success |
-| `2` | Usage error or invalid flag combination |
-| `3` | Requested resource not found |
-| `4` | Repository or `.ringi/` state not initialized for the requested operation |
-| `5` | Authentication or authorization failure |
-| `1` | All other runtime, validation, transport, or storage failures |
+| Code | Meaning                                                                   |
+| ---- | ------------------------------------------------------------------------- |
+| `0`  | Success                                                                   |
+| `2`  | Usage error or invalid flag combination                                   |
+| `3`  | Requested resource not found                                              |
+| `4`  | Repository or `.ringi/` state not initialized for the requested operation |
+| `5`  | Authentication or authorization failure                                   |
+| `1`  | All other runtime, validation, transport, or storage failures             |
 
 ## Repository Discovery
 
@@ -130,36 +130,36 @@ Examples of expected errors:
 
 ## Operational Modes
 
-| Mode | Transport | Typical commands | Notes |
-| --- | --- | --- | --- |
-| **standalone** | Direct SQLite read from `.ringi/reviews.db` | `review list`, `review show`, `review export`, `review status`, `todo list`, `source list`, `source diff`, `export`, `doctor` | No server required. Read-only only. |
+| Mode                 | Transport                                       | Typical commands                                                                                                                                                                | Notes                                                          |
+| -------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **standalone**       | Direct SQLite read from `.ringi/reviews.db`     | `review list`, `review show`, `review export`, `review status`, `todo list`, `source list`, `source diff`, `export`, `doctor`                                                   | No server required. Read-only only.                            |
 | **server-connected** | Local HTTP/SSE through the running Ringi server | `serve`, `review create`, `review resolve`, `todo create`, `todo complete`, `todo uncomplete`, `todo move`, `todo delete`, `todo clear`, `events`, `data migrate`, `data reset` | Used for mutations, runtime startup, and live event streaming. |
-| **MCP stdio** | stdio transport via `ringi mcp` | `mcp` | Exposes the same domain through agent-facing namespaces. |
+| **MCP stdio**        | stdio transport via `ringi mcp`                 | `mcp`                                                                                                                                                                           | Exposes the same domain through agent-facing namespaces.       |
 
 Command availability summary:
 
-| Command family | Standalone | Server-connected |
-| --- | --- | --- |
-| `review list` / `review show` / `review export` / `review status` | Yes | Yes |
-| `review create` / `review resolve` | No | Yes |
-| `todo list` | Yes | Yes |
-| `todo create` / `todo complete` / `todo uncomplete` / `todo move` / `todo delete` / `todo clear` | No | Yes |
-| `source list` / `source diff` | Yes | Yes |
-| `export` | Yes | Yes |
-| `events` | No | Yes |
-| `serve` / `mcp` | N/A | Starts runtime |
-| `doctor` | Yes | Yes |
-| `data migrate` / `data reset` | No | Yes |
+| Command family                                                                                   | Standalone | Server-connected |
+| ------------------------------------------------------------------------------------------------ | ---------- | ---------------- |
+| `review list` / `review show` / `review export` / `review status`                                | Yes        | Yes              |
+| `review create` / `review resolve`                                                               | No         | Yes              |
+| `todo list`                                                                                      | Yes        | Yes              |
+| `todo create` / `todo complete` / `todo uncomplete` / `todo move` / `todo delete` / `todo clear` | No         | Yes              |
+| `source list` / `source diff`                                                                    | Yes        | Yes              |
+| `export`                                                                                         | Yes        | Yes              |
+| `events`                                                                                         | No         | Yes              |
+| `serve` / `mcp`                                                                                  | N/A        | Starts runtime   |
+| `doctor`                                                                                         | Yes        | Yes              |
+| `data migrate` / `data reset`                                                                    | No         | Yes              |
 
 ## Global Options
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--json` | boolean | `false` | Emit the standard JSON envelope to stdout. |
-| `--quiet` | boolean | `false` | Suppress non-error human-readable output. Ignored by commands whose primary output is streamed data. |
-| `--repo <path>` | string | current repo root | Use a specific repository root instead of discovering from the current working directory. |
-| `--verbose` | boolean | `false` | Include diagnostics such as transport details, timing, and stack traces on failure. |
-| `--no-color` | boolean | `false` | Disable ANSI color in human-readable output. |
+| Option          | Type    | Default           | Description                                                                                          |
+| --------------- | ------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
+| `--json`        | boolean | `false`           | Emit the standard JSON envelope to stdout.                                                           |
+| `--quiet`       | boolean | `false`           | Suppress non-error human-readable output. Ignored by commands whose primary output is streamed data. |
+| `--repo <path>` | string  | current repo root | Use a specific repository root instead of discovering from the current working directory.            |
+| `--verbose`     | boolean | `false`           | Include diagnostics such as transport details, timing, and stack traces on failure.                  |
+| `--no-color`    | boolean | `false`           | Disable ANSI color in human-readable output.                                                         |
 
 ## Command Reference
 
@@ -181,17 +181,17 @@ None.
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--host <host>` | string | `127.0.0.1` | Bind host. |
-| `--port <port>` | number | `3000` | Bind port. |
-| `--https` | boolean | `false` | Serve over HTTPS. Requires `--cert` and `--key`. |
-| `--cert <path>` | string | none | TLS certificate path when `--https` is enabled. |
-| `--key <path>` | string | none | TLS private key path when `--https` is enabled. |
-| `--auth` | boolean | `false` | Require HTTP basic authentication for the web UI and mutating HTTP endpoints. |
-| `--username <name>` | string | none | Username for `--auth`. Required when auth is enabled. |
-| `--password <value>` | string | none | Password for `--auth`. Required when auth is enabled. |
-| `--no-open` | boolean | `false` | Do not open a browser automatically. |
+| Option               | Type    | Default     | Description                                                                   |
+| -------------------- | ------- | ----------- | ----------------------------------------------------------------------------- |
+| `--host <host>`      | string  | `127.0.0.1` | Bind host.                                                                    |
+| `--port <port>`      | number  | `3000`      | Bind port.                                                                    |
+| `--https`            | boolean | `false`     | Serve over HTTPS. Requires `--cert` and `--key`.                              |
+| `--cert <path>`      | string  | none        | TLS certificate path when `--https` is enabled.                               |
+| `--key <path>`       | string  | none        | TLS private key path when `--https` is enabled.                               |
+| `--auth`             | boolean | `false`     | Require HTTP basic authentication for the web UI and mutating HTTP endpoints. |
+| `--username <name>`  | string  | none        | Username for `--auth`. Required when auth is enabled.                         |
+| `--password <value>` | string  | none        | Password for `--auth`. Required when auth is enabled.                         |
+| `--no-open`          | boolean | `false`     | Do not open a browser automatically.                                          |
 
 **Behavior**
 
@@ -229,12 +229,12 @@ None.
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--source <type>` | enum | `staged` | Review source: `staged`, `branch`, or `commits`. |
-| `--branch <name>` | string | none | Branch name when `--source branch` is used. |
-| `--commits <value>` | string | none | Commit SHAs or commit range when `--source commits` is used. Stored as the review source reference. |
-| `--title <title>` | string | none | Optional display label for human output and future exports. |
+| Option              | Type   | Default  | Description                                                                                         |
+| ------------------- | ------ | -------- | --------------------------------------------------------------------------------------------------- |
+| `--source <type>`   | enum   | `staged` | Review source: `staged`, `branch`, or `commits`.                                                    |
+| `--branch <name>`   | string | none     | Branch name when `--source branch` is used.                                                         |
+| `--commits <value>` | string | none     | Commit SHAs or commit range when `--source commits` is used. Stored as the review source reference. |
+| `--title <title>`   | string | none     | Optional display label for human output and future exports.                                         |
 
 **Behavior**
 
@@ -273,12 +273,12 @@ None.
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--status <status>` | enum | all | Filter by review status: `in_progress`, `approved`, `changes_requested`. |
-| `--source <type>` | enum | all | Filter by review source. |
-| `--limit <n>` | number | `20` | Maximum reviews per page. |
-| `--page <n>` | number | `1` | Page number, starting at 1. |
+| Option              | Type   | Default | Description                                                              |
+| ------------------- | ------ | ------- | ------------------------------------------------------------------------ |
+| `--status <status>` | enum   | all     | Filter by review status: `in_progress`, `approved`, `changes_requested`. |
+| `--source <type>`   | enum   | all     | Filter by review source.                                                 |
+| `--limit <n>`       | number | `20`    | Maximum reviews per page.                                                |
+| `--page <n>`        | number | `1`     | Page number, starting at 1.                                              |
 
 **Behavior**
 
@@ -312,15 +312,15 @@ Shows full detail for a review session, including summary data for changed files
 **Arguments**
 
 | Argument | Description |
-| --- | --- |
-| `<id|last>` | Review id or the special selector `last`. |
+| -------- | ----------- | ----------------------------------------- |
+| `<id     | last>`      | Review id or the special selector `last`. |
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
+| Option       | Type    | Default | Description                                         |
+| ------------ | ------- | ------- | --------------------------------------------------- |
 | `--comments` | boolean | `false` | Include comment summaries in human-readable output. |
-| `--todos` | boolean | `false` | Include linked todos in human-readable output. |
+| `--todos`    | boolean | `false` | Include linked todos in human-readable output.      |
 
 **Behavior**
 
@@ -354,17 +354,17 @@ Exports a review session as markdown. The export contains review metadata, chang
 **Arguments**
 
 | Argument | Description |
-| --- | --- |
-| `<id|last>` | Review id or `last`. |
+| -------- | ----------- | -------------------- |
+| `<id     | last>`      | Review id or `last`. |
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--output <path>` | string | none | Write markdown to a file path. |
-| `--stdout` | boolean | `false` | Force export content to stdout even when `--output` is provided. |
-| `--no-resolved` | boolean | `false` | Omit resolved comments from the rendered markdown. |
-| `--no-snippets` | boolean | `false` | Omit code suggestion blocks from the rendered markdown. |
+| Option            | Type    | Default | Description                                                      |
+| ----------------- | ------- | ------- | ---------------------------------------------------------------- |
+| `--output <path>` | string  | none    | Write markdown to a file path.                                   |
+| `--stdout`        | boolean | `false` | Force export content to stdout even when `--output` is provided. |
+| `--no-resolved`   | boolean | `false` | Omit resolved comments from the rendered markdown.               |
+| `--no-snippets`   | boolean | `false` | Omit code suggestion blocks from the rendered markdown.          |
 
 **Behavior**
 
@@ -399,15 +399,15 @@ Bulk-resolves remaining comments for a review session and marks the review statu
 **Arguments**
 
 | Argument | Description |
-| --- | --- |
-| `<id|last>` | Review id or `last`. |
+| -------- | ----------- | -------------------- |
+| `<id     | last>`      | Review id or `last`. |
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--all-comments` | boolean | `true` | Resolve all unresolved comments before approval. |
-| `--yes` | boolean | `false` | Skip confirmation prompt in non-interactive environments. |
+| Option           | Type    | Default | Description                                               |
+| ---------------- | ------- | ------- | --------------------------------------------------------- |
+| `--all-comments` | boolean | `true`  | Resolve all unresolved comments before approval.          |
+| `--yes`          | boolean | `false` | Skip confirmation prompt in non-interactive environments. |
 
 **Behavior**
 
@@ -445,10 +445,10 @@ None.
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--review <id|last>` | string | latest relevant review | Focus status on a specific review session. |
-| `--source <type>` | enum | inferred | Show source-specific status for staged, branch, or commits. |
+| Option            | Type   | Default  | Description                                                 |
+| ----------------- | ------ | -------- | ----------------------------------------------------------- | ------------------------------------------ |
+| `--review <id     | last>` | string   | latest relevant review                                      | Focus status on a specific review session. |
+| `--source <type>` | enum   | inferred | Show source-specific status for staged, branch, or commits. |
 
 **Behavior**
 
@@ -485,11 +485,11 @@ None.
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--text <text>` | string | none | Todo text. Required. |
-| `--review <id>` | string | none | Link the todo to a review session. |
-| `--position <n>` | number | append | Insert at a specific position. |
+| Option           | Type   | Default | Description                        |
+| ---------------- | ------ | ------- | ---------------------------------- |
+| `--text <text>`  | string | none    | Todo text. Required.               |
+| `--review <id>`  | string | none    | Link the todo to a review session. |
+| `--position <n>` | number | append  | Insert at a specific position.     |
 
 **Behavior**
 
@@ -527,12 +527,12 @@ None.
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--review <id>` | string | none | Filter to a review session. |
-| `--status <pending|done|all>` | enum | `pending` | Filter by completion status. |
-| `--limit <n>` | number | no limit | Maximum number of items to return. |
-| `--offset <n>` | number | `0` | Offset for pagination. |
+| Option             | Type   | Default  | Description                        |
+| ------------------ | ------ | -------- | ---------------------------------- | --------- | ---------------------------- |
+| `--review <id>`    | string | none     | Filter to a review session.        |
+| `--status <pending | done   | all>`    | enum                               | `pending` | Filter by completion status. |
+| `--limit <n>`      | number | no limit | Maximum number of items to return. |
+| `--offset <n>`     | number | `0`      | Offset for pagination.             |
 
 **Behavior**
 
@@ -566,8 +566,8 @@ Marks a todo item as done.
 **Arguments**
 
 | Argument | Description |
-| --- | --- |
-| `<id>` | Todo id. |
+| -------- | ----------- |
+| `<id>`   | Todo id.    |
 
 **Options**
 
@@ -603,8 +603,8 @@ Reopens a previously completed todo item.
 **Arguments**
 
 | Argument | Description |
-| --- | --- |
-| `<id>` | Todo id. |
+| -------- | ----------- |
+| `<id>`   | Todo id.    |
 
 **Options**
 
@@ -640,14 +640,14 @@ Moves a todo item to a specific position in the ordered todo list.
 **Arguments**
 
 | Argument | Description |
-| --- | --- |
-| `<id>` | Todo id. |
+| -------- | ----------- |
+| `<id>`   | Todo id.    |
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--position <n>` | number | none | Target one-based position. Required. |
+| Option           | Type   | Default | Description                          |
+| ---------------- | ------ | ------- | ------------------------------------ |
+| `--position <n>` | number | none    | Target one-based position. Required. |
 
 **Behavior**
 
@@ -680,13 +680,13 @@ Deletes a todo item.
 **Arguments**
 
 | Argument | Description |
-| --- | --- |
-| `<id>` | Todo id. |
+| -------- | ----------- |
+| `<id>`   | Todo id.    |
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
+| Option  | Type    | Default | Description               |
+| ------- | ------- | ------- | ------------------------- |
 | `--yes` | boolean | `false` | Skip confirmation prompt. |
 
 **Behavior**
@@ -723,12 +723,12 @@ None.
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--review <id>` | string | none | Limit the clear operation to a specific review session. |
-| `--done-only` | boolean | `true` | Clear only completed todos. |
-| `--all` | boolean | `false` | Clear all matched todos, including pending ones. |
-| `--yes` | boolean | `false` | Skip confirmation prompt. |
+| Option          | Type    | Default | Description                                             |
+| --------------- | ------- | ------- | ------------------------------------------------------- |
+| `--review <id>` | string  | none    | Limit the clear operation to a specific review session. |
+| `--done-only`   | boolean | `true`  | Clear only completed todos.                             |
+| `--all`         | boolean | `false` | Clear all matched todos, including pending ones.        |
+| `--yes`         | boolean | `false` | Skip confirmation prompt.                               |
 
 **Behavior**
 
@@ -812,17 +812,17 @@ Previews the diff for a review source without creating a review session.
 
 **Arguments**
 
-| Argument | Description |
-| --- | --- |
+| Argument   | Description                              |
+| ---------- | ---------------------------------------- |
 | `<source>` | One of `staged`, `branch`, or `commits`. |
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--branch <name>` | string | none | Branch name when `<source>` is `branch`. |
-| `--commits <value>` | string | none | Commit SHAs or range when `<source>` is `commits`. |
-| `--stat` | boolean | `false` | Show summary stats instead of full patch text. |
+| Option              | Type    | Default | Description                                        |
+| ------------------- | ------- | ------- | -------------------------------------------------- |
+| `--branch <name>`   | string  | none    | Branch name when `<source>` is `branch`.           |
+| `--commits <value>` | string  | none    | Commit SHAs or range when `<source>` is `commits`. |
+| `--stat`            | boolean | `false` | Show summary stats instead of full patch text.     |
 
 **Behavior**
 
@@ -871,10 +871,10 @@ None.
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--type <value>` | enum | all | Filter to one event type: `reviews`, `comments`, `todos`, or `files`. |
-| `--since <timestamp>` | number | now | Resume from a known timestamp if the local event buffer supports it. |
+| Option                | Type   | Default | Description                                                           |
+| --------------------- | ------ | ------- | --------------------------------------------------------------------- |
+| `--type <value>`      | enum   | all     | Filter to one event type: `reviews`, `comments`, `todos`, or `files`. |
+| `--since <timestamp>` | number | now     | Resume from a known timestamp if the local event buffer supports it.  |
 
 **Behavior**
 
@@ -910,10 +910,10 @@ None.
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--readonly` | boolean | `false` | Expose only read-heavy review-session operations. |
-| `--log-level <level>` | enum | `error` | Diagnostic verbosity for stderr logs. |
+| Option                | Type    | Default | Description                                       |
+| --------------------- | ------- | ------- | ------------------------------------------------- |
+| `--readonly`          | boolean | `false` | Expose only read-heavy review-session operations. |
+| `--log-level <level>` | enum    | `error` | Diagnostic verbosity for stderr logs.             |
 
 **Behavior**
 
@@ -1026,9 +1026,9 @@ None.
 
 **Options**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `--yes` | boolean | `false` | Skip destructive confirmation. |
+| Option           | Type    | Default | Description                                                                           |
+| ---------------- | ------- | ------- | ------------------------------------------------------------------------------------- |
+| `--yes`          | boolean | `false` | Skip destructive confirmation.                                                        |
 | `--keep-exports` | boolean | `false` | Preserve exported markdown artifacts under `.ringi/exports` if that directory exists. |
 
 **Behavior**

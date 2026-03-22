@@ -8,8 +8,13 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "lint": "oxlint --type-aware --type-check",
+    "lint:fix": "oxlint --type-aware --type-check --fix",
     "check": "ultracite check",
     "fix": "ultracite fix",
+    "deps": "pnpm dlx taze@latest -Ilw",
+    "deps:major": "pnpm dlx taze@latest major -Ilw",
+    "tanstack": "pnpm dlx @tanstack/cli@latest",
     "prepare": "lefthook install"
   },
   "dependencies": {
@@ -48,6 +53,7 @@
     "vite-tsconfig-paths": "^5.1.4"
   },
   "devDependencies": {
+    "@react-grab/mcp": "^0.1.28",
     "@tanstack/devtools-vite": "^0.3.11",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
@@ -59,6 +65,7 @@
     "lefthook": "^2.1.4",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.56.0",
+    "react-grab": "^0.1.28",
     "typescript": "^5.7.2",
     "ultracite": "7.3.2",
     "vite": "^7.1.7",

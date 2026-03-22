@@ -265,7 +265,9 @@ interface TodosNamespace {
   remove(todoId: TodoId): Promise<{ success: true }>;
 
   /** Mutating. Late Phase 1 / Phase 1.5. Clear todos, optionally scoped to a review. */
-  clear(reviewId?: ReviewId | null): Promise<{ success: true; removed: number }>;
+  clear(
+    reviewId?: ReviewId | null
+  ): Promise<{ success: true; removed: number }>;
 }
 ```
 
@@ -299,7 +301,12 @@ interface SourcesNamespace {
   list(): Promise<{
     staged: { available: boolean };
     branches: Array<{ name: string; current: boolean }>;
-    recentCommits: Array<{ hash: string; author: string; date: string; message: string }>;
+    recentCommits: Array<{
+      hash: string;
+      author: string;
+      date: string;
+      message: string;
+    }>;
   }>;
 
   /** Read-only. Phase 1. Preview diff summary and files for a candidate review source. */
@@ -322,7 +329,12 @@ type RelationshipKind =
 
 type ValidateOptions = {
   reviewId: ReviewId;
-  checks?: Array<"changed_exports" | "unresolved_comments" | "impact_coverage" | "confidence_gaps">;
+  checks?: Array<
+    | "changed_exports"
+    | "unresolved_comments"
+    | "impact_coverage"
+    | "confidence_gaps"
+  >;
 };
 
 interface IntelligenceNamespace {
@@ -330,13 +342,15 @@ interface IntelligenceNamespace {
   getRelationships(reviewId: ReviewId): Promise<Relationship[]>;
 
   /** Read-only. Phase 2. Return impacted files and uncovered dependents for the review, including inputs used by the impact minimap. */
-  getImpacts(reviewId: ReviewId): Promise<Array<{
-    fileId: string;
-    path: string;
-    impactedBy: string[];
-    uncoveredDependents: string[];
-    confidence: number;
-  }>>;
+  getImpacts(reviewId: ReviewId): Promise<
+    Array<{
+      fileId: string;
+      path: string;
+      impactedBy: string[];
+      uncoveredDependents: string[];
+      confidence: number;
+    }>
+  >;
 
   /** Read-only. Phase 2. Return confidence scores and reasons for changed files or groups. */
   getConfidence(reviewId: ReviewId): Promise<ConfidenceScore[]>;
@@ -947,16 +961,16 @@ These are not omissions by accident. The roadmap is explicit: MCP is a review-sc
 
 ## Read-Only vs Mutating Operations
 
-| Namespace | Operation | Mode | Phase |
-| --- | --- | --- | --- |
-| `reviews` | `list`, `get`, `getFiles`, `getDiff`, `getComments`, `getSuggestions`, `getStatus`, `export` | Read-only | Phase 1 |
-| `reviews` | `create` | Mutating | Phase 3 |
-| `todos` | `list` | Read-only | Phase 1 |
-| `todos` | `add`, `done`, `undone`, `move`, `remove`, `clear` | Mutating | Late Phase 1 / Phase 1.5 |
-| `sources` | `list`, `previewDiff` | Read-only | Phase 1 |
-| `intelligence` | `getRelationships`, `getImpacts`, `getConfidence`, `validate` | Read-only | Phase 2 |
-| `events` | `subscribe`, `listRecent` | Read-only | Phase 1 |
-| `session` | `context`, `status` | Read-only | Phase 1 |
+| Namespace      | Operation                                                                                    | Mode      | Phase                    |
+| -------------- | -------------------------------------------------------------------------------------------- | --------- | ------------------------ |
+| `reviews`      | `list`, `get`, `getFiles`, `getDiff`, `getComments`, `getSuggestions`, `getStatus`, `export` | Read-only | Phase 1                  |
+| `reviews`      | `create`                                                                                     | Mutating  | Phase 3                  |
+| `todos`        | `list`                                                                                       | Read-only | Phase 1                  |
+| `todos`        | `add`, `done`, `undone`, `move`, `remove`, `clear`                                           | Mutating  | Late Phase 1 / Phase 1.5 |
+| `sources`      | `list`, `previewDiff`                                                                        | Read-only | Phase 1                  |
+| `intelligence` | `getRelationships`, `getImpacts`, `getConfidence`, `validate`                                | Read-only | Phase 2                  |
+| `events`       | `subscribe`, `listRecent`                                                                    | Read-only | Phase 1                  |
+| `session`      | `context`, `status`                                                                          | Read-only | Phase 1                  |
 
 Rule of thumb:
 

@@ -2,8 +2,7 @@ import * as Effect from "effect/Effect";
 
 import { ReviewsRpc } from "@/api/domain-rpc";
 import type { ReviewStatus } from "@/api/schemas/review";
-
-import { ReviewService } from "../services/review.service";
+import { ReviewService } from "@/core/services/review.service";
 
 /**
  * Wires RPC handlers for ReviewsRpc.

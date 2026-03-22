@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 
 import { ApiClient } from "@/api/api-client";
 import type { ReviewId } from "@/api/schemas/review";
+import { AppSettingsControl } from "@/components/settings/app-settings-control";
 import { clientRuntime } from "@/lib/client-runtime";
 import { cn } from "@/lib/utils";
 
@@ -248,6 +249,7 @@ export function ActionBar({
           />
         </button>
         <GhostButton onClick={onExport}>Export</GhostButton>
+        <AppSettingsControl />
       </div>
     </div>
   );

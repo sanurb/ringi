@@ -4,6 +4,14 @@ import * as Schema from "effect/Schema";
 export const ReviewId = Schema.String.pipe(Schema.brand("ReviewId"));
 export type ReviewId = typeof ReviewId.Type;
 
+export const DIFF_SCOPES = [
+  "uncommitted",
+  "staged",
+  "unstaged",
+  "last-commit",
+] as const;
+export type DiffScope = (typeof DIFF_SCOPES)[number];
+
 export const ReviewStatus = Schema.Literal(
   "in_progress",
   "approved",

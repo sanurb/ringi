@@ -4,8 +4,7 @@ import * as Effect from "effect/Effect";
 
 import type { DiffHunk } from "@/api/schemas/diff";
 import type { ReviewId } from "@/api/schemas/review";
-
-import { SqliteService, withTransaction } from "../db/database";
+import { SqliteService, withTransaction } from "@/core/db/database";
 
 // ---------------------------------------------------------------------------
 // Internal row shapes

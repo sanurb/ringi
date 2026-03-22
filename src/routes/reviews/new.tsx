@@ -5,12 +5,12 @@ import * as Effect from "effect/Effect";
 import { useState } from "react";
 
 import { ApiClient } from "@/api/api-client";
+import { parseDiff, getDiffSummary } from "@/core/services/diff.service";
+import { GitService } from "@/core/services/git.service";
 import { clientRuntime } from "@/lib/client-runtime";
 
 import { ActionBar } from "../-shared/layout/action-bar";
 import { serverRuntime } from "../api/$";
-import { parseDiff, getDiffSummary } from "../api/-lib/services/diff.service";
-import { GitService } from "../api/-lib/services/git.service";
 
 interface NewReviewData {
   repository: { name: string; branch: string; path: string };

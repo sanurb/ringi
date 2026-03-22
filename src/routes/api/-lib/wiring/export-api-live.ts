@@ -2,8 +2,7 @@ import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import * as Effect from "effect/Effect";
 
 import { DomainApi } from "@/api/domain-api";
-
-import { ExportService } from "../services/export.service";
+import { ExportService } from "@/core/services/export.service";
 
 export const ExportApiLive = HttpApiBuilder.group(
   DomainApi,

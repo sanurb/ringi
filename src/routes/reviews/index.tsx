@@ -19,12 +19,12 @@ import { createServerFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
 import { useMemo } from "react";
 
+import { ReviewService } from "@/core/services/review.service";
 import { cn } from "@/lib/utils";
 
 import { useKeyboardShortcuts } from "../-shared/hooks/use-keyboard-shortcuts";
 import { ActionBar } from "../-shared/layout/action-bar";
 import { serverRuntime } from "../api/$";
-import { ReviewService } from "../api/-lib/services/review.service";
 
 const listReviews = createServerFn({ method: "GET" }).handler(
   async (): Promise<ReviewListData> => {

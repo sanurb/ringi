@@ -12,6 +12,8 @@ import type {
 } from "@/api/schemas/diff";
 import { ReviewId } from "@/api/schemas/review";
 import type { ReviewStatus } from "@/api/schemas/review";
+import { CommentService } from "@/core/services/comment.service";
+import { ReviewService } from "@/core/services/review.service";
 import { clientRuntime } from "@/lib/client-runtime";
 
 import { DiffView } from "../-shared/diff/diff-view";
@@ -19,8 +21,6 @@ import { ActionBar } from "../-shared/layout/action-bar";
 import { AnnotationsPanel } from "../-shared/layout/annotations-panel";
 import { FileTree } from "../-shared/layout/file-tree";
 import { serverRuntime } from "../api/$";
-import { CommentService } from "../api/-lib/services/comment.service";
-import { ReviewService } from "../api/-lib/services/review.service";
 
 // ---------------------------------------------------------------------------
 // Server function

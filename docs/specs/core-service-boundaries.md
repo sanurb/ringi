@@ -1,13 +1,17 @@
 # SPEC-006: Core Service Boundaries
 
 ## Status
+
 Draft
 
 ## Purpose
+
 Define the canonical boundary contract for Ringi's shared core service layer so review behavior stays consistent across Web UI, HTTP API, CLI, and MCP. This spec exists to stop business logic from leaking into adapters or repositories, to make transaction ownership explicit, and to separate core domain services from infrastructure adapters such as git and SSE transport.
 
 ## Scope
+
 This spec covers:
+
 - the responsibility and ownership of the current core services: `ReviewService`, `CommentService`, `ExportService`, `TodoService`, and `EventService`
 - the adapter boundary for `GitService`
 - service-to-repository ownership and dependency rules
@@ -17,7 +21,9 @@ This spec covers:
 - forbidden dependencies and current implementation gaps versus the documented architecture
 
 ## Non-Goals
+
 This spec does not cover:
+
 - detailed CLI verb contracts already specified in `docs/specs/cli-surface-contracts.md`
 - detailed MCP tool and namespace contracts already specified in `docs/specs/mcp-execute-api.md`
 - review lifecycle transition semantics already specified in `docs/specs/review-lifecycle.md`
@@ -26,6 +32,7 @@ This spec does not cover:
 - frontend presentation concerns, HTTP route shapes, or SSE payload schema details
 
 ## Canonical References
+
 - `docs/ARCHITECTURE.md`
   - §6 System Overview
   - §7 Operational Modes
@@ -67,6 +74,7 @@ This spec does not cover:
 - `src/routes/api/-lib/wiring/reviews-rpc-live.ts`
 
 ## Terminology
+
 - **Core service** — a runtime-constructed domain service that owns business logic and composes repositories and adapters.
 - **Repository** — the SQLite persistence layer that performs storage access only and does not own domain decisions.
 - **Adapter** — an infrastructure or transport boundary translating between external systems and the core domain model; in this spec, HTTP, CLI, MCP, SSE, and git are adapters.
@@ -76,6 +84,7 @@ This spec does not cover:
 - **Leaked requirement** — an implementation smell where a service method still requires the caller to provide repositories or adapters directly.
 
 ## Requirements
+
 1. **REQ-006-001 — Single owner of domain logic**  
    `ReviewService`, `CommentService`, `TodoService`, `ExportService`, and `EventService` SHALL be the only owners of review-domain workflow logic in scope. Repositories SHALL NOT implement business rules, and HTTP/CLI/MCP adapters SHALL NOT implement domain logic.
 2. **REQ-006-002 — Adapter-only transports**  
@@ -118,7 +127,9 @@ This spec does not cover:
     After review creation, no core service SHALL re-run git diff commands to answer hunk reads for anchored reviews created after the snapshot cutover defined in SPEC-002.
 
 ## Workflow / State Model
+
 ### 1. Target runtime wiring model
+
 ```text
 Server runtime (`ringi serve`)
   HTTP adapter
@@ -145,6 +156,7 @@ MCP runtime (`ringi mcp`)
 ```
 
 ### 2. Target service dependency graph
+
 ```text
                   +----------------+
                   |   GitService   |  adapter only
@@ -175,6 +187,7 @@ MCP runtime (`ringi mcp`)
 ```
 
 ### 3. Forbidden dependency rules
+
 - Adapters MAY depend on core services; core services MUST NOT depend on adapters.
 - Repositories MUST NOT depend on services.
 - `GitService` MUST NOT depend on repositories or other domain services.
@@ -185,7 +198,9 @@ MCP runtime (`ringi mcp`)
 - No service may read transport-local mutable state such as `Request`, TTY status, MCP code string, or SSE subscriber internals.
 
 ### 4. Write transaction sequence
+
 For a multi-repository mutation such as review creation:
+
 ```text
 adapter calls ReviewService.create
   -> ReviewService validates input and acquires git snapshot inputs through GitService
@@ -198,6 +213,7 @@ adapter calls ReviewService.create
 ```
 
 ### 5. Error propagation sequence
+
 ```text
 adapter request
   -> service method
@@ -208,6 +224,7 @@ adapter request
 ```
 
 ### 6. Current implementation gaps versus this model
+
 - `ReviewService.create()` writes the review row through `ReviewRepo.create()` and then writes files through `ReviewFileRepo.createBulk()`, but these are not one shared transaction. `ReviewFileRepo.createBulk()` starts its own transaction after the review row already exists.
 - `ReviewService.getFileHunks()` re-runs `git.getBranchDiff()` and `git.getCommitDiff()` for branch and commit reviews when `hunks_data` is absent, which violates SPEC-002 immutable snapshot anchoring.
 - `ReviewService` shells out with local helper `getHeadSha()` using `execFile("git", ...)` instead of routing that operation through `GitService`, violating the adapter boundary.
@@ -220,28 +237,35 @@ adapter request
 - `docs/ARCHITECTURE.md` names a Source bounded context, but current code has no separate `SourceService`; source resolution currently lives inside `ReviewService` plus `GitService`. **AMBIGUITY:** whether to extract a dedicated source service now or keep source ingestion inside `ReviewService` until a second consumer needs more than git passthrough.
 
 ## API / CLI / MCP Implications
+
 ### HTTP API
+
 - HTTP handlers in `src/routes/api/-lib/wiring/*.ts` SHALL stay thin and call services only.
 - HTTP adapters SHALL own request decoding, endpoint schema declaration, and response encoding.
 - HTTP adapters SHALL NOT hide undeclared service errors as defects long-term. Current `ReviewsApiLive` and `ReviewsRpcLive` `Effect.die(...)` behavior for `GitError` and `ReviewError` is a temporary gap, not the target contract.
 
 ### CLI
+
 - CLI standalone reads SHALL construct only the read-capable services needed for the command, consistent with SPEC-003.
 - CLI mutation commands SHALL route through the server-connected path rather than constructing a second write-capable orchestration path in the CLI adapter.
 - CLI adapter code SHALL own selector resolution (`last`), TTY confirmation, output formatting, and exit code mapping, not domain services.
 
 ### MCP
+
 - MCP `execute` SHALL expose the same core service behavior as human-facing surfaces, per SPEC-004.
 - MCP readonly enforcement SHALL remain adapter-owned; services SHOULD stay transport-neutral.
 - MCP namespace methods SHALL not bypass services to hit repositories directly.
 
 ### Shared implication
+
 - All three surfaces SHALL observe the same review truth because they are backed by the same service contracts and repository model.
 
 ## Data Model Impact
+
 This spec does not introduce new tables or columns by itself.
 
 It does require repository-contract changes to support truthful service boundaries:
+
 - repositories participating in one domain mutation need an ambient transaction mechanism instead of each repository deciding independently when to call `withTransaction(...)`
 - review export and lifecycle services need to converge on the split lifecycle fields defined in SPEC-001 instead of the current coarse `reviews.status`
 - no repository contract should require HTTP, CLI, MCP, or git-specific types
@@ -257,8 +281,11 @@ Repository ownership map:
 | `GitService` | none | `git` CLI, filesystem reads, config | Adapter only; not a domain owner |
 
 ## Service Boundaries
+
 ### ReviewService
+
 Owns:
+
 - review creation from validated review source input
 - snapshot anchoring and persisted review-file metadata
 - review list/detail reads
@@ -266,6 +293,7 @@ Owns:
 - hunk reads from persisted snapshot data
 
 Must not own:
+
 - HTTP endpoint semantics
 - CLI prompt behavior
 - MCP readonly policy
@@ -273,55 +301,70 @@ Must not own:
 - raw git process execution outside `GitService`
 
 ### CommentService
+
 Owns:
+
 - comment creation, update, resolution, unresolution, and removal
 - comment statistics for one review
 - suggestion storage insofar as suggestions are comment-owned in current source
 
 Must not own:
+
 - review lifecycle decisions beyond its own comment state
 - export formatting
 - HTTP query parsing
 
 ### TodoService
+
 Owns:
+
 - todo creation, update, completion state, ordering, and removal
 - todo list and todo stats
 
 Must not own:
+
 - review export rendering
 - review approval decisions by itself
 - CLI verb naming or confirmation logic
 
 ### ExportService
+
 Owns:
+
 - read-only composition of persisted review, comment, and todo state into export output
 - export rendering policy for snapshot-backed audit output
 
 Must not own:
+
 - lifecycle transition side effects unless explicitly specified by SPEC-001
 - git diff refresh
 - direct repository writes in the current contract
 
 ### EventService
+
 Owns:
+
 - subscriber registration and fanout
 - watcher lifecycle once runtime boot explicitly starts it
 - event transport payload broadcasting
 
 Must not own:
+
 - deciding whether a review is approved, ready, or exported
 - mutating review/comment/todo rows
 - reading transport-specific state from HTTP handlers or CLI adapters
 
 ### GitService
+
 Owns:
+
 - git diff acquisition
 - branch and commit discovery
 - repository metadata and top-level path discovery
 - staged file content, HEAD content, and working tree reads
 
 Must not own:
+
 - lifecycle fields
 - review persistence
 - export rendering
@@ -329,6 +372,7 @@ Must not own:
 - transport error mapping
 
 ## Edge Cases
+
 - **Service called without DB connection** — runtime construction MUST fail before exposing services. Adapters MUST not attempt partial fallback with half-initialized services.
 - **Service called during migration** — migrations run in `SqliteService` construction today; write-capable services MUST remain unavailable until migration completes successfully.
 - **Standalone mode bootstrap** — **AMBIGUITY:** current source does not show a read-only SQLite bootstrap path separate from migration-running `SqliteService`. Proposed resolution: add a read-only runtime constructor for standalone commands and keep write-capable migration bootstrap in server/MCP runtimes.
@@ -340,7 +384,9 @@ Must not own:
 - **Schema drift between runtimes** — server, CLI, and MCP MUST not construct different service graphs that disagree on repository or adapter behavior.
 
 ## Observability
+
 Structured diagnostics SHOULD record:
+
 - runtime bootstrap success/failure for server, CLI standalone, and MCP
 - SQLite open path, WAL mode, and migration success/failure
 - service-layer write transaction begin/commit/rollback for multi-repo mutations
@@ -349,12 +395,14 @@ Structured diagnostics SHOULD record:
 - service dependency graph or runtime composition used during `ringi doctor`
 
 Minimum logging expectations:
+
 - `ReviewService.create` logs source type, repository path, file count, and transaction outcome
 - `ExportService.exportReview` logs review id and export outcome
 - `EventService` logs watcher startup and subscriber counts
 - transport adapters log mapped error category, not just generic failure text
 
 ## Rollout Considerations
+
 1. Keep the current service set but enforce the boundary cutover first: services own domain logic, repos own storage, adapters own transport.
 2. Remove direct git shelling from `ReviewService` and route all git access through `GitService`.
 3. Introduce ambient transaction support so `ReviewService.create()` can commit review row and review-file rows atomically.
@@ -365,6 +413,7 @@ Minimum logging expectations:
 8. Tighten API and RPC schemas so domain and adapter errors are surfaced as declared failures instead of `die` defects.
 
 ## Open Questions
+
 1. **AMBIGUITY:** Should Ringi introduce a dedicated `SourceService` now, or keep source ingestion inside `ReviewService` plus `GitService`?  
    Proposed resolution: keep `ReviewService` as the owner of source-ingestion orchestration for now, because the current source tree has only one concrete consumer and SPEC-002 already defines `GitService` as the adapter boundary. Extract `SourceService` only when a second consumer needs source normalization beyond review creation.
 2. **AMBIGUITY:** How should ambient transaction context be represented in Effect?  
@@ -377,6 +426,7 @@ Minimum logging expectations:
    Proposed resolution: keep `ExportService` read-only until SPEC-001 export persistence lands; then let it write only export-fact records, not review lifecycle shortcuts.
 
 ## Acceptance Criteria
+
 - `docs/specs/core-service-boundaries.md` exists.
 - The spec contains all mandatory sections required by the assignment.
 - The spec names every current core service in scope and identifies `GitService` as an adapter, not a core domain service.

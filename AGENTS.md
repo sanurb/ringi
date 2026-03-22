@@ -4,9 +4,14 @@
 
 - All of `pnpm check`, `pnpm fix`, and `pnpm typecheck` must pass before considering tasks completed.
 
+## Testing Policy
+
+- Mocking frameworks are banned in this repository. Do not use `vi.mock()`, `vi.stubGlobal()`, or `vi.spyOn()`.
+- Tests must use hand-written stubs, fakes, or constructor/parameter dependency injection instead.
+
 ## Project Snapshot
 
-T3 Code is a minimal web GUI for using coding agents like Codex and Claude.
+Ringi is becoming a local-first human review workbench for AI-generated code: a system where a reviewer can create a review session from a real git diff, inspect the diff with machine-generated provenance and evidence, understand first-order impact without leaving the review, and drive the same review state from Web UI, CLI, or MCP stdio through one shared core service layer.
 
 This repository is a VERY EARLY WIP. Proposing sweeping changes that improve long-term maintainability is encouraged.
 

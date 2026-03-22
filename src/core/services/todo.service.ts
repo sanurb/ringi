@@ -9,22 +9,20 @@ import type {
   UpdateTodoInput,
 } from "@/api/schemas/todo";
 import { TodoNotFound } from "@/api/schemas/todo";
-
-import { TodoRepo } from "../repos/todo.repo";
+import { TodoRepo } from "@/core/repos/todo.repo";
 
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
-/** @effect-leakable-service */
 export class TodoService extends Effect.Service<TodoService>()("TodoService", {
   dependencies: [TodoRepo.Default],
-  effect: Effect.gen(function* effect() {
+  effect: Effect.sync(() => {
     // -----------------------------------------------------------------------
     // create
     // -----------------------------------------------------------------------
     const create = (input: CreateTodoInput) =>
-      Effect.gen(function* create() {
+      Effect.gen(function*  create() {
         const repo = yield* TodoRepo;
         const id = randomUUID() as TodoId;
         return yield* repo.create({
@@ -38,7 +36,7 @@ export class TodoService extends Effect.Service<TodoService>()("TodoService", {
     // getById
     // -----------------------------------------------------------------------
     const getById = (id: TodoId) =>
-      Effect.gen(function* getById() {
+      Effect.gen(function*  getById() {
         const repo = yield* TodoRepo;
         const todo = yield* repo.findById(id);
         if (!todo) {
@@ -58,7 +56,7 @@ export class TodoService extends Effect.Service<TodoService>()("TodoService", {
         offset?: number;
       } = {}
     ) =>
-      Effect.gen(function* list() {
+      Effect.gen(function*  list() {
         const repo = yield* TodoRepo;
         const result = yield* repo.findAll(opts);
         return {
@@ -73,7 +71,7 @@ export class TodoService extends Effect.Service<TodoService>()("TodoService", {
     // update
     // -----------------------------------------------------------------------
     const update = (id: TodoId, input: UpdateTodoInput) =>
-      Effect.gen(function* update() {
+      Effect.gen(function*  update() {
         const repo = yield* TodoRepo;
 
         const existing = yield* repo.findById(id);
@@ -101,7 +99,7 @@ export class TodoService extends Effect.Service<TodoService>()("TodoService", {
     // toggle
     // -----------------------------------------------------------------------
     const toggle = (id: TodoId) =>
-      Effect.gen(function* toggle() {
+      Effect.gen(function*  toggle() {
         const repo = yield* TodoRepo;
         const todo = yield* repo.toggle(id);
         if (!todo) {
@@ -114,7 +112,7 @@ export class TodoService extends Effect.Service<TodoService>()("TodoService", {
     // remove
     // -----------------------------------------------------------------------
     const remove = (id: TodoId) =>
-      Effect.gen(function* remove() {
+      Effect.gen(function*  remove() {
         const repo = yield* TodoRepo;
 
         const existing = yield* repo.findById(id);
@@ -130,7 +128,7 @@ export class TodoService extends Effect.Service<TodoService>()("TodoService", {
     // removeCompleted
     // -----------------------------------------------------------------------
     const removeCompleted = () =>
-      Effect.gen(function* removeCompleted() {
+      Effect.gen(function*  removeCompleted() {
         const repo = yield* TodoRepo;
         const deleted = yield* repo.removeCompleted();
         return { deleted };
@@ -140,7 +138,7 @@ export class TodoService extends Effect.Service<TodoService>()("TodoService", {
     // reorder
     // -----------------------------------------------------------------------
     const reorder = (orderedIds: readonly string[]) =>
-      Effect.gen(function* reorder() {
+      Effect.gen(function*  reorder() {
         const repo = yield* TodoRepo;
         const updated = yield* repo.reorder(orderedIds);
         return { updated };
@@ -150,7 +148,7 @@ export class TodoService extends Effect.Service<TodoService>()("TodoService", {
     // move
     // -----------------------------------------------------------------------
     const move = (id: TodoId, position: number) =>
-      Effect.gen(function* move() {
+      Effect.gen(function*  move() {
         const repo = yield* TodoRepo;
         const todo = yield* repo.move(id, position);
         if (!todo) {

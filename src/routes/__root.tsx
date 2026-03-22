@@ -5,7 +5,10 @@ import {
   Scripts,
   createRootRoute,
 } from "@tanstack/react-router";
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
+
+import { RingiThemeProvider } from "@/components/providers/ringi-theme-provider";
+import { getRingiThemeBootScript } from "@/lib/theme/preferences-storage";
 
 import { useKeyboardShortcuts } from "./-shared/hooks/use-keyboard-shortcuts";
 import { TodoPanel } from "./-shared/todos/todo-panel";
@@ -26,13 +29,26 @@ export const Route = createRootRoute({
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      void import("react-grab");
+      void import("@react-grab/mcp/client");
+    }
+  }, []);
+
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        {/* Applies saved appearance + palette before first paint (see ringi-palettes.css). */}
+        <script
+          dangerouslySetInnerHTML={{ __html: getRingiThemeBootScript() }}
+        />
       </head>
       <body>
-        <RegistryProvider defaultIdleTTL={60_000}>{children}</RegistryProvider>
+        <RegistryProvider defaultIdleTTL={60_000}>
+          <RingiThemeProvider>{children}</RingiThemeProvider>
+        </RegistryProvider>
         <Scripts />
       </body>
     </html>

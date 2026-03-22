@@ -1,15 +1,19 @@
 # SPEC-008: Provenance, Evidence, and Semantic Grouping
 
 ## Status
+
 Draft
 
 ## Purpose
+
 Define Ringi's canonical contracts for provenance, evidence, confidence scoring, and semantic grouping inside a review snapshot. This spec closes the gap between the architecture, which already treats provenance/evidence/grouping/confidence as first-class review intelligence, and the current implementation, which still exposes review files and comments without those structured artifacts.
 
 The point is not decorative metadata. Per `docs/ARCHITECTURE.md`, provenance and evidence are the trust layer that makes a local-first AI review workbench materially different from a flat PR comment list.
 
 ## Scope
+
 This spec covers:
+
 - provenance for review-scoped artifacts
 - evidence structure, taxonomy, storage, and attachment rules
 - confidence score semantics for AI-generated findings
@@ -18,7 +22,9 @@ This spec covers:
 - persistence and query contracts required to serve the same grouped review truth to UI, CLI, HTTP, and MCP
 
 ## Non-Goals
+
 This spec does not cover:
+
 - full repository graph analysis outside the active review snapshot
 - tree-sitter implementation details; `docs/ARCHITECTURE.md` explicitly allows regex first and tree-sitter later behind a stable contract
 - UI pixel design, animation, or exact component layout for grouped navigation
@@ -27,6 +33,7 @@ This spec does not cover:
 - repository-wide search, knowledge graph, or exploration surfaces outside review scope
 
 ## Canonical References
+
 - `docs/ARCHITECTURE.md`
   - §2 Product Thesis
   - §3 Design Principles
@@ -67,6 +74,7 @@ This spec does not cover:
 - `src/api/schemas/comment.ts`
 
 ## Terminology
+
 - **Provenance** — structured attribution describing who or what produced a review artifact, during which step, and for what stated reason. `docs/ARCHITECTURE.md` requires structured, machine-emittable provenance rather than narrative-only explanation.
 - **Evidence** — inspectable supporting data for a relationship, comment, suggestion, confidence score, or grouped view. Per architecture, evidence is mandatory whenever the system asks the reviewer to trust derived intelligence.
 - **Confidence score** — a numeric review-scoped trust signal attached to a derived machine finding. It prioritizes reviewer attention; it does not replace evidence.
@@ -78,6 +86,7 @@ This spec does not cover:
 - **Absent confidence** — no computed score is available. This is different from `0`.
 
 ## Requirements
+
 1. **REQ-008-001 — Structured provenance is mandatory for derived intelligence**  
    Any machine-generated review artifact that influences ordering, grouping, highlighting, or suggested action SHALL carry at least one persisted provenance record.
 2. **REQ-008-002 — Provenance actor identity**  
@@ -120,7 +129,9 @@ This spec does not cover:
     `reviews.create(..., { provenance, groupHints })` MAY seed analysis, but persisted grouping and confidence SHALL still be derived from the anchored review snapshot plus stored intelligence, not from unverified hints alone.
 
 ## Workflow / State Model
+
 ### Intelligence attachment lifecycle
+
 ```text
 review created
   -> workflow_state = created
@@ -135,35 +146,42 @@ review created
 ```
 
 ### Attachment rules by subject
-| Subject | When attached | Producer | Required artifacts |
-| --- | --- | --- | --- |
-| `review` | creation and analysis passes | human / agent / system | provenance; optional seed evidence |
-| `review_file` | after diff parse and intelligence analysis | system / agent | provenance, optional evidence, optional confidence, `group_id` |
-| `review_group` | after grouping pass | system / agent | provenance explaining grouping, member evidence, optional confidence |
-| `comment` | creation/update/resolution | human / agent / system | provenance for authoring action; evidence optional unless machine-generated claim |
-| `comment` + `subject_slot = suggestion` | suggestion create/update | human / agent / system | provenance for suggestion origin; evidence required for machine suggestion rationale |
-| `todo` | create/update/complete/reopen | human / agent / system | provenance for actor and reason; evidence optional unless machine-generated |
+
+| Subject                                 | When attached                              | Producer               | Required artifacts                                                                   |
+| --------------------------------------- | ------------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------ |
+| `review`                                | creation and analysis passes               | human / agent / system | provenance; optional seed evidence                                                   |
+| `review_file`                           | after diff parse and intelligence analysis | system / agent         | provenance, optional evidence, optional confidence, `group_id`                       |
+| `review_group`                          | after grouping pass                        | system / agent         | provenance explaining grouping, member evidence, optional confidence                 |
+| `comment`                               | creation/update/resolution                 | human / agent / system | provenance for authoring action; evidence optional unless machine-generated claim    |
+| `comment` + `subject_slot = suggestion` | suggestion create/update                   | human / agent / system | provenance for suggestion origin; evidence required for machine suggestion rationale |
+| `todo`                                  | create/update/complete/reopen              | human / agent / system | provenance for actor and reason; evidence optional unless machine-generated          |
 
 ### Override chain model
+
 1. Machine creates a comment or suggestion with provenance and evidence.
 2. Human edits, rejects, or rewrites it.
 3. The human action appends a new provenance row with `relation = 'overrides'` to the prior provenance row.
 4. The current visible artifact points to the latest provenance row, but the full chain remains queryable for audit.
 
 ### Current implementation gaps this spec closes
+
 Verified from source:
+
 - `src/api/schemas/review.ts` exposes only `status`, `sourceType`, `sourceRef`, and opaque `snapshotData`; there is no provenance/evidence/confidence/group surface.
 - `ReviewService.getById()` returns files with `id`, `filePath`, `oldPath`, `status`, `additions`, and `deletions` only.
 - `docs/MCP.md` already sketches `ReviewFile.provenance`, `ReviewFile.confidence`, and `ReviewFile.groupId`, but `src/routes/api/-lib/services/review.service.ts` does not currently populate them.
 - `src/api/schemas/comment.ts` and `CommentService.create()/update()` only handle comment content and embedded suggestion text; they do not accept or persist provenance/evidence.
 
 ## API / CLI / MCP Implications
+
 ### Shared core API implications
+
 - Review reads SHALL grow from plain diff metadata to include grouped tree membership, provenance summaries, and confidence summaries.
 - Comment and todo mutation APIs SHALL gain additive provenance-aware variants or internally attach provenance based on authenticated actor context. The service layer owns that attachment; adapters only provide actor context.
 - Suggestion provenance SHALL remain attached through the owning comment contract rather than introducing a second suggestion representation.
 
 ### MCP implications
+
 - `docs/MCP.md` already defines `reviews.create(..., { provenance?, groupHints? })`; this spec makes those inputs canonical review-level seeds rather than example-only fields.
 - `reviews.getFiles(reviewId)` SHALL return each file's stable `groupId`, provenance summary, and confidence summary from persisted storage.
 - `intelligence.getRelationships(reviewId)` SHALL return relationship edges plus evidence references grounded in persisted evidence.
@@ -171,19 +189,23 @@ Verified from source:
 - MCP callers SHALL interpret `confidence = null` as “not computed” and `confidence = 0` as “computed but untrusted”.
 
 ### CLI implications
+
 - Read-only CLI surfaces that summarize review files SHALL use the grouped file tree once available instead of flattening files alphabetically.
 - CLI JSON output for review inspection SHOULD expose group ids/labels, confidence, and provenance summary without requiring a running server, consistent with SPEC-003 and SPEC-005 local-first reads.
 - CLI diagnostics SHOULD surface partial or missing intelligence explicitly rather than pretending the review is fully analyzed.
 
 ### HTTP / UI implications
+
 - HTTP/UI file lists SHALL consume the same grouped file tree contract as MCP and CLI.
 - Confidence-based ordering/highlighting SHALL be advisory only; UI SHALL always provide evidence access for machine findings.
 - Provenance/evidence text SHALL be rendered as escaped text only, consistent with `docs/ARCHITECTURE.md` §20.
 
 ## Data Model Impact
+
 SPEC-005 explicitly left intelligence-table DDL open. This spec defines it.
 
 ### 1. Subject attachment shape
+
 Every provenance, evidence link, and confidence row SHALL use the same attachment coordinates:
 
 ```ts
@@ -200,10 +222,12 @@ subjectSlot:
 ```
 
 Constraint rules:
+
 - `subject_slot = 'suggestion'` is only valid when `subject_type = 'comment'`.
 - Suggestions remain comment-owned per SPEC-001 DD-3.
 
 ### 2. Proposed intelligence tables
+
 ```sql
 CREATE TABLE review_groups (
   id TEXT PRIMARY KEY,
@@ -294,6 +318,7 @@ CREATE TABLE review_confidence (
 ```
 
 ### 3. Required additions to existing tables
+
 ```sql
 ALTER TABLE review_files ADD COLUMN group_id TEXT REFERENCES review_groups(id) ON DELETE SET NULL;
 ALTER TABLE review_files ADD COLUMN confidence_score REAL CHECK (confidence_score >= 0 AND confidence_score <= 1);
@@ -301,10 +326,12 @@ ALTER TABLE review_files ADD COLUMN primary_provenance_id TEXT REFERENCES review
 ```
 
 Rationale from `docs/ARCHITECTURE.md` §12:
+
 - `review_files` must grow to include structured provenance, derived confidence, and a stable group reference.
 - `review_groups` and review-scoped relationship/evidence artifacts should be queryable tables, not one opaque JSON blob.
 
 ### 4. Evidence payload shapes
+
 The `payload_json` field is versioned, but the minimum expected shapes are:
 
 ```ts
@@ -319,7 +346,13 @@ type DiffExcerptEvidence = {
 type RelationshipExcerptEvidence = {
   sourceFile: string;
   targetFile: string;
-  kind: 'imports' | 'calls' | 're_exports' | 'renames' | 'configuration' | 'test_coverage';
+  kind:
+    | "imports"
+    | "calls"
+    | "re_exports"
+    | "renames"
+    | "configuration"
+    | "test_coverage";
   path: string;
   line: number;
   excerpt: string;
@@ -328,7 +361,7 @@ type RelationshipExcerptEvidence = {
 type TestResultEvidence = {
   command: string;
   exitCode: number | null;
-  status: 'passed' | 'failed' | 'timed_out' | 'inconclusive';
+  status: "passed" | "failed" | "timed_out" | "inconclusive";
   outputExcerpt?: string | null;
   sourceUrl?: string | null;
 };
@@ -336,7 +369,7 @@ type TestResultEvidence = {
 type LintResultEvidence = {
   tool: string;
   ruleId?: string | null;
-  severity: 'info' | 'warning' | 'error';
+  severity: "info" | "warning" | "error";
   path: string;
   line?: number | null;
   message: string;
@@ -353,23 +386,25 @@ type TypeErrorEvidence = {
 type ExternalLinkEvidence = {
   url: string;
   label: string;
-  kind: 'ci' | 'issue' | 'doc' | 'other';
+  kind: "ci" | "issue" | "doc" | "other";
 };
 ```
 
 ### 5. Confidence bands
+
 This spec standardizes file/group attention semantics:
 
-| Score range | Band | Meaning | Ordering implication |
-| --- | --- | --- | --- |
-| `0.00` to `< 0.40` | `low` | machine finding is weakly supported | surface early and highlight risk |
-| `0.40` to `< 0.60` | `guarded` | partial support, still risky | surface early |
-| `0.60` to `< 0.80` | `medium` | usable but reviewer should inspect evidence | normal order within group |
-| `0.80` to `1.00` | `high` | strongly supported by current evidence | de-emphasize relative to lower scores |
+| Score range        | Band      | Meaning                                     | Ordering implication                  |
+| ------------------ | --------- | ------------------------------------------- | ------------------------------------- |
+| `0.00` to `< 0.40` | `low`     | machine finding is weakly supported         | surface early and highlight risk      |
+| `0.40` to `< 0.60` | `guarded` | partial support, still risky                | surface early                         |
+| `0.60` to `< 0.80` | `medium`  | usable but reviewer should inspect evidence | normal order within group             |
+| `0.80` to `1.00`   | `high`    | strongly supported by current evidence      | de-emphasize relative to lower scores |
 
 `NULL` means not computed or not applicable.
 
 ### 6. Grouped file tree algorithm
+
 For one anchored review snapshot, the grouping pass SHALL run as follows:
 
 1. Start from all persisted `review_files` rows for the review. No file is optional.
@@ -384,6 +419,7 @@ For one anchored review snapshot, the grouping pass SHALL run as follows:
 This algorithm is grounded in `docs/ARCHITECTURE.md` §17, which defines grouped file tree structure from directory and import heuristics, and in `docs/MCP.md`, which already exposes review groups as a first-class contract.
 
 ### 7. Query patterns the schema must support
+
 - list groups for a review in stable order
 - list files in one group with summary confidence and primary provenance
 - load full provenance chain for a comment or suggestion
@@ -392,6 +428,7 @@ This algorithm is grounded in `docs/ARCHITECTURE.md` §17, which defines grouped
 - distinguish findings from two different agents by actor name/version
 
 ## Service Boundaries
+
 - **Intelligence service owns** provenance extraction, evidence extraction, semantic grouping, confidence derivation, and persistence of those intelligence artifacts. This follows `docs/ARCHITECTURE.md` §9 and §10.
 - **ReviewService owns** orchestration around review creation/loading, review snapshot identity, and exposing grouped/intelligence-enriched review reads. It may seed review-level provenance and `groupHints`, but it SHALL NOT embed grouping heuristics or confidence formulas inline.
 - **CommentService owns** comment lifecycle and suggestion lifecycle, but it SHALL append provenance records whenever comments or embedded suggestions are created, edited, resolved, or overridden.
@@ -404,6 +441,7 @@ This algorithm is grounded in `docs/ARCHITECTURE.md` §17, which defines grouped
   - MCP provides agent identity/version and optional review creation hints.
 
 ## Edge Cases
+
 - **Multiple agents in one review** — persist separate provenance records with distinct `actor_name` and `actor_version`; never collapse them into one anonymous `agent` source.
 - **Human overriding AI suggestion** — append a new provenance row with `relation = 'overrides'` on the comment suggestion slot. Do not mutate or delete the original AI provenance.
 - **Confidence `0` vs absent** — `0` means computed and nearly unsupported; absent means not computed. Ordering and UI copy MUST distinguish them.
@@ -415,7 +453,9 @@ This algorithm is grounded in `docs/ARCHITECTURE.md` §17, which defines grouped
 - **Stale group hints** — `groupHints` are advisory seeds only. They MUST NOT force an unsupported group when persisted evidence and directory heuristics contradict the hint.
 
 ## Observability
+
 The implementation SHALL emit structured logs and metrics for:
+
 - provenance rows created per review by subject type and actor kind
 - evidence rows created per review by `kind`
 - grouped-file-tree build duration and resulting group count
@@ -426,12 +466,14 @@ The implementation SHALL emit structured logs and metrics for:
 - partial-analysis conditions such as timeout, parser fallback, or unsupported evidence
 
 Diagnostics SHOULD expose:
+
 - reviews with missing intelligence artifacts despite `workflow_state = 'ready'`
 - evidence rows whose payload version is no longer the current writer version
 - grouped-tree builds that produced only fallback groups
 - confidence records with zero linked evidence, which would violate this spec
 
 ## Rollout Considerations
+
 1. Apply SPEC-005 persistence changes first so the intelligence tables can be added under the same SQLite WAL contract.
 2. Add the new tables and `review_files` columns in additive migrations before changing service reads.
 3. Update intelligence generation to persist provenance/evidence/group/confidence after review snapshot creation and before `ready` is considered complete.
@@ -441,6 +483,7 @@ Diagnostics SHOULD expose:
 7. Only after read paths are stable should ordering/highlighting rely on confidence thresholds.
 
 ## Open Questions
+
 1. **AMBIGUITY:** `docs/ARCHITECTURE.md` allows `review_groups` only when ordering must persist rather than be recomputed deterministically. This spec chooses persisted groups for cross-surface consistency, but the project still needs to decide whether purely deterministic recomputation is acceptable for early phases.
 2. **AMBIGUITY:** `docs/MCP.md` sketches a single `Provenance` shape at file level, while this spec generalizes provenance to all subject types. The exact transport shape for comment/todo provenance in HTTP and CLI JSON is not yet defined elsewhere.
 3. **AMBIGUITY:** No current source defines the exact confidence formula weights. This spec fixes the score range and display thresholds, but the numeric derivation from provenance quality, evidence quality, and mechanical-change signals still needs a dedicated algorithm note.
@@ -448,6 +491,7 @@ Diagnostics SHOULD expose:
 5. **AMBIGUITY:** `external_link` evidence can point to CI or docs, but current local-first docs do not define caching or offline semantics for those external references.
 
 ## Acceptance Criteria
+
 - `docs/specs/provenance-semantic-grouping.md` exists and uses the mandatory 17-section spec structure.
 - The spec defines a canonical provenance model that attaches to reviews, files, comments, comment-owned suggestions, and todos.
 - The spec defines a typed evidence taxonomy that includes at least test results, lint results, type errors, diff/relationship excerpts, and external links.

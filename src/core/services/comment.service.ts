@@ -10,24 +10,22 @@ import type {
 } from "@/api/schemas/comment";
 import { CommentNotFound } from "@/api/schemas/comment";
 import type { ReviewId } from "@/api/schemas/review";
-
-import { CommentRepo } from "../repos/comment.repo";
+import { CommentRepo } from "@/core/repos/comment.repo";
 
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
-/** @effect-leakable-service */
 export class CommentService extends Effect.Service<CommentService>()(
   "CommentService",
   {
     dependencies: [CommentRepo.Default],
-    effect: Effect.gen(function* effect() {
+    effect: Effect.sync(() => {
       // -----------------------------------------------------------------------
       // create
       // -----------------------------------------------------------------------
       const create = (reviewId: ReviewId, input: CreateCommentInput) =>
-        Effect.gen(function* create() {
+        Effect.gen(function*  create() {
           const repo = yield* CommentRepo;
           const id = randomUUID() as CommentId;
 
@@ -46,7 +44,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // getById
       // -----------------------------------------------------------------------
       const getById = (id: CommentId) =>
-        Effect.gen(function* getById() {
+        Effect.gen(function*  getById() {
           const repo = yield* CommentRepo;
           const comment = yield* repo.findById(id);
           if (!comment) {
@@ -59,7 +57,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // getByReview
       // -----------------------------------------------------------------------
       const getByReview = (reviewId: ReviewId) =>
-        Effect.gen(function* getByReview() {
+        Effect.gen(function*  getByReview() {
           const repo = yield* CommentRepo;
           return yield* repo.findByReview(reviewId);
         });
@@ -68,7 +66,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // getByFile
       // -----------------------------------------------------------------------
       const getByFile = (reviewId: ReviewId, filePath: string) =>
-        Effect.gen(function* getByFile() {
+        Effect.gen(function*  getByFile() {
           const repo = yield* CommentRepo;
           return yield* repo.findByFile(reviewId, filePath);
         });
@@ -77,7 +75,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // update
       // -----------------------------------------------------------------------
       const update = (id: CommentId, input: UpdateCommentInput) =>
-        Effect.gen(function* update() {
+        Effect.gen(function*  update() {
           const repo = yield* CommentRepo;
 
           const updates: { content?: string; suggestion?: string | null } = {};
@@ -99,7 +97,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // resolve / unresolve
       // -----------------------------------------------------------------------
       const resolve = (id: CommentId) =>
-        Effect.gen(function* resolve() {
+        Effect.gen(function*  resolve() {
           const repo = yield* CommentRepo;
           const comment = yield* repo.setResolved(id, true);
           if (!comment) {
@@ -109,7 +107,7 @@ export class CommentService extends Effect.Service<CommentService>()(
         });
 
       const unresolve = (id: CommentId) =>
-        Effect.gen(function* unresolve() {
+        Effect.gen(function*  unresolve() {
           const repo = yield* CommentRepo;
           const comment = yield* repo.setResolved(id, false);
           if (!comment) {
@@ -122,7 +120,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // remove
       // -----------------------------------------------------------------------
       const remove = (id: CommentId) =>
-        Effect.gen(function* remove() {
+        Effect.gen(function*  remove() {
           const repo = yield* CommentRepo;
           const existed = yield* repo.remove(id);
           if (!existed) {
@@ -135,7 +133,7 @@ export class CommentService extends Effect.Service<CommentService>()(
       // getStats
       // -----------------------------------------------------------------------
       const getStats = (reviewId: ReviewId) =>
-        Effect.gen(function* getStats() {
+        Effect.gen(function*  getStats() {
           const repo = yield* CommentRepo;
           return yield* repo.countByReview(reviewId);
         });

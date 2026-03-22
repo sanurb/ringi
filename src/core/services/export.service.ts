@@ -1,16 +1,14 @@
 import * as Effect from "effect/Effect";
 
 import type { ReviewId } from "@/api/schemas/review";
-
-import { CommentService } from "./comment.service";
-import { ReviewService } from "./review.service";
-import { TodoService } from "./todo.service";
+import { CommentService } from "@/core/services/comment.service";
+import { ReviewService } from "@/core/services/review.service";
+import { TodoService } from "@/core/services/todo.service";
 
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
-/** @effect-leakable-service */
 export class ExportService extends Effect.Service<ExportService>()(
   "ExportService",
   {
@@ -19,9 +17,9 @@ export class ExportService extends Effect.Service<ExportService>()(
       CommentService.Default,
       TodoService.Default,
     ],
-    effect: Effect.gen(function* effect() {
+    effect: Effect.sync(() => {
       const exportReview = (reviewId: ReviewId) =>
-        Effect.gen(function* exportReview() {
+        Effect.gen(function*  exportReview() {
           const reviewSvc = yield* ReviewService;
           const commentSvc = yield* CommentService;
           const todoSvc = yield* TodoService;

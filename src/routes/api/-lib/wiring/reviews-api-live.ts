@@ -2,8 +2,7 @@ import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import * as Effect from "effect/Effect";
 
 import { DomainApi } from "@/api/domain-api";
-
-import { ReviewService } from "../services/review.service";
+import { ReviewService } from "@/core/services/review.service";
 
 /**
  * Wires HttpApiBuilder handlers for the ReviewsApiGroup.

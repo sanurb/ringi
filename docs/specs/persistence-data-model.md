@@ -1,19 +1,24 @@
 # SPEC-005: Persistence and Data Model
 
 ## Status
+
 Draft
 
 ## Purpose
+
 Define Ringi's canonical persistence contract for the local-first review store under `.ringi/reviews.db`. This spec makes the database shape, migration ordering, repository contracts, WAL concurrency model, and standalone read behavior implementation-ready across CLI, HTTP API, Web UI, and MCP.
 
 This spec exists to close four verified gaps between architecture and implementation:
+
 - the current schema still centers on a coarse `reviews.status` field instead of the split lifecycle fields defined in SPEC-001
 - source anchoring and hunk persistence are incomplete for non-staged reviews, violating SPEC-002 snapshot requirements
 - standalone CLI reads depend on SQLite behavior that is documented but not yet fully specified as a persistence contract
 - the current migration runner is a raw SQL array over `node:sqlite` with `PRAGMA user_version`; it is not ky-sely
 
 ## Scope
+
 This spec covers:
+
 - the canonical SQLite schema for review, file, comment, todo, and export persistence
 - database-wide configuration required for local-first operation
 - migration ordering from the current schema in `src/routes/api/-lib/db/migrations.ts`
@@ -25,7 +30,9 @@ This spec covers:
 - schema versioning via `PRAGMA user_version`
 
 ## Non-Goals
+
 This spec does not cover:
+
 - UI rendering contracts for diff, comments, grouped tree, or export output formatting
 - MCP namespace method definitions beyond persistence implications already defined in SPEC-004
 - intelligence-table schemas for provenance, relationship, group, confidence, or evidence beyond what `docs/ARCHITECTURE.md` names at a directional level
@@ -34,6 +41,7 @@ This spec does not cover:
 - backup tooling, sync, replication, or cloud persistence
 
 ## Canonical References
+
 - `docs/ARCHITECTURE.md`
   - §8 Core Runtime Model
   - §11 Data Flow
@@ -73,6 +81,7 @@ This spec does not cover:
 - `src/api/schemas/review.ts`
 
 ## Terminology
+
 - **Review store** — the SQLite database at `<repo-root>/.ringi/reviews.db`.
 - **Canonical schema** — the full set of tables, columns, constraints, indexes, and versioning rules this spec defines.
 - **Standalone read path** — in-process, read-only CLI execution over the local SQLite store without a running server.
@@ -83,6 +92,7 @@ This spec does not cover:
 - **Capture degradation** — explicit persisted indication that a file snapshot is incomplete, unsupported, or legacy-partial rather than silently missing data.
 
 ## Requirements
+
 1. **REQ-005-001 — SQLite is canonical**  
    Ringi SHALL use SQLite in `.ringi/reviews.db` as its only persistence engine for the scope covered by this spec. The persistence layer SHALL target SQLite features directly, including WAL mode, `STRICT` tables, foreign keys, and `PRAGMA user_version`.
 2. **REQ-005-002 — No swap-abstraction requirement**  
@@ -119,7 +129,9 @@ This spec does not cover:
     The migration plan SHALL start from the verified current schema state in `src/routes/api/-lib/db/migrations.ts`, which currently contains six ordered migrations implemented as raw SQL strings executed through `node:sqlite`.
 
 ## Workflow / State Model
+
 ### Database open and mode selection
+
 ```text
 runtime boot
   -> discover <repo-root>/.ringi/reviews.db
@@ -132,6 +144,7 @@ runtime boot
 ```
 
 ### Review creation persistence flow
+
 ```text
 adapter input
   -> ReviewService validates source through GitService
@@ -145,7 +158,9 @@ adapter input
 ```
 
 ### Lifecycle-affecting write flow
+
 Per SPEC-001, every lifecycle-sensitive write follows:
+
 1. `BEGIN IMMEDIATE`
 2. load `reviews` row
 3. reject exported rows
@@ -155,6 +170,7 @@ Per SPEC-001, every lifecycle-sensitive write follows:
 7. `COMMIT`
 
 ### Schema version flow
+
 ```text
 open db
   -> read PRAGMA user_version
@@ -167,29 +183,36 @@ open db
 ```
 
 ## API / CLI / MCP Implications
+
 ### Shared core implications
+
 - Every surface reads the same persisted review truth. No adapter may maintain a shadow review representation.
 - `snapshot_data` and `review_files` are the source of truth for exported and displayed diff content after creation.
 - Repositories stay SQLite-specific and service-facing; adapters do not talk SQL.
 
 ### CLI implications
+
 - Standalone read commands open the same SQLite file used by the server and rely on WAL to read while the server writes.
 - Standalone commands MUST NOT run migrations or perform write fallbacks. If the schema is behind, they fail with migration guidance.
 - `ringi doctor` checks SQLite presence, readability, WAL compatibility, and migration status.
 - `ringi data migrate` remains the explicit schema-advancing command for local state, consistent with `docs/CLI.md`.
 
 ### HTTP/server implications
+
 - Server startup is the canonical place to initialize SQLite for write-capable runtime use.
 - Mutations continue to route through services backed by repositories over one local writer path.
 - Table rebuild migrations must be safe to run during startup or `ringi data migrate` without leaving half-applied schema state.
 
 ### MCP implications
+
 - SPEC-004 readonly enforcement happens before write-capable services are reached; persistence rules stay in the shared service/repository stack.
 - MCP read operations consume the same anchored snapshot rows as CLI and HTTP.
 - MCP mutation concurrency relies on the same SQLite WAL + single-writer model as the rest of the application.
 
 ## Data Model Impact
+
 ### Database-wide configuration
+
 The canonical review store configuration is:
 
 ```sql
@@ -200,6 +223,7 @@ PRAGMA foreign_keys = ON;
 These are already enabled in `src/routes/api/-lib/db/database.ts`. For lifecycle-sensitive writes, transaction entry upgrades from the current generic `BEGIN` helper to `BEGIN IMMEDIATE` per SPEC-001.
 
 ### Canonical target DDL
+
 The following DDL defines the concrete target schema for the persistence scope covered by the current docs and source.
 
 ```sql
@@ -283,6 +307,7 @@ CREATE TABLE review_exports (
 ```
 
 ### Canonical target indexes
+
 ```sql
 CREATE INDEX idx_reviews_repo_workflow_created
   ON reviews(repository_path, workflow_state, created_at DESC);
@@ -319,7 +344,9 @@ CREATE UNIQUE INDEX idx_review_exports_review_id
 ```
 
 ### Snapshot storage contract
+
 #### `reviews.snapshot_data`
+
 For post-cutover reviews, `snapshot_data` stores SPEC-001 version 3 JSON:
 
 ```json
@@ -344,23 +371,29 @@ For post-cutover reviews, `snapshot_data` stores SPEC-001 version 3 JSON:
 ```
 
 Storage rules:
+
 - `reviews.source_type`, `reviews.source_ref`, and `reviews.base_ref` remain queryable columns; `snapshot_data.source` is the richer immutable anchor.
 - `snapshot_data` is versioned JSON text, not a separate relational explosion.
 - backfilled legacy rows MUST read as version 3 after migration, with `legacy_partial` integrity when exact historical anchors cannot be reconstructed.
 
 #### `review_files.hunks_data`
+
 - `hunks_data` stores serialized JSON text for text-file hunks, matching the current `ReviewFileRepo.serializeHunks()` pattern.
 - binary and submodule entries remain first-class `review_files` rows with `hunks_data = NULL` and explicit `content_kind` / `capture_status` metadata.
 - large files that exceed configured budgets persist the file row with `capture_status = 'truncated'`; they do not silently disappear.
 
 #### Hard-delete model
+
 - deleting a review hard-deletes `review_files`, `comments`, `todos`, and `review_exports` through cascade relationships
 - deleting comments or todos remains physical deletion
 - export rows are audit facts, but they are still lifecycle-bound to their parent review row in the current model
 
 ### Migration strategy from current schema
+
 #### Verified current baseline
+
 `src/routes/api/-lib/db/migrations.ts` currently defines six ordered migrations:
+
 1. `reviews`
 2. `comments`
 3. `reviews.source_type` + `reviews.source_ref`
@@ -369,13 +402,16 @@ Storage rules:
 6. `review_files`
 
 Verified implementation facts:
+
 - migrations are raw SQL strings, not ky-sely
 - `runMigrations()` advances `PRAGMA user_version`
 - multi-statement migration strings are split on semicolons and executed statement-by-statement
 - the current generic transaction helper uses `BEGIN`, not `BEGIN IMMEDIATE`
 
 #### Required target migration ordering
+
 The canonical ordered migration plan is:
+
 1. **v7 — lifecycle/export cutover**  
    Apply the SPEC-001 `reviews` rebuild and `review_exports` creation SQL exactly, including `row_version` and lifecycle indexes.
 2. **v8 — `review_files` capture metadata**  
@@ -390,7 +426,9 @@ The canonical ordered migration plan is:
    Backfill every `reviews.snapshot_data` row to version 3 per SPEC-001 and create any remaining indexes not already created by v7.
 
 #### Required migration SQL for v7
+
 The v7 migration MUST remain byte-for-byte consistent with SPEC-001 intent:
+
 - preflight rejection of unknown legacy `status` values
 - `BEGIN IMMEDIATE`
 - `reviews_v2` creation with split lifecycle fields
@@ -402,14 +440,17 @@ The v7 migration MUST remain byte-for-byte consistent with SPEC-001 intent:
 - `COMMIT`
 
 #### Migration failure behavior
+
 - if a migration fails inside an explicit transaction, SQLite rolls back the whole migration and `user_version` does not advance
 - if a future migration requires multiple dependent statements, it MUST include its own `BEGIN IMMEDIATE` / `COMMIT` wrapper instead of relying on the current statement-splitting runner
 - migration code MUST surface which version failed and why; vague "database error" is not acceptable
 
 ### Standalone read path
+
 The standalone read path is the local-first read contract over the same review store.
 
 Rules:
+
 - repository discovery resolves `<repo-root>/.ringi/reviews.db` exactly as documented in `docs/CLI.md`
 - standalone commands construct an in-process runtime over SQLite and read-only services
 - standalone commands do not write SQLite, do not run lifecycle transitions, and do not apply migrations
@@ -419,23 +460,26 @@ Rules:
 **AMBIGUITY:** the current source does not yet define whether the standalone runtime enforces SQLite read-only mode at connection level or only by command routing and service selection. Proposed resolution: command routing remains the mandatory guarantee; if the runtime adds connection-level read-only enforcement later, it is a strengthening change, not a contract change.
 
 ## Service Boundaries
-| Layer | Owns | Must not own |
-| --- | --- | --- |
-| `SqliteService` / DB bootstrap | opening SQLite, WAL/foreign key pragmas, invoking migrations, exposing DB handle | lifecycle guards, source validation, adapter UX |
-| Migration runner | ordered schema evolution, `user_version`, transactional cutovers | runtime business logic |
-| `ReviewRepo` | row mapping, filtered queries, insert/load/CAS update helpers, export-row persistence | deciding whether approval is allowed, deriving source anchors, export preconditions |
-| `ReviewFileRepo` | file-row persistence, singular file lookup, hunk serialization storage | live git fallback, source validation, lifecycle transitions |
-| `CommentRepo` | comment CRUD, count queries, resolved flag persistence | reopening approved reviews, approval rules |
-| `TodoRepo` | todo CRUD, ordering persistence, transactional reorder/move helpers | review-lifecycle decisions |
-| Review/Comment/Todo/Export services | business invariants, transaction composition across repositories, lifecycle rules, error mapping | CLI prompts, HTTP details, raw git commands beyond the source boundary |
-| `GitService` | resolving refs/SHAs, diff acquisition, repository metadata | persistence schema, lifecycle rules, migration behavior |
+
+| Layer                               | Owns                                                                                             | Must not own                                                                        |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `SqliteService` / DB bootstrap      | opening SQLite, WAL/foreign key pragmas, invoking migrations, exposing DB handle                 | lifecycle guards, source validation, adapter UX                                     |
+| Migration runner                    | ordered schema evolution, `user_version`, transactional cutovers                                 | runtime business logic                                                              |
+| `ReviewRepo`                        | row mapping, filtered queries, insert/load/CAS update helpers, export-row persistence            | deciding whether approval is allowed, deriving source anchors, export preconditions |
+| `ReviewFileRepo`                    | file-row persistence, singular file lookup, hunk serialization storage                           | live git fallback, source validation, lifecycle transitions                         |
+| `CommentRepo`                       | comment CRUD, count queries, resolved flag persistence                                           | reopening approved reviews, approval rules                                          |
+| `TodoRepo`                          | todo CRUD, ordering persistence, transactional reorder/move helpers                              | review-lifecycle decisions                                                          |
+| Review/Comment/Todo/Export services | business invariants, transaction composition across repositories, lifecycle rules, error mapping | CLI prompts, HTTP details, raw git commands beyond the source boundary              |
+| `GitService`                        | resolving refs/SHAs, diff acquisition, repository metadata                                       | persistence schema, lifecycle rules, migration behavior                             |
 
 Repository contract implications:
+
 - thin repositories are allowed to expose compare-and-set and single-aggregate transaction helpers
 - repositories are not allowed to own cross-aggregate workflow decisions
 - services may compose multiple repositories inside one `BEGIN IMMEDIATE` transaction boundary when the business change spans review + comments + todos + export rows
 
 ## Edge Cases
+
 1. **Migration failure mid-way**  
    Dependent migrations MUST be explicit transactions. Partial table rebuilds are unacceptable.
 2. **Corrupt SQLite file**  
@@ -460,7 +504,9 @@ Repository contract implications:
     This schema does not support them. Any future retention feature must be specified explicitly instead of smuggling `deleted_at` columns into the core review path.
 
 ## Observability
+
 Persistence and migration paths MUST emit structured diagnostics for:
+
 - resolved DB path
 - opened mode (`standalone-read`, `server-write-capable`, `mcp-readonly`, `mcp-write-capable`)
 - WAL and foreign-key initialization outcome
@@ -471,12 +517,14 @@ Persistence and migration paths MUST emit structured diagnostics for:
 - corruption/readability failures surfaced by diagnostics
 
 Recommended persistence-level signals:
+
 - count of reviews by `workflow_state`
 - count of exported reviews
 - count of legacy-partial reviews remaining after backfill
 - count of `review_files` rows by `content_kind` and `capture_status`
 
 ## Rollout Considerations
+
 1. Land SPEC-001 lifecycle/export migration first because later schema and service work depends on `row_version`, split lifecycle fields, and `review_exports`.
 2. Land SPEC-002 `review_files` capture metadata next so source-ingestion cutover has truthful storage for binary/submodule/truncated cases.
 3. Update repositories to the canonical target contracts before adapter cutovers so CLI, HTTP, and MCP all consume the same persistence truth.
@@ -487,6 +535,7 @@ Recommended persistence-level signals:
 8. Do not introduce intelligence tables under this spec without a dedicated intelligence persistence spec. The architecture names those artifacts, but it does not yet define implementation-grade columns.
 
 ## Open Questions
+
 1. **Should `review_files.status` be constrained to a fixed enum in SQLite?**  
    **AMBIGUITY:** the current docs and source use the field but do not define the canonical status value set. Proposed resolution: keep it unconstrained in this spec and standardize the enum in a dedicated diff-schema spec before adding a DB `CHECK`.
 2. **Should export rows outlive review deletion?**  
@@ -499,6 +548,7 @@ Recommended persistence-level signals:
    The current repo computes `MAX(position)` across all todos, while CLI contracts also allow review scoping. Proposed resolution: preserve current global ordering semantics for this cutover and revisit review-scoped ordering in a dedicated todo spec.
 
 ## Acceptance Criteria
+
 - `docs/specs/persistence-data-model.md` exists as `SPEC-005`.
 - The spec contains all 17 mandatory sections required by the project template.
 - The spec states that SQLite in `.ringi/reviews.db` is the canonical persistence layer and that the current implementation uses raw SQL migrations with `PRAGMA user_version`, not ky-sely.

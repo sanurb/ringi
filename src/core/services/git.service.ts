@@ -62,6 +62,13 @@ export class GitService extends Effect.Service<GitService>()("GitService", {
       Config.withDefault(process.cwd())
     );
 
+    // -- repo state --------------------------------------------------------
+
+    const hasCommits = execGit(["rev-parse", "HEAD"], repoPath).pipe(
+      Effect.as(true),
+      Effect.catchAll(() => Effect.succeed(false))
+    );
+
     // -- repository info --------------------------------------------------
 
     const getRepositoryInfo = Effect.gen(function* getRepositoryInfo() {
@@ -93,9 +100,28 @@ export class GitService extends Effect.Service<GitService>()("GitService", {
       repoPath
     );
 
+    const getUncommittedDiff = hasCommits.pipe(
+      Effect.flatMap((hasCommits) =>
+        hasCommits
+          ? execGit(["diff", "HEAD", "--no-color", "--unified=3"], repoPath)
+          : Effect.succeed("")
+      )
+    );
+
     const getUnstagedDiff = execGit(
       ["diff", "--no-color", "--unified=3"],
       repoPath
+    );
+
+    const getLastCommitDiff = hasCommits.pipe(
+      Effect.flatMap((hasCommits) =>
+        hasCommits
+          ? execGit(
+              ["show", "HEAD", "--format=", "--no-color", "--unified=3"],
+              repoPath
+            )
+          : Effect.succeed("")
+      )
     );
 
     const getBranchDiff = (branch: string) =>
@@ -126,8 +152,29 @@ export class GitService extends Effect.Service<GitService>()("GitService", {
       repoPath
     ).pipe(Effect.map(parseNameStatus));
 
+    const getUncommittedFiles = hasCommits.pipe(
+      Effect.flatMap((hasCommits) =>
+        hasCommits
+          ? execGit(["diff", "HEAD", "--name-status"], repoPath).pipe(
+              Effect.map(parseNameStatus)
+            )
+          : Effect.succeed([])
+      )
+    );
+
     const getUnstagedFiles = execGit(["diff", "--name-status"], repoPath).pipe(
       Effect.map(parseNameStatus)
+    );
+
+    const getLastCommitFiles = hasCommits.pipe(
+      Effect.flatMap((hasCommits) =>
+        hasCommits
+          ? execGit(
+              ["show", "HEAD", "--format=", "--name-status"],
+              repoPath
+            ).pipe(Effect.map(parseNameStatus))
+          : Effect.succeed([])
+      )
     );
 
     // -- file content ------------------------------------------------------
@@ -217,13 +264,6 @@ export class GitService extends Effect.Service<GitService>()("GitService", {
         Effect.as(files)
       );
 
-    // -- repo state --------------------------------------------------------
-
-    const hasCommits = execGit(["rev-parse", "HEAD"], repoPath).pipe(
-      Effect.as(true),
-      Effect.catchAll(() => Effect.succeed(false))
-    );
-
     const getRepositoryPath = execGit(
       ["rev-parse", "--show-toplevel"],
       repoPath
@@ -238,10 +278,14 @@ export class GitService extends Effect.Service<GitService>()("GitService", {
       getCommits,
       getFileContent,
       getFileTree,
+      getLastCommitDiff,
+      getLastCommitFiles,
       getRepositoryInfo,
       getRepositoryPath,
       getStagedDiff,
       getStagedFiles,
+      getUncommittedDiff,
+      getUncommittedFiles,
       getUnstagedDiff,
       getUnstagedFiles,
       hasCommits,

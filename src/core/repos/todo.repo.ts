@@ -1,8 +1,7 @@
 import * as Effect from "effect/Effect";
 
 import type { Todo, TodoId } from "@/api/schemas/todo";
-
-import { SqliteService, withTransaction } from "../db/database";
+import { SqliteService, withTransaction } from "@/core/db/database";
 
 // ---------------------------------------------------------------------------
 // Internal row shape (snake_case from SQLite)

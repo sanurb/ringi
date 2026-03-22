@@ -1,0 +1,479 @@
+/* Ringi semantic tokens + shadcn bridge. Base layers define Ringi default; palette
+   attributes override only what changes — add a new block per palette (dark + light). */
+
+/* ─── Dark base (Ringi / Linear-inspired) ─── */
+html.dark {
+  --ringi-surface-primary: #0d0d0d;
+  --ringi-surface-secondary: #141414;
+  --ringi-surface-elevated: #1a1a1a;
+  --ringi-surface-overlay: #222222;
+  --ringi-surface-inset: #0a0a0a;
+  --ringi-border-default: rgb(255 255 255 / 8%);
+  --ringi-border-subtle: rgb(255 255 255 / 5%);
+  --ringi-border-strong: rgb(255 255 255 / 12%);
+  --ringi-text-primary: #e8e8e8;
+  --ringi-text-secondary: #888888;
+  --ringi-text-tertiary: #555555;
+  --ringi-text-link: #7c9ef0;
+  --ringi-accent-primary: #3d6ad6;
+  --ringi-accent-primary-hover: #4f7fe8;
+  --ringi-accent-muted: rgb(61 106 214 / 18%);
+  --ringi-diff-add-bg: rgb(46 160 67 / 10%);
+  --ringi-diff-add-border: rgb(46 160 67 / 30%);
+  --ringi-diff-add-text: #3fb950;
+  --ringi-diff-remove-bg: rgb(248 81 73 / 10%);
+  --ringi-diff-remove-border: rgb(248 81 73 / 30%);
+  --ringi-diff-remove-text: #f85149;
+  --ringi-code-bg: #161618;
+  --ringi-code-gutter: #6b7280;
+  --ringi-code-line-hover: rgb(255 255 255 / 3%);
+  --ringi-code-line-active: rgb(255 255 255 / 5%);
+  --ringi-code-selection: rgb(61 106 214 / 22%);
+  --ringi-diff-add-text-emphasis: #56d364;
+  --ringi-diff-remove-text-emphasis: #ff7b72;
+  --ringi-diff-add-line-bg: rgb(46 160 67 / 8%);
+  --ringi-diff-remove-line-bg: rgb(248 81 73 / 8%);
+  --ringi-diff-highlight-bg: rgb(61 106 214 / 12%);
+  --ringi-diff-highlight-border: rgb(61 106 214 / 40%);
+  --ringi-status-success: #3fb950;
+  --ringi-status-warning: #d29922;
+  --ringi-status-error: #f85149;
+  --ringi-status-info: #58a6ff;
+
+  --background: oklch(0.07 0 0);
+  --foreground: oklch(0.91 0 0);
+  --card: oklch(0.1 0 0);
+  --card-foreground: oklch(0.91 0 0);
+  --popover: oklch(0.13 0 0);
+  --popover-foreground: oklch(0.91 0 0);
+  --primary: oklch(0.58 0.14 264);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.12 0 0);
+  --secondary-foreground: oklch(0.91 0 0);
+  --muted: oklch(0.12 0 0);
+  --muted-foreground: oklch(0.55 0 0);
+  --accent: oklch(0.12 0 0);
+  --accent-foreground: oklch(0.91 0 0);
+  --destructive: oklch(0.6 0.2 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 10%);
+  --ring: oklch(0.58 0.14 264);
+  --chart-1: oklch(0.72 0.12 250);
+  --chart-2: oklch(0.62 0.14 240);
+  --chart-3: oklch(0.55 0.12 230);
+  --chart-4: oklch(0.5 0.1 220);
+  --chart-5: oklch(0.45 0.08 210);
+  --radius: 0.375rem;
+  --sidebar: oklch(0.1 0 0);
+  --sidebar-foreground: oklch(0.91 0 0);
+  --sidebar-primary: oklch(0.58 0.14 264);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.12 0 0);
+  --sidebar-accent-foreground: oklch(0.91 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.58 0.14 264);
+}
+
+/* ─── Light base ─── */
+html:not(.dark) {
+  --ringi-surface-primary: #f6f6f4;
+  --ringi-surface-secondary: #ecebe8;
+  --ringi-surface-elevated: #ffffff;
+  --ringi-surface-overlay: #f0efec;
+  --ringi-surface-inset: #e3e2de;
+  --ringi-border-default: rgb(0 0 0 / 9%);
+  --ringi-border-subtle: rgb(0 0 0 / 5%);
+  --ringi-border-strong: rgb(0 0 0 / 14%);
+  --ringi-text-primary: #141413;
+  --ringi-text-secondary: #5c5b58;
+  --ringi-text-tertiary: #94938e;
+  --ringi-text-link: #2f5fbd;
+  --ringi-accent-primary: #2f5fbd;
+  --ringi-accent-primary-hover: #3d6ad6;
+  --ringi-accent-muted: rgb(47 95 189 / 12%);
+  --ringi-diff-add-bg: rgb(22 163 74 / 10%);
+  --ringi-diff-add-border: rgb(22 163 74 / 28%);
+  --ringi-diff-add-text: #15803d;
+  --ringi-diff-remove-bg: rgb(220 38 38 / 10%);
+  --ringi-diff-remove-border: rgb(220 38 38 / 28%);
+  --ringi-diff-remove-text: #b91c1c;
+  --ringi-code-bg: #f0efeb;
+  --ringi-code-gutter: #73726c;
+  --ringi-code-line-hover: rgb(0 0 0 / 4%);
+  --ringi-code-line-active: rgb(0 0 0 / 6%);
+  --ringi-code-selection: rgb(47 95 189 / 18%);
+  --ringi-diff-add-text-emphasis: #166534;
+  --ringi-diff-remove-text-emphasis: #991b1b;
+  --ringi-diff-add-line-bg: rgb(22 163 74 / 7%);
+  --ringi-diff-remove-line-bg: rgb(220 38 38 / 7%);
+  --ringi-diff-highlight-bg: rgb(47 95 189 / 10%);
+  --ringi-diff-highlight-border: rgb(47 95 189 / 35%);
+  --ringi-status-success: #15803d;
+  --ringi-status-warning: #a16207;
+  --ringi-status-error: #b91c1c;
+  --ringi-status-info: #1d4ed8;
+
+  --background: oklch(0.98 0.004 95);
+  --foreground: oklch(0.18 0.02 95);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.02 95);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.02 95);
+  --primary: oklch(0.48 0.14 264);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.94 0.01 95);
+  --secondary-foreground: oklch(0.25 0.02 95);
+  --muted: oklch(0.94 0.01 95);
+  --muted-foreground: oklch(0.45 0.02 95);
+  --accent: oklch(0.94 0.01 95);
+  --accent-foreground: oklch(0.25 0.02 95);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0 0 0 / 10%);
+  --input: oklch(0 0 0 / 12%);
+  --ring: oklch(0.48 0.14 264);
+  --chart-1: oklch(0.55 0.14 250);
+  --chart-2: oklch(0.5 0.12 240);
+  --chart-3: oklch(0.48 0.1 230);
+  --chart-4: oklch(0.45 0.08 220);
+  --chart-5: oklch(0.42 0.06 210);
+  --radius: 0.375rem;
+  --sidebar: oklch(0.97 0.005 95);
+  --sidebar-foreground: oklch(0.18 0.02 95);
+  --sidebar-primary: oklch(0.48 0.14 264);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.94 0.01 95);
+  --sidebar-accent-foreground: oklch(0.25 0.02 95);
+  --sidebar-border: oklch(0 0 0 / 10%);
+  --sidebar-ring: oklch(0.48 0.14 264);
+}
+
+/* ─── Dracula ─── */
+html.dark[data-ringi-palette="dracula"] {
+  --ringi-surface-primary: #282a36;
+  --ringi-surface-secondary: #21222c;
+  --ringi-surface-elevated: #343746;
+  --ringi-surface-overlay: #44475a;
+  --ringi-surface-inset: #1e1f29;
+  --ringi-text-primary: #f8f8f2;
+  --ringi-text-secondary: #6272a4;
+  --ringi-text-tertiary: #6272a4;
+  --ringi-text-link: #8be9fd;
+  --ringi-accent-primary: #50fa7b;
+  --ringi-accent-primary-hover: #69ff94;
+  --ringi-accent-muted: rgb(80 250 123 / 15%);
+  --ringi-code-bg: #21222c;
+  --ringi-code-selection: rgb(139 233 253 / 22%);
+  --ringi-diff-highlight-bg: rgb(189 147 249 / 12%);
+  --ringi-diff-highlight-border: rgb(189 147 249 / 35%);
+  --ringi-status-info: #8be9fd;
+
+  --primary: oklch(0.78 0.2 145);
+  --ring: oklch(0.78 0.2 145);
+  --popover: oklch(0.22 0.02 280);
+  --card: oklch(0.2 0.02 280);
+}
+
+html:not(.dark)[data-ringi-palette="dracula"] {
+  --ringi-surface-primary: #f8f8f2;
+  --ringi-surface-secondary: #efefd8;
+  --ringi-surface-elevated: #ffffff;
+  --ringi-surface-overlay: #e8e8dc;
+  --ringi-surface-inset: #e0e0d4;
+  --ringi-text-primary: #282a36;
+  --ringi-text-secondary: #6272a4;
+  --ringi-text-tertiary: #8b8ea3;
+  --ringi-text-link: #008c6e;
+  --ringi-accent-primary: #008c6e;
+  --ringi-accent-primary-hover: #00a67f;
+  --ringi-accent-muted: rgb(0 140 110 / 12%);
+  --ringi-code-bg: #efefd8;
+  --ringi-code-selection: rgb(0 140 110 / 15%);
+
+  --primary: oklch(0.52 0.12 175);
+  --ring: oklch(0.52 0.12 175);
+  --foreground: oklch(0.22 0.02 280);
+}
+
+/* ─── Tokyo Night ─── */
+html.dark[data-ringi-palette="tokyo-night"] {
+  --ringi-surface-primary: #1a1b26;
+  --ringi-surface-secondary: #16161e;
+  --ringi-surface-elevated: #24283b;
+  --ringi-surface-overlay: #292e42;
+  --ringi-surface-inset: #13141c;
+  --ringi-text-primary: #c0caf5;
+  --ringi-text-secondary: #565f89;
+  --ringi-text-tertiary: #414868;
+  --ringi-text-link: #7aa2f7;
+  --ringi-accent-primary: #7aa2f7;
+  --ringi-accent-primary-hover: #89b4fa;
+  --ringi-accent-muted: rgb(122 162 247 / 16%);
+  --ringi-code-bg: #16161e;
+  --ringi-code-selection: rgb(122 162 247 / 22%);
+  --ringi-diff-highlight-bg: rgb(187 154 247 / 12%);
+  --ringi-diff-highlight-border: rgb(187 154 247 / 38%);
+  --ringi-status-warning: #e0af68;
+  --ringi-status-info: #7dcfff;
+
+  --primary: oklch(0.68 0.12 264);
+  --ring: oklch(0.68 0.12 264);
+  --popover: oklch(0.18 0.03 264);
+  --card: oklch(0.16 0.03 264);
+}
+
+html:not(.dark)[data-ringi-palette="tokyo-night"] {
+  --ringi-surface-primary: #e9eaf5;
+  --ringi-surface-secondary: #dce0f0;
+  --ringi-surface-elevated: #f5f6fc;
+  --ringi-surface-overlay: #d5d9eb;
+  --ringi-surface-inset: #cbd1e6;
+  --ringi-text-primary: #1a1b26;
+  --ringi-text-secondary: #565f89;
+  --ringi-text-tertiary: #6a7394;
+  --ringi-text-link: #3456b8;
+  --ringi-accent-primary: #3456b8;
+  --ringi-accent-primary-hover: #3d62c9;
+  --ringi-accent-muted: rgb(52 86 184 / 12%);
+  --ringi-code-bg: #e4e7f4;
+
+  --primary: oklch(0.48 0.14 264);
+  --ring: oklch(0.48 0.14 264);
+}
+
+/* ─── Catppuccin Mocha ─── */
+html.dark[data-ringi-palette="catppuccin"] {
+  --ringi-surface-primary: #1e1e2e;
+  --ringi-surface-secondary: #181825;
+  --ringi-surface-elevated: #313244;
+  --ringi-surface-overlay: #45475a;
+  --ringi-surface-inset: #11111b;
+  --ringi-text-primary: #cdd6f4;
+  --ringi-text-secondary: #a6adc8;
+  --ringi-text-tertiary: #6c7086;
+  --ringi-text-link: #89b4fa;
+  --ringi-accent-primary: #89dceb;
+  --ringi-accent-primary-hover: #94e2d5;
+  --ringi-accent-muted: rgb(137 220 235 / 14%);
+  --ringi-code-bg: #181825;
+  --ringi-code-selection: rgb(137 180 250 / 22%);
+  --ringi-diff-highlight-bg: rgb(203 166 247 / 12%);
+  --ringi-diff-highlight-border: rgb(203 166 247 / 35%);
+  --ringi-status-info: #89b4fa;
+
+  --primary: oklch(0.78 0.09 195);
+  --ring: oklch(0.78 0.09 195);
+  --popover: oklch(0.2 0.02 280);
+  --card: oklch(0.18 0.02 280);
+}
+
+html:not(.dark)[data-ringi-palette="catppuccin"] {
+  --ringi-surface-primary: #eff1f5;
+  --ringi-surface-secondary: #e6e9ef;
+  --ringi-surface-elevated: #ffffff;
+  --ringi-surface-overlay: #dce0e8;
+  --ringi-surface-inset: #ccd0da;
+  --ringi-text-primary: #4c4f69;
+  --ringi-text-secondary: #6c6f85;
+  --ringi-text-tertiary: #8c8fa1;
+  --ringi-text-link: #1e66f5;
+  --ringi-accent-primary: #179299;
+  --ringi-accent-primary-hover: #0d9488;
+  --ringi-accent-muted: rgb(23 146 153 / 12%);
+  --ringi-code-bg: #e6e9ef;
+
+  --primary: oklch(0.55 0.09 195);
+  --ring: oklch(0.55 0.09 195);
+  --foreground: oklch(0.35 0.04 270);
+}
+
+/* ─── Gruvbox ─── */
+html.dark[data-ringi-palette="gruvbox"] {
+  --ringi-surface-primary: #282828;
+  --ringi-surface-secondary: #1d2021;
+  --ringi-surface-elevated: #3c3836;
+  --ringi-surface-overlay: #504945;
+  --ringi-surface-inset: #1d2021;
+  --ringi-text-primary: #ebdbb2;
+  --ringi-text-secondary: #a89984;
+  --ringi-text-tertiary: #928374;
+  --ringi-text-link: #83a598;
+  --ringi-accent-primary: #d79921;
+  --ringi-accent-primary-hover: #fabd2f;
+  --ringi-accent-muted: rgb(215 153 33 / 18%);
+  --ringi-code-bg: #1d2021;
+  --ringi-code-selection: rgb(214 93 14 / 22%);
+  --ringi-diff-add-text: #b8bb26;
+  --ringi-diff-add-bg: rgb(184 187 38 / 12%);
+  --ringi-diff-remove-text: #fb4934;
+  --ringi-diff-remove-bg: rgb(251 73 52 / 12%);
+  --ringi-diff-highlight-bg: rgb(214 93 14 / 14%);
+  --ringi-diff-highlight-border: rgb(214 93 14 / 40%);
+  --ringi-status-warning: #fabd2f;
+  --ringi-status-info: #83a598;
+
+  --primary: oklch(0.72 0.14 75);
+  --ring: oklch(0.72 0.14 75);
+  --popover: oklch(0.22 0.02 55);
+  --card: oklch(0.2 0.02 55);
+}
+
+html:not(.dark)[data-ringi-palette="gruvbox"] {
+  --ringi-surface-primary: #fbf1c7;
+  --ringi-surface-secondary: #f2e5bc;
+  --ringi-surface-elevated: #f9f5d7;
+  --ringi-surface-overlay: #ebdbb2;
+  --ringi-surface-inset: #d5c4a1;
+  --ringi-text-primary: #3c3836;
+  --ringi-text-secondary: #665c54;
+  --ringi-text-tertiary: #928374;
+  --ringi-text-link: #076678;
+  --ringi-accent-primary: #b57614;
+  --ringi-accent-primary-hover: #d79921;
+  --ringi-accent-muted: rgb(181 118 20 / 14%);
+  --ringi-code-bg: #f2e5bc;
+
+  --primary: oklch(0.55 0.14 75);
+  --ring: oklch(0.55 0.14 75);
+  --foreground: oklch(0.28 0.02 55);
+}
+
+/* ─── Rosé Pine ─── */
+html.dark[data-ringi-palette="rose-pine"] {
+  --ringi-surface-primary: #191724;
+  --ringi-surface-secondary: #1f1d2e;
+  --ringi-surface-elevated: #26233a;
+  --ringi-surface-overlay: #403d52;
+  --ringi-surface-inset: #16141f;
+  --ringi-text-primary: #e0def4;
+  --ringi-text-secondary: #6e6a86;
+  --ringi-text-tertiary: #555169;
+  --ringi-text-link: #9ccfd8;
+  --ringi-accent-primary: #ebbcba;
+  --ringi-accent-primary-hover: #f0c4c2;
+  --ringi-accent-muted: rgb(235 188 186 / 14%);
+  --ringi-code-bg: #1f1d2e;
+  --ringi-code-selection: rgb(156 207 216 / 20%);
+  --ringi-diff-highlight-bg: rgb(196 167 231 / 12%);
+  --ringi-diff-highlight-border: rgb(196 167 231 / 35%);
+  --ringi-status-info: #9ccfd8;
+
+  --primary: oklch(0.78 0.08 15);
+  --ring: oklch(0.78 0.08 15);
+  --popover: oklch(0.18 0.03 310);
+  --card: oklch(0.16 0.03 310);
+}
+
+html:not(.dark)[data-ringi-palette="rose-pine"] {
+  --ringi-surface-primary: #faf4ed;
+  --ringi-surface-secondary: #f2e9e1;
+  --ringi-surface-elevated: #fffaf3;
+  --ringi-surface-overlay: #dfdad9;
+  --ringi-surface-inset: #cecacd;
+  --ringi-text-primary: #575279;
+  --ringi-text-secondary: #6e6a86;
+  --ringi-text-tertiary: #9893a5;
+  --ringi-text-link: #286983;
+  --ringi-accent-primary: #d7827e;
+  --ringi-accent-primary-hover: #c97b77;
+  --ringi-accent-muted: rgb(215 130 126 / 14%);
+  --ringi-code-bg: #f2e9e1;
+
+  --primary: oklch(0.62 0.1 15);
+  --ring: oklch(0.62 0.1 15);
+  --foreground: oklch(0.38 0.05 310);
+}
+
+/* ─── Monokai (inspired) ─── */
+html.dark[data-ringi-palette="monokai"] {
+  --ringi-surface-primary: #272822;
+  --ringi-surface-secondary: #1e1f1c;
+  --ringi-surface-elevated: #3e3d32;
+  --ringi-surface-overlay: #49483e;
+  --ringi-surface-inset: #1a1b18;
+  --ringi-text-primary: #f8f8f2;
+  --ringi-text-secondary: #75715e;
+  --ringi-text-tertiary: #5f5e56;
+  --ringi-text-link: #66d9ef;
+  --ringi-accent-primary: #a6e22e;
+  --ringi-accent-primary-hover: #b8e855;
+  --ringi-accent-muted: rgb(166 226 46 / 16%);
+  --ringi-code-bg: #1e1f1c;
+  --ringi-code-selection: rgb(174 129 255 / 22%);
+  --ringi-diff-add-text: #a6e22e;
+  --ringi-diff-add-bg: rgb(166 226 46 / 12%);
+  --ringi-diff-remove-text: #f92672;
+  --ringi-diff-remove-bg: rgb(249 38 114 / 12%);
+  --ringi-diff-highlight-bg: rgb(253 151 31 / 14%);
+  --ringi-diff-highlight-border: rgb(253 151 31 / 38%);
+  --ringi-status-warning: #e6db74;
+  --ringi-status-info: #66d9ef;
+
+  --primary: oklch(0.82 0.19 125);
+  --ring: oklch(0.82 0.19 125);
+  --popover: oklch(0.2 0.02 120);
+  --card: oklch(0.18 0.02 120);
+}
+
+html:not(.dark)[data-ringi-palette="monokai"] {
+  --ringi-surface-primary: #f5f5f0;
+  --ringi-surface-secondary: #ebeae4;
+  --ringi-surface-elevated: #ffffff;
+  --ringi-surface-overlay: #e0dfd8;
+  --ringi-surface-inset: #d4d3cb;
+  --ringi-text-primary: #272822;
+  --ringi-text-secondary: #75715e;
+  --ringi-text-tertiary: #8a887c;
+  --ringi-text-link: #0d9488;
+  --ringi-accent-primary: #6b8e01;
+  --ringi-accent-primary-hover: #7aa204;
+  --ringi-accent-muted: rgb(107 142 1 / 14%);
+  --ringi-code-bg: #ebeae4;
+
+  --primary: oklch(0.52 0.14 125);
+  --ring: oklch(0.52 0.14 125);
+}
+
+/* ─── Synthwave (restrained UI accent) ─── */
+html.dark[data-ringi-palette="synthwave"] {
+  --ringi-surface-primary: #1a1625;
+  --ringi-surface-secondary: #13101c;
+  --ringi-surface-elevated: #252036;
+  --ringi-surface-overlay: #2f2844;
+  --ringi-surface-inset: #120f1a;
+  --ringi-text-primary: #e0ddef;
+  --ringi-text-secondary: #8b8199;
+  --ringi-text-tertiary: #6a6178;
+  --ringi-text-link: #34d3c6;
+  --ringi-accent-primary: #f97e72;
+  --ringi-accent-primary-hover: #ff9488;
+  --ringi-accent-muted: rgb(249 126 114 / 14%);
+  --ringi-code-bg: #13101c;
+  --ringi-code-selection: rgb(52 211 198 / 18%);
+  --ringi-diff-highlight-bg: rgb(183 148 246 / 12%);
+  --ringi-diff-highlight-border: rgb(183 148 246 / 32%);
+  --ringi-status-info: #34d3c6;
+
+  --primary: oklch(0.72 0.14 25);
+  --ring: oklch(0.72 0.14 25);
+  --popover: oklch(0.16 0.04 300);
+  --card: oklch(0.14 0.04 300);
+}
+
+html:not(.dark)[data-ringi-palette="synthwave"] {
+  --ringi-surface-primary: #f4f0fa;
+  --ringi-surface-secondary: #e8e2f2;
+  --ringi-surface-elevated: #fcfbff;
+  --ringi-surface-overlay: #ddd6ea;
+  --ringi-surface-inset: #cfc4df;
+  --ringi-text-primary: #1a1625;
+  --ringi-text-secondary: #6b6178;
+  --ringi-text-tertiary: #8b8199;
+  --ringi-text-link: #0d9488;
+  --ringi-accent-primary: #c2410c;
+  --ringi-accent-primary-hover: #ea580c;
+  --ringi-accent-muted: rgb(194 65 12 / 12%);
+  --ringi-code-bg: #e8e2f2;
+
+  --primary: oklch(0.52 0.16 35);
+  --ring: oklch(0.52 0.16 35);
+}

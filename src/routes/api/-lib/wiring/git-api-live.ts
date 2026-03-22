@@ -2,8 +2,7 @@ import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import * as Effect from "effect/Effect";
 
 import { DomainApi } from "@/api/domain-api";
-
-import { GitService } from "../services/git.service";
+import { GitService } from "@/core/services/git.service";
 
 export const GitApiLive = HttpApiBuilder.group(DomainApi, "git", (handlers) =>
   handlers

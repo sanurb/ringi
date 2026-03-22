@@ -221,11 +221,11 @@ One mutable `status` field cannot truthfully answer three different questions:
 
 **Alternatives considered**
 
-| Alternative | Why rejected |
-| --- | --- |
-| Expand `status` enum only | Still conflates progress, verdict, and export |
-| Keep `status` + `exported` boolean | Still cannot distinguish `ready` vs `in_review`; boolean loses timestamp truth |
-| Split `workflow_state`, `review_decision`, `exported_at` | Chosen |
+| Alternative                                              | Why rejected                                                                   |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Expand `status` enum only                                | Still conflates progress, verdict, and export                                  |
+| Keep `status` + `exported` boolean                       | Still cannot distinguish `ready` vs `in_review`; boolean loses timestamp truth |
+| Split `workflow_state`, `review_decision`, `exported_at` | Chosen                                                                         |
 
 **Consequences**
 
@@ -245,11 +245,11 @@ Architecture §11 says exports are reproducible from stored snapshot inputs. Re-
 
 **Alternatives considered**
 
-| Alternative | Why rejected |
-| --- | --- |
-| Persist hunks only for `staged` | branch/commits become non-reproducible |
-| Recompute hunks lazily from stored refs | refs move or disappear |
-| Persist hunks for every source | Chosen |
+| Alternative                             | Why rejected                           |
+| --------------------------------------- | -------------------------------------- |
+| Persist hunks only for `staged`         | branch/commits become non-reproducible |
+| Recompute hunks lazily from stored refs | refs move or disappear                 |
+| Persist hunks for every source          | Chosen                                 |
 
 **Consequences**
 
@@ -268,10 +268,10 @@ The current code already models suggestions that way. Introducing a second repre
 
 **Alternatives considered**
 
-| Alternative | Why rejected |
-| --- | --- |
-| Add a new `suggestions` table now | Solves no current lifecycle bug and creates dual representations during cutover |
-| Keep suggestions embedded in comments | Chosen |
+| Alternative                           | Why rejected                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------- |
+| Add a new `suggestions` table now     | Solves no current lifecycle bug and creates dual representations during cutover |
+| Keep suggestions embedded in comments | Chosen                                                                          |
 
 **Consequences**
 
@@ -296,11 +296,11 @@ An approved review with new unresolved work is a lie.
 
 **Alternatives considered**
 
-| Alternative | Why rejected |
-| --- | --- |
-| Keep approval sticky until a human clears it | Leaves a false approved state visible to every runtime |
-| Reopen only for comments, not todos | Review-linked todos are review work and must not be ignored |
-| Reopen on any new unresolved review-scoped work | Chosen |
+| Alternative                                     | Why rejected                                                |
+| ----------------------------------------------- | ----------------------------------------------------------- |
+| Keep approval sticky until a human clears it    | Leaves a false approved state visible to every runtime      |
+| Reopen only for comments, not todos             | Review-linked todos are review work and must not be ignored |
+| Reopen on any new unresolved review-scoped work | Chosen                                                      |
 
 **Consequences**
 
@@ -325,11 +325,11 @@ An exported snapshot is an audit boundary. Post-export mutation would falsify th
 
 **Alternatives considered**
 
-| Alternative | Why rejected |
-| --- | --- |
-| Allow mutation after export | Makes the exported artifact untrustworthy |
-| Allow repeated exports to overwrite `exported_at` | Destroys first-export truth and weakens idempotency |
-| First successful export wins and terminals the snapshot | Chosen |
+| Alternative                                             | Why rejected                                        |
+| ------------------------------------------------------- | --------------------------------------------------- |
+| Allow mutation after export                             | Makes the exported artifact untrustworthy           |
+| Allow repeated exports to overwrite `exported_at`       | Destroys first-export truth and weakens idempotency |
+| First successful export wins and terminals the snapshot | Chosen                                              |
 
 **Consequences**
 
@@ -348,11 +348,11 @@ Ringi has multiple runtimes. “Usually one writer” is not a contract.
 
 **Alternatives considered**
 
-| Alternative | Why rejected |
-| --- | --- |
-| Trust process discipline only | Not enforceable at the persistence layer |
-| Use transactions without row versions | Cannot distinguish stale caller intent from generic failure |
-| `BEGIN IMMEDIATE` + CAS on `row_version` | Chosen |
+| Alternative                              | Why rejected                                                |
+| ---------------------------------------- | ----------------------------------------------------------- |
+| Trust process discipline only            | Not enforceable at the persistence layer                    |
+| Use transactions without row versions    | Cannot distinguish stale caller intent from generic failure |
+| `BEGIN IMMEDIATE` + CAS on `row_version` | Chosen                                                      |
 
 **Consequences**
 
@@ -398,7 +398,10 @@ export const ReviewLifecycleState = Schema.Literal(
 );
 export type ReviewLifecycleState = typeof ReviewLifecycleState.Type;
 
-export const SnapshotCaptureIntegrity = Schema.Literal("complete", "legacy_partial");
+export const SnapshotCaptureIntegrity = Schema.Literal(
+  "complete",
+  "legacy_partial"
+);
 export type SnapshotCaptureIntegrity = typeof SnapshotCaptureIntegrity.Type;
 
 export const SnapshotIntegrityReason = Schema.Literal(
@@ -551,20 +554,20 @@ export class ReviewLifecycleMigrationUnexpectedStatus extends Schema.TaggedError
 
 ### 5.1 Transition table
 
-| From | To | Triggering service method | Guards that MUST pass | Postconditions |
-| --- | --- | --- | --- | --- |
-| none | `created` | `ReviewService.create()` | source resolves; repo has commits; diff non-empty | review row inserted with `workflow_state='created'`, `review_decision=NULL`, `exported_at=NULL`, `row_version=0` |
-| `created` | `analyzing` | `ReviewService.create()` internal step | parsed files available | row updated to `workflow_state='analyzing'` before `review_files` insert |
-| `analyzing` | `ready` | `ReviewService.create()` internal step | all `review_files` inserted; snapshot JSON v3 built | row updated to `workflow_state='ready'`; all hunks stored |
-| `ready` | `in_review` | `ReviewService.startReview()`; `CommentService.create()`; `TodoService.create()` | `exported_at IS NULL` | `workflow_state='in_review'`; `row_version+1` |
-| `in_review` | `approved` | `ReviewService.approve()`; `CommentService.resolveAllForReview()` | `exported_at IS NULL`; unresolved comments count = 0 after any bulk resolve | `review_decision='approved'`; `workflow_state='in_review'`; `row_version+1` |
-| `in_review` | `changes_requested` | `ReviewService.requestChanges()` | `exported_at IS NULL` | `review_decision='changes_requested'`; `row_version+1` |
-| `approved` | `in_review` | `ReviewService.reopen()`; `CommentService.create()`; `CommentService.unresolve()`; `TodoService.create()`; review-linked todo reopen | `exported_at IS NULL` | `review_decision=NULL`; `workflow_state='in_review'`; `row_version+1` |
-| `changes_requested` | `in_review` | `ReviewService.reopen()` | `exported_at IS NULL` | `review_decision=NULL`; `workflow_state='in_review'`; `row_version+1` |
-| `approved` | `changes_requested` | `ReviewService.requestChanges()` | `exported_at IS NULL` | verdict flips on same immutable snapshot |
-| `changes_requested` | `approved` | `ReviewService.approve()` | `exported_at IS NULL`; unresolved comments count = 0 | verdict flips on same immutable snapshot |
-| `approved` | `exported` | `ExportService.exportReview()` -> `ReviewService.recordExport()` | `exported_at IS NULL` | `review_exports` row inserted; `exported_at` set once |
-| `changes_requested` | `exported` | `ExportService.exportReview()` -> `ReviewService.recordExport()` | `exported_at IS NULL` | rejected snapshot exported as audit artifact |
+| From                | To                  | Triggering service method                                                                                                            | Guards that MUST pass                                                       | Postconditions                                                                                                   |
+| ------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| none                | `created`           | `ReviewService.create()`                                                                                                             | source resolves; repo has commits; diff non-empty                           | review row inserted with `workflow_state='created'`, `review_decision=NULL`, `exported_at=NULL`, `row_version=0` |
+| `created`           | `analyzing`         | `ReviewService.create()` internal step                                                                                               | parsed files available                                                      | row updated to `workflow_state='analyzing'` before `review_files` insert                                         |
+| `analyzing`         | `ready`             | `ReviewService.create()` internal step                                                                                               | all `review_files` inserted; snapshot JSON v3 built                         | row updated to `workflow_state='ready'`; all hunks stored                                                        |
+| `ready`             | `in_review`         | `ReviewService.startReview()`; `CommentService.create()`; `TodoService.create()`                                                     | `exported_at IS NULL`                                                       | `workflow_state='in_review'`; `row_version+1`                                                                    |
+| `in_review`         | `approved`          | `ReviewService.approve()`; `CommentService.resolveAllForReview()`                                                                    | `exported_at IS NULL`; unresolved comments count = 0 after any bulk resolve | `review_decision='approved'`; `workflow_state='in_review'`; `row_version+1`                                      |
+| `in_review`         | `changes_requested` | `ReviewService.requestChanges()`                                                                                                     | `exported_at IS NULL`                                                       | `review_decision='changes_requested'`; `row_version+1`                                                           |
+| `approved`          | `in_review`         | `ReviewService.reopen()`; `CommentService.create()`; `CommentService.unresolve()`; `TodoService.create()`; review-linked todo reopen | `exported_at IS NULL`                                                       | `review_decision=NULL`; `workflow_state='in_review'`; `row_version+1`                                            |
+| `changes_requested` | `in_review`         | `ReviewService.reopen()`                                                                                                             | `exported_at IS NULL`                                                       | `review_decision=NULL`; `workflow_state='in_review'`; `row_version+1`                                            |
+| `approved`          | `changes_requested` | `ReviewService.requestChanges()`                                                                                                     | `exported_at IS NULL`                                                       | verdict flips on same immutable snapshot                                                                         |
+| `changes_requested` | `approved`          | `ReviewService.approve()`                                                                                                            | `exported_at IS NULL`; unresolved comments count = 0                        | verdict flips on same immutable snapshot                                                                         |
+| `approved`          | `exported`          | `ExportService.exportReview()` -> `ReviewService.recordExport()`                                                                     | `exported_at IS NULL`                                                       | `review_exports` row inserted; `exported_at` set once                                                            |
+| `changes_requested` | `exported`          | `ExportService.exportReview()` -> `ReviewService.recordExport()`                                                                     | `exported_at IS NULL`                                                       | rejected snapshot exported as audit artifact                                                                     |
 
 ### 5.2 Prohibited transitions
 
@@ -578,10 +581,10 @@ export class ReviewLifecycleMigrationUnexpectedStatus extends Schema.TaggedError
 
 ### 6.1 Comments and suggestions
 
-| Entity | Current representation | Target rule |
-| --- | --- | --- |
-| Comment | `comments` row | lifecycle-affecting write when created, unresolved, bulk-resolved, or removed from bulk-approval consideration |
-| Suggestion | `comments.suggestion` nullable text | follows comment lifecycle exactly; no separate table in this cutover |
+| Entity     | Current representation              | Target rule                                                                                                    |
+| ---------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Comment    | `comments` row                      | lifecycle-affecting write when created, unresolved, bulk-resolved, or removed from bulk-approval consideration |
+| Suggestion | `comments.suggestion` nullable text | follows comment lifecycle exactly; no separate table in this cutover                                           |
 
 Rules:
 
@@ -592,21 +595,21 @@ Rules:
 
 ### 6.2 Todos
 
-| Operation | Target lifecycle effect |
-| --- | --- |
-| create linked todo on `ready` | start review (`ready -> in_review`) |
-| create linked todo on `approved` | reopen (`approved -> in_review`) |
-| reopen linked todo on `approved` | reopen (`approved -> in_review`) |
-| complete todo | no lifecycle transition by itself |
-| remove todo | no lifecycle transition by itself |
+| Operation                        | Target lifecycle effect             |
+| -------------------------------- | ----------------------------------- |
+| create linked todo on `ready`    | start review (`ready -> in_review`) |
+| create linked todo on `approved` | reopen (`approved -> in_review`)    |
+| reopen linked todo on `approved` | reopen (`approved -> in_review`)    |
+| complete todo                    | no lifecycle transition by itself   |
+| remove todo                      | no lifecycle transition by itself   |
 
 ### 6.3 Review files
 
-| Rule | Requirement |
-| --- | --- |
-| add/remove after creation | forbidden |
-| mutate hunks after creation | forbidden |
-| delete behavior | only via parent review delete cascade |
+| Rule                           | Requirement                                   |
+| ------------------------------ | --------------------------------------------- |
+| add/remove after creation      | forbidden                                     |
+| mutate hunks after creation    | forbidden                                     |
+| delete behavior                | only via parent review delete cascade         |
 | source of truth for file hunks | `review_files.hunks_data` for all new reviews |
 
 ### 6.4 Exports
@@ -652,13 +655,13 @@ Every lifecycle-affecting write MUST follow this exact protocol:
 
 ### 7.2 Concurrent operation outcomes
 
-| Concurrent pair | Required outcome |
-| --- | --- |
-| approve vs request-changes | exactly one CAS succeeds; loser gets `ReviewTransitionConflict` |
-| unresolve comment vs approve | approval counts unresolved comments inside the same transaction and must fail if the unresolve won first |
-| create comment vs export | exactly one wins the immediate transaction; if export commits first, comment write fails with terminal-state error |
-| bulk resolve vs request-changes | exactly one verdict wins; loser reloads |
-| todo reopen vs export | export after reopen must see `review_decision=NULL` and fail with `ReviewDecisionRequiredForExport` |
+| Concurrent pair                 | Required outcome                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| approve vs request-changes      | exactly one CAS succeeds; loser gets `ReviewTransitionConflict`                                                    |
+| unresolve comment vs approve    | approval counts unresolved comments inside the same transaction and must fail if the unresolve won first           |
+| create comment vs export        | exactly one wins the immediate transaction; if export commits first, comment write fails with terminal-state error |
+| bulk resolve vs request-changes | exactly one verdict wins; loser reloads                                                                            |
+| todo reopen vs export           | export after reopen must see `review_decision=NULL` and fail with `ReviewDecisionRequiredForExport`                |
 
 ### 7.3 Event rate / batching
 
@@ -1043,32 +1046,31 @@ exportReview(input: {
 
 This matrix closes the gap between the current code and the target contract for every currently exposed service method.
 
-| File | Current method | Target disposition | Target behavior |
-| --- | --- | --- | --- |
-| `review.service.ts` | `create` | changed | atomic create; v3 snapshot; explicit internal `created -> analyzing -> ready`; persist hunks for all sources |
-| `review.service.ts` | `list` | changed | return canonical lifecycle fields; accept legacy `in_progress` as request alias only |
-| `review.service.ts` | `getById` | changed | return canonical lifecycle fields and v3 snapshot data |
-| `review.service.ts` | `getFileHunks` | changed | read persisted hunks only for new rows; no live git fallback |
-| `review.service.ts` | `update` | deleted | replaced by `startReview`, `approve`, `requestChanges`, `reopen`, `recordExport` |
-| `review.service.ts` | `remove` | unchanged semantically | destructive admin delete; cascades child rows including `review_exports` |
-| `review.service.ts` | `getStats` | changed | compute counts from canonical lifecycle fields, not legacy status |
-| `comment.service.ts` | `create` | changed | may start or reopen review lifecycle transactionally |
-| `comment.service.ts` | `getById` | unchanged | read-only |
-| `comment.service.ts` | `getByReview` | unchanged | read-only |
-| `comment.service.ts` | `getByFile` | unchanged | read-only |
-| `comment.service.ts` | `update` | changed | if updating an annotation on an approved review, reopen transactionally before commit |
-| `comment.service.ts` | `resolve` | changed | reject after export; otherwise resolve only, no auto-approve |
-| `comment.service.ts` | `unresolve` | changed | reopen approved review in same transaction |
-| `comment.service.ts` | `remove` | unchanged | delete comment; no auto-approval side effect |
-| `comment.service.ts` | `getStats` | unchanged | read-only aggregation |
-| `export.service.ts` | `exportReview` | changed | require explicit decision; record export row; terminal transition to `exported` |
+| File                 | Current method | Target disposition     | Target behavior                                                                                              |
+| -------------------- | -------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `review.service.ts`  | `create`       | changed                | atomic create; v3 snapshot; explicit internal `created -> analyzing -> ready`; persist hunks for all sources |
+| `review.service.ts`  | `list`         | changed                | return canonical lifecycle fields; accept legacy `in_progress` as request alias only                         |
+| `review.service.ts`  | `getById`      | changed                | return canonical lifecycle fields and v3 snapshot data                                                       |
+| `review.service.ts`  | `getFileHunks` | changed                | read persisted hunks only for new rows; no live git fallback                                                 |
+| `review.service.ts`  | `update`       | deleted                | replaced by `startReview`, `approve`, `requestChanges`, `reopen`, `recordExport`                             |
+| `review.service.ts`  | `remove`       | unchanged semantically | destructive admin delete; cascades child rows including `review_exports`                                     |
+| `review.service.ts`  | `getStats`     | changed                | compute counts from canonical lifecycle fields, not legacy status                                            |
+| `comment.service.ts` | `create`       | changed                | may start or reopen review lifecycle transactionally                                                         |
+| `comment.service.ts` | `getById`      | unchanged              | read-only                                                                                                    |
+| `comment.service.ts` | `getByReview`  | unchanged              | read-only                                                                                                    |
+| `comment.service.ts` | `getByFile`    | unchanged              | read-only                                                                                                    |
+| `comment.service.ts` | `update`       | changed                | if updating an annotation on an approved review, reopen transactionally before commit                        |
+| `comment.service.ts` | `resolve`      | changed                | reject after export; otherwise resolve only, no auto-approve                                                 |
+| `comment.service.ts` | `unresolve`    | changed                | reopen approved review in same transaction                                                                   |
+| `comment.service.ts` | `remove`       | unchanged              | delete comment; no auto-approval side effect                                                                 |
+| `comment.service.ts` | `getStats`     | unchanged              | read-only aggregation                                                                                        |
+| `export.service.ts`  | `exportReview` | changed                | require explicit decision; record export row; terminal transition to `exported`                              |
 
 **Test criteria**
 
 - every deleted method has no remaining call sites
 - every changed read method returns canonical lifecycle fields
 - every changed write method is covered by a lifecycle transition or explicit non-transition rule
-
 
 ## 11. Backward Compatibility and Cutover
 
@@ -1113,27 +1115,27 @@ Reason: response aliases would keep two public truths alive.
 
 ## 12. Edge Cases and Expected Behavior
 
-| Case | Expected behavior | Test assertion |
-| --- | --- | --- |
-| repository has no commits | `create()` fails before insert | review count unchanged |
-| selected source diff is empty | `create()` fails before insert | no review row, no file rows |
-| branch ref moves after create | review remains readable/exportable from stored hunks | `getFileHunks()` equals original persisted hunks |
-| commit range becomes unreachable later | review still loads if hunks were stored | export still succeeds |
-| approve with unresolved comments | reject with guard error | `reviewDecision` remains `NULL` |
-| unresolve on approved review | reopen in same transaction | `reviewDecision=NULL`, `lifecycleState='in_review'` |
-| create todo on approved review | reopen in same transaction | same as above |
-| export with no decision | reject with `ReviewDecisionRequiredForExport` | no `review_exports` row |
-| export after export | reject with `ReviewAlreadyExported` | `exported_at` unchanged |
-| unexpected legacy status in migration | abort migration | original tables untouched |
+| Case                                   | Expected behavior                                    | Test assertion                                      |
+| -------------------------------------- | ---------------------------------------------------- | --------------------------------------------------- |
+| repository has no commits              | `create()` fails before insert                       | review count unchanged                              |
+| selected source diff is empty          | `create()` fails before insert                       | no review row, no file rows                         |
+| branch ref moves after create          | review remains readable/exportable from stored hunks | `getFileHunks()` equals original persisted hunks    |
+| commit range becomes unreachable later | review still loads if hunks were stored              | export still succeeds                               |
+| approve with unresolved comments       | reject with guard error                              | `reviewDecision` remains `NULL`                     |
+| unresolve on approved review           | reopen in same transaction                           | `reviewDecision=NULL`, `lifecycleState='in_review'` |
+| create todo on approved review         | reopen in same transaction                           | same as above                                       |
+| export with no decision                | reject with `ReviewDecisionRequiredForExport`        | no `review_exports` row                             |
+| export after export                    | reject with `ReviewAlreadyExported`                  | `exported_at` unchanged                             |
+| unexpected legacy status in migration  | abort migration                                      | original tables untouched                           |
 
 ## 13. Rollback Plan
 
-| Step | Rollback strategy |
-| --- | --- |
-| preflight unexpected statuses | no changes applied; fix data then rerun |
-| create `reviews_v2` and copy | transaction rollback restores original `reviews` |
-| create `review_exports` | transaction rollback removes table |
-| code cutover | revert code and leave migrated schema in place only if no writes occurred under new contract; otherwise restore from DB backup |
+| Step                                    | Rollback strategy                                                                                                                 |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| preflight unexpected statuses           | no changes applied; fix data then rerun                                                                                           |
+| create `reviews_v2` and copy            | transaction rollback restores original `reviews`                                                                                  |
+| create `review_exports`                 | transaction rollback removes table                                                                                                |
+| code cutover                            | revert code and leave migrated schema in place only if no writes occurred under new contract; otherwise restore from DB backup    |
 | drop legacy `status` in later migration | only do this after all call sites are cut over and release has baked; rollback is restore-from-backup, not partial schema surgery |
 
 Operational requirement: take a SQLite backup before the migration that rebuilds `reviews`.

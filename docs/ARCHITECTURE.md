@@ -33,16 +33,16 @@ This document covers the runtime and data architecture of Ringi across four deli
 
 ## 5. Explicit Non-Goals
 
-| Non-goal | Why Ringi does not build it |
-| --- | --- |
-| Generic codebase exploration product | Exploration-first UX optimizes for a different job and would pull the product away from review sessions. |
-| Full persistent knowledge graph of the repository | The cost, invalidation surface, and UI complexity are wrong for review-scoped intelligence. |
-| Human-authored narrative documents as required intelligence input | Provenance must be structured and machine-emittable; human summaries are optional decoration. |
-| Multi-user hosted collaboration platform | Ringi is a premium local-first workbench, not a cloud review system. |
-| Compiler-grade cross-language static analysis in v1 | Workflow completeness, provenance, grouping, and evidence produce more product value sooner. |
-| Auto-applying code changes from suggestions or graph insights | The safety surface expands faster than review discipline if the system starts mutating code automatically. |
-| Replacing GitHub or GitLab PR review | Ringi is a local pre-push review layer and export source, not a remote review host. |
-| Full-text or semantic code search product | Search may appear as implementation detail later, but it is not a first-class product surface. |
+| Non-goal                                                          | Why Ringi does not build it                                                                                |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Generic codebase exploration product                              | Exploration-first UX optimizes for a different job and would pull the product away from review sessions.   |
+| Full persistent knowledge graph of the repository                 | The cost, invalidation surface, and UI complexity are wrong for review-scoped intelligence.                |
+| Human-authored narrative documents as required intelligence input | Provenance must be structured and machine-emittable; human summaries are optional decoration.              |
+| Multi-user hosted collaboration platform                          | Ringi is a premium local-first workbench, not a cloud review system.                                       |
+| Compiler-grade cross-language static analysis in v1               | Workflow completeness, provenance, grouping, and evidence produce more product value sooner.               |
+| Auto-applying code changes from suggestions or graph insights     | The safety surface expands faster than review discipline if the system starts mutating code automatically. |
+| Replacing GitHub or GitLab PR review                              | Ringi is a local pre-push review layer and export source, not a remote review host.                        |
+| Full-text or semantic code search product                         | Search may appear as implementation detail later, but it is not a first-class product surface.             |
 
 ## 6. System Overview
 
@@ -101,11 +101,11 @@ The adapter rule is strict: Web UI, CLI, and MCP do not own business rules. Adap
 
 ## 7. Operational Modes
 
-| Mode | Entry surface | What works | What is intentionally unavailable |
-| --- | --- | --- | --- |
-| **Standalone** | Direct CLI read-only commands | `ringi list`, `ringi status`, `ringi export`, local diagnostics, direct SQLite reads, snapshot inspection | Live SSE, browser UI, mutation endpoints requiring serialized server orchestration |
-| **Server-connected** | `ringi serve` + Web UI and HTTP clients | Full review creation, comment/suggestion workflows, todo mutation, export, SSE updates, watcher-driven refresh, shared HTTP contracts | None of the local-first guarantees are removed; the server is a convenience and mutation coordinator, not a cloud dependency |
-| **MCP stdio** | `ringi mcp` | Agent integration through namespaces such as `reviews`, `intelligence`, `todos`, `exports`, and `events`, read-heavy review inspection first, controlled mutations later | Embedded MCP inside the web server, network dependency, unbounded repo exploration |
+| Mode                 | Entry surface                           | What works                                                                                                                                                               | What is intentionally unavailable                                                                                            |
+| -------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Standalone**       | Direct CLI read-only commands           | `ringi list`, `ringi status`, `ringi export`, local diagnostics, direct SQLite reads, snapshot inspection                                                                | Live SSE, browser UI, mutation endpoints requiring serialized server orchestration                                           |
+| **Server-connected** | `ringi serve` + Web UI and HTTP clients | Full review creation, comment/suggestion workflows, todo mutation, export, SSE updates, watcher-driven refresh, shared HTTP contracts                                    | None of the local-first guarantees are removed; the server is a convenience and mutation coordinator, not a cloud dependency |
+| **MCP stdio**        | `ringi mcp`                             | Agent integration through namespaces such as `reviews`, `intelligence`, `todos`, `exports`, and `events`, read-heavy review inspection first, controlled mutations later | Embedded MCP inside the web server, network dependency, unbounded repo exploration                                           |
 
 The same review session model must behave coherently across all three modes. The only thing that changes is transport and availability of live coordination features.
 
@@ -123,30 +123,30 @@ The architectural decision is explicit: one core service layer, multiple runtime
 
 ## 9. Domain Boundaries
 
-| Bounded context | Owns | Does not own |
-| --- | --- | --- |
-| **Review** | `review`, `review_file`, `comment`, `suggestion`, status transitions, snapshot anchoring, diff-level metadata | Global code graph, parser internals, shell command UX |
-| **Intelligence** | `provenance`, `relationship`, `group`, `confidence`, impact minimap data, graph-diff bridging artifacts | Review creation transport, standalone code exploration, opaque ML scoring |
-| **Export** | `export` artifacts, markdown rendering, snapshot-based audit output, stable serialization of review state | Review mutation rules, intelligence extraction, live event transport |
-| **Todo** | `todo` lifecycle, review-linked task tracking, shell/UI parity for operational follow-up | Review comment semantics, export formatting, graph analysis |
-| **Event** | SSE event broadcasting, watcher integration, invalidation hints, event payload contracts | Business decisions about review state, persistence schema beyond event cursors if added later |
-| **Source** | `review source` resolution, git diff acquisition, base/head normalization, repository metadata | Review status lifecycle, UI presentation, confidence scoring |
+| Bounded context  | Owns                                                                                                          | Does not own                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Review**       | `review`, `review_file`, `comment`, `suggestion`, status transitions, snapshot anchoring, diff-level metadata | Global code graph, parser internals, shell command UX                                         |
+| **Intelligence** | `provenance`, `relationship`, `group`, `confidence`, impact minimap data, graph-diff bridging artifacts       | Review creation transport, standalone code exploration, opaque ML scoring                     |
+| **Export**       | `export` artifacts, markdown rendering, snapshot-based audit output, stable serialization of review state     | Review mutation rules, intelligence extraction, live event transport                          |
+| **Todo**         | `todo` lifecycle, review-linked task tracking, shell/UI parity for operational follow-up                      | Review comment semantics, export formatting, graph analysis                                   |
+| **Event**        | SSE event broadcasting, watcher integration, invalidation hints, event payload contracts                      | Business decisions about review state, persistence schema beyond event cursors if added later |
+| **Source**       | `review source` resolution, git diff acquisition, base/head normalization, repository metadata                | Review status lifecycle, UI presentation, confidence scoring                                  |
 
 These boundaries are designed to keep the next phase honest. Intelligence should depend on Review and Source snapshots; Review should not depend on Intelligence internals to remain operable.
 
 ## 10. Component Architecture
 
-| Logical component | Responsibilities | Primary consumers |
-| --- | --- | --- |
-| **Presentation layer** | Diff UI, grouped file tree, impact minimap, comment threads, todo panel, review source forms | Web UI |
-| **Transport adapters** | HTTP route handlers, RPC handlers, CLI command handlers, MCP stdio namespace adapters, SSE stream bridge | Web UI, CLI, MCP |
-| **Core review services** | Create/read/update review session, load hunks, attach comments/suggestions, manage lifecycle state | All adapters |
-| **Core intelligence services** | Build review-scoped subgraph, compute grouped file tree, attach evidence, derive confidence score, bridge graph selection back to diff | Web UI, CLI, MCP |
-| **Core source services** | Resolve staged/branch/commits diffs, base/head refs, repository metadata, snapshot capture | Review services, intelligence services |
-| **Core export services** | Serialize review session into markdown and later machine-readable exports tied to a review snapshot | Web UI, CLI, MCP |
-| **Core event services** | Watch filesystem, debounce changes, publish structured events, support CLI event tailing and UI invalidation | Web UI, CLI |
-| **Persistence layer** | SQLite repositories, migrations, query helpers, WAL-safe write boundaries | Core services |
-| **Parsing layer** | Regex extraction first, tree-sitter later, both behind a stable intelligence contract | Intelligence services |
+| Logical component              | Responsibilities                                                                                                                       | Primary consumers                      |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **Presentation layer**         | Diff UI, grouped file tree, impact minimap, comment threads, todo panel, review source forms                                           | Web UI                                 |
+| **Transport adapters**         | HTTP route handlers, RPC handlers, CLI command handlers, MCP stdio namespace adapters, SSE stream bridge                               | Web UI, CLI, MCP                       |
+| **Core review services**       | Create/read/update review session, load hunks, attach comments/suggestions, manage lifecycle state                                     | All adapters                           |
+| **Core intelligence services** | Build review-scoped subgraph, compute grouped file tree, attach evidence, derive confidence score, bridge graph selection back to diff | Web UI, CLI, MCP                       |
+| **Core source services**       | Resolve staged/branch/commits diffs, base/head refs, repository metadata, snapshot capture                                             | Review services, intelligence services |
+| **Core export services**       | Serialize review session into markdown and later machine-readable exports tied to a review snapshot                                    | Web UI, CLI, MCP                       |
+| **Core event services**        | Watch filesystem, debounce changes, publish structured events, support CLI event tailing and UI invalidation                           | Web UI, CLI                            |
+| **Persistence layer**          | SQLite repositories, migrations, query helpers, WAL-safe write boundaries                                                              | Core services                          |
+| **Parsing layer**              | Regex extraction first, tree-sitter later, both behind a stable intelligence contract                                                  | Intelligence services                  |
 
 Suggested package direction is logical, not mandatory file layout: `presentation`, `adapters`, `core/review`, `core/intelligence`, `core/source`, `core/todo`, `core/export`, `core/event`, `persistence`, `parsers`.
 
@@ -227,15 +227,15 @@ A review session is the unit of value. It is an immutable snapshot of a diff plu
 
 Target lifecycle:
 
-| State | Meaning | Entered when | Exits to |
-| --- | --- | --- | --- |
-| `created` | Review row exists, snapshot inputs captured, analysis not yet started | Review session persisted | `analyzing` |
-| `analyzing` | Diff parsed, provenance/group/relationship/confidence generation running | Analysis job accepted | `ready` or `changes_requested` on fatal creation issue |
-| `ready` | Review snapshot and primary intelligence are available | Initial analysis completes | `in_review` |
-| `in_review` | Human or agent is actively annotating and resolving the review | First comment, suggestion, todo, or explicit start action | `approved` or `changes_requested` |
-| `approved` | Reviewer accepts the change for export or downstream action | Reviewer confirms approval | `exported` |
-| `changes_requested` | Reviewer rejects current revision and expects iteration | Reviewer requests changes | `exported` or back to `analyzing` on refreshed snapshot |
-| `exported` | Audit artifact emitted from the current snapshot | Export recorded | Terminal for that snapshot |
+| State               | Meaning                                                                  | Entered when                                              | Exits to                                                |
+| ------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------- |
+| `created`           | Review row exists, snapshot inputs captured, analysis not yet started    | Review session persisted                                  | `analyzing`                                             |
+| `analyzing`         | Diff parsed, provenance/group/relationship/confidence generation running | Analysis job accepted                                     | `ready` or `changes_requested` on fatal creation issue  |
+| `ready`             | Review snapshot and primary intelligence are available                   | Initial analysis completes                                | `in_review`                                             |
+| `in_review`         | Human or agent is actively annotating and resolving the review           | First comment, suggestion, todo, or explicit start action | `approved` or `changes_requested`                       |
+| `approved`          | Reviewer accepts the change for export or downstream action              | Reviewer confirms approval                                | `exported`                                              |
+| `changes_requested` | Reviewer rejects current revision and expects iteration                  | Reviewer requests changes                                 | `exported` or back to `analyzing` on refreshed snapshot |
+| `exported`          | Audit artifact emitted from the current snapshot                         | Export recorded                                           | Terminal for that snapshot                              |
 
 Explicit architectural decision: the current single `status` column is too coarse for this lifecycle. The long-term model should separate **workflow state** from **review decision** and store `exported_at` independently, even if Phase 1 continues with additive status values for compatibility.
 
@@ -243,11 +243,11 @@ Explicit architectural decision: the current single `status` column is too coars
 
 A `review source` determines how the system captures a diff and anchors a review snapshot.
 
-| Review source | Input shape | Base/head resolution | Resulting diff anchor |
-| --- | --- | --- | --- |
-| `staged` | Current staged index against `HEAD` | `base = HEAD`, `head = staged index` | Snapshot of staged changes at creation time |
-| `branch` | Named branch or ref compared against current branch/HEAD target | `base = branch ref`, `head = working branch/HEAD` | Snapshot of divergence from a branch boundary |
-| `commits` | Explicit commit range or ordered commit list | `base = oldest selected commit parent or explicit range base`, `head = newest selected commit` | Snapshot of a bounded historical diff |
+| Review source | Input shape                                                     | Base/head resolution                                                                           | Resulting diff anchor                         |
+| ------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `staged`      | Current staged index against `HEAD`                             | `base = HEAD`, `head = staged index`                                                           | Snapshot of staged changes at creation time   |
+| `branch`      | Named branch or ref compared against current branch/HEAD target | `base = branch ref`, `head = working branch/HEAD`                                              | Snapshot of divergence from a branch boundary |
+| `commits`     | Explicit commit range or ordered commit list                    | `base = oldest selected commit parent or explicit range base`, `head = newest selected commit` | Snapshot of a bounded historical diff         |
 
 Rules:
 
@@ -409,26 +409,26 @@ This is how Ringi stays premium on a laptop instead of becoming a local resource
 
 ## 24. Failure Modes
 
-| Failure | What happens | Recovery strategy |
-| --- | --- | --- |
-| Corrupt SQLite database | Review reads or writes fail; the workbench cannot trust persisted state | `ringi doctor` detects corruption, server and CLI refuse unsafe mutations, restore from backup or rebuild from exported artifacts where possible |
-| Stale or dead file watcher | UI stops reflecting local diff changes; agents and reviewers see outdated state | Detect via heartbeat / last event timestamp, allow manual refresh, restart watcher without restarting the entire app |
-| Diff extraction timeout | Provenance, relationships, or confidence stay incomplete for the review snapshot | Mark intelligence as partial, surface timeout in diagnostics, allow retry, keep raw diff review usable |
-| MCP sandbox escape attempt | Untrusted code tries to access disallowed capabilities | Deny execution, log a security event, preserve process isolation, keep core services unavailable to the escaped context |
-| Server unavailable during CLI mutation | Mutating CLI commands cannot serialize writes through the preferred path | Fail fast with a clear message or explicitly start/target a local server; read-only commands remain available |
-| Review source mismatch | Requested `staged`, `branch`, or `commits` diff resolves to no changes or invalid refs | Reject review creation with a source-specific error and no partial review session |
-| Evidence generation mismatch | Relationship exists heuristically but evidence cannot be shown | Downgrade confidence, mark the edge as unsupported, do not present it as authoritative |
-| Export generation failure | Review cannot be turned into an audit artifact | Leave review session intact, record diagnostic details, allow retry from the same snapshot |
+| Failure                                | What happens                                                                           | Recovery strategy                                                                                                                                |
+| -------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Corrupt SQLite database                | Review reads or writes fail; the workbench cannot trust persisted state                | `ringi doctor` detects corruption, server and CLI refuse unsafe mutations, restore from backup or rebuild from exported artifacts where possible |
+| Stale or dead file watcher             | UI stops reflecting local diff changes; agents and reviewers see outdated state        | Detect via heartbeat / last event timestamp, allow manual refresh, restart watcher without restarting the entire app                             |
+| Diff extraction timeout                | Provenance, relationships, or confidence stay incomplete for the review snapshot       | Mark intelligence as partial, surface timeout in diagnostics, allow retry, keep raw diff review usable                                           |
+| MCP sandbox escape attempt             | Untrusted code tries to access disallowed capabilities                                 | Deny execution, log a security event, preserve process isolation, keep core services unavailable to the escaped context                          |
+| Server unavailable during CLI mutation | Mutating CLI commands cannot serialize writes through the preferred path               | Fail fast with a clear message or explicitly start/target a local server; read-only commands remain available                                    |
+| Review source mismatch                 | Requested `staged`, `branch`, or `commits` diff resolves to no changes or invalid refs | Reject review creation with a source-specific error and no partial review session                                                                |
+| Evidence generation mismatch           | Relationship exists heuristically but evidence cannot be shown                         | Downgrade confidence, mark the edge as unsupported, do not present it as authoritative                                                           |
+| Export generation failure              | Review cannot be turned into an audit artifact                                         | Leave review session intact, record diagnostic details, allow retry from the same snapshot                                                       |
 
 ## 25. Migration / Evolution Path
 
 The roadmap phases are architectural phases, not just backlog buckets.
 
-| Phase | Architectural change | Compatibility rule |
-| --- | --- | --- |
-| **Phase 1: Operational Surface** | Finish watcher boot wiring, expose full review source selection, introduce real CLI runtime, add provenance storage, add directory grouping, add regex extraction, ship MCP foundation | All changes are additive; existing review creation and diff rendering continue to work |
-| **Phase 1.5: Trust Layer** | Persist/display relationship evidence, impact minimap, provenance headers, confidence score, graph-diff bridging | Intelligence remains review-scoped and optional; reviewers can still operate on raw diff alone |
-| **Phase 2: Deep Intelligence** | Introduce tree-sitter behind the stable parsing contract, add export/symbol extraction, caller/callee impact, rename detection, improved grouping, expanded intelligence namespaces | Regex stays as fallback until the higher-fidelity parser proves contract parity |
-| **Phase 3: Agent Review Loop** | Add structured agent review creation, deterministic self-verification, selective batch approval, review diff subscriptions | Agent features layer onto the same review session model; they do not fork the domain |
+| Phase                            | Architectural change                                                                                                                                                                   | Compatibility rule                                                                             |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Phase 1: Operational Surface** | Finish watcher boot wiring, expose full review source selection, introduce real CLI runtime, add provenance storage, add directory grouping, add regex extraction, ship MCP foundation | All changes are additive; existing review creation and diff rendering continue to work         |
+| **Phase 1.5: Trust Layer**       | Persist/display relationship evidence, impact minimap, provenance headers, confidence score, graph-diff bridging                                                                       | Intelligence remains review-scoped and optional; reviewers can still operate on raw diff alone |
+| **Phase 2: Deep Intelligence**   | Introduce tree-sitter behind the stable parsing contract, add export/symbol extraction, caller/callee impact, rename detection, improved grouping, expanded intelligence namespaces    | Regex stays as fallback until the higher-fidelity parser proves contract parity                |
+| **Phase 3: Agent Review Loop**   | Add structured agent review creation, deterministic self-verification, selective batch approval, review diff subscriptions                                                             | Agent features layer onto the same review session model; they do not fork the domain           |
 
 The architecture accommodates this path because it already separates transport from business logic, keeps intelligence tied to review snapshots, and treats parsing as a replaceable backend rather than a product contract. That is the difference between a roadmap that survives implementation and one that collapses under its own shortcuts.

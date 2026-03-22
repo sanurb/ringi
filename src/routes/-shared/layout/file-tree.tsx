@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import type { DiffFileMetadata, DiffStatus } from "@/api/schemas/diff";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,8 @@ interface FileTreeProps {
   onSelectFile: (path: string) => void;
   reviewedFiles?: ReadonlySet<string>;
   groupLabel?: string;
+  headerAction?: ReactNode;
+  emptyStateMessage?: string;
 }
 
 interface TreeNode {
@@ -177,13 +180,22 @@ const TreeItem = ({
   reviewedFiles,
 }: TreeItemProps) => {
   const isDir = !node.file;
+  const selectedPath = node.file?.newPath ?? null;
   const isExpanded = expanded.has(node.path);
-  const isSelected = node.file?.newPath === selectedFile;
-  const isReviewed = node.file ? reviewedFiles?.has(node.file.newPath) : false;
+  const isSelected = selectedPath === selectedFile;
+  const isReviewed = selectedPath ? reviewedFiles?.has(selectedPath) : false;
 
-  const handleToggle = () => {
+  const handleToggle = useCallback(() => {
     onToggle(node.path);
-  };
+  }, [node.path, onToggle]);
+
+  const handleSelect = useCallback(() => {
+    if (!selectedPath) {
+      return;
+    }
+
+    onSelectFile(selectedPath);
+  }, [onSelectFile, selectedPath]);
 
   if (isDir) {
     return (
@@ -221,10 +233,6 @@ const TreeItem = ({
   if (!file) {
     return null;
   }
-
-  const handleSelect = () => {
-    onSelectFile(file.newPath);
-  };
 
   return (
     <button
@@ -329,6 +337,8 @@ export const FileTree = ({
   onSelectFile,
   reviewedFiles,
   groupLabel,
+  headerAction,
+  emptyStateMessage = "No files",
 }: FileTreeProps) => {
   const tree = useMemo(() => buildTree(files), [files]);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(
@@ -359,6 +369,7 @@ export const FileTree = ({
   const reviewedCount = reviewedFiles?.size ?? 0;
   const totalAdditions = files.reduce((sum, file) => sum + file.additions, 0);
   const totalDeletions = files.reduce((sum, file) => sum + file.deletions, 0);
+  const headerCount = headerAction ? null : `${reviewedCount}/${files.length}`;
 
   const treeContent = groupLabel ? (
     <>
@@ -407,19 +418,24 @@ export const FileTree = ({
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border-default bg-surface-secondary">
-      <div className="flex items-center justify-between px-3 py-2.5">
-        <span className="text-[10px] font-medium uppercase tracking-widest text-text-tertiary">
-          Files
-        </span>
-        <span className="text-[10px] tabular-nums text-text-tertiary">
-          {reviewedCount}/{files.length}
-        </span>
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="text-[10px] font-medium uppercase tracking-widest text-text-tertiary">
+            Files
+          </span>
+          {headerAction}
+        </div>
+        {headerCount ? (
+          <span className="shrink-0 text-[10px] tabular-nums text-text-tertiary">
+            {headerCount}
+          </span>
+        ) : null}
       </div>
 
       <div className="flex-1 overflow-x-hidden overflow-y-auto">
         {files.length === 0 ? (
-          <div className="flex h-32 items-center justify-center text-xs text-text-tertiary">
-            No files
+          <div className="flex h-32 items-center justify-center px-3 text-center text-xs text-text-tertiary">
+            {emptyStateMessage}
           </div>
         ) : (
           treeContent

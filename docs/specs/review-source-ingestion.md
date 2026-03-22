@@ -1,13 +1,17 @@
 # SPEC-002: Review Source Ingestion
 
 ## Status
+
 Draft
 
 ## Purpose
+
 Define the canonical ingestion contract for creating a review session from a review source. This spec closes the current gap between documented source types (`staged`, `branch`, `commits`) and the actual persistence behavior in `ReviewService.create()` / `ReviewService.getFileHunks()`, where only staged reviews persist hunks and branch/commit reviews are re-diffed from live git later. The goal is an immutable, reproducible snapshot captured at review creation time and then consumed uniformly by CLI, HTTP API, UI, and MCP.
 
 ## Scope
+
 This spec covers:
+
 - the three review source types: `staged`, `branch`, and `commits`
 - source validation before a review row is created
 - source resolution into repository metadata, file set, and diff hunks
@@ -18,7 +22,9 @@ This spec covers:
 - how source ingestion feeds the lifecycle defined in `docs/specs/review-lifecycle.md`
 
 ## Non-Goals
+
 This spec does not cover:
+
 - comment, suggestion, todo, or export workflows beyond their dependency on immutable snapshot inputs
 - intelligence extraction, provenance, grouped file tree, confidence scoring, or impact minimap generation
 - UI interaction design for source selection beyond the required source contract
@@ -26,6 +32,7 @@ This spec does not cover:
 - generalized git exploration commands outside review-scoped source discovery and preview
 
 ## Canonical References
+
 - `docs/specs/review-lifecycle.md`
   - §3 DD-2 — immutable and self-sufficient review snapshots
   - §4.1 — `ReviewSnapshotData` v3 and lifecycle-facing review shape
@@ -53,6 +60,7 @@ This spec does not cover:
 - `src/routes/new.tsx`
 
 ## Terminology
+
 - **Review source** — the user-selected diff origin used to create a review session: `staged`, `branch`, or `commits`.
 - **Requested source** — the adapter-level input as supplied by CLI, HTTP API, UI, or MCP.
 - **Resolved source anchor** — the exact immutable metadata captured at creation time after git validation, including the refs and SHAs needed to explain what was reviewed.
@@ -61,6 +69,7 @@ This spec does not cover:
 - **Legacy partial snapshot** — a pre-cutover review whose source metadata or hunks are incomplete and may require degraded reads as defined in SPEC-001.
 
 ## Requirements
+
 1. **REQ-002-001 — Source type support**  
    The core review creation path MUST accept exactly three source types: `staged`, `branch`, and `commits`.
 2. **REQ-002-002 — Single ingestion pipeline**  
@@ -93,7 +102,9 @@ This spec does not cover:
     Any review created before this cutover that lacks persisted hunks or complete source anchors MUST surface degraded integrity per SPEC-001 instead of being presented as a fully anchored snapshot.
 
 ## Workflow / State Model
+
 ### Ingestion pipeline
+
 ```text
 adapter input
   -> source normalization
@@ -108,16 +119,19 @@ adapter input
 ```
 
 ### Source-specific resolution rules
-| Source type | Requested input | Diff acquisition | Persisted sourceRef | Persisted source anchor semantics |
-| --- | --- | --- | --- | --- |
-| `staged` | no ref | `git diff --cached --no-color --unified=3` | `NULL` | `baseRef = 'HEAD'`, `baseSha = current HEAD sha`, `headRef = NULL`, `headSha = NULL`; persisted hunks are the authoritative snapshot |
-| `branch` | branch/ref name | `git diff <branch>...HEAD --no-color --unified=3` | requested branch/ref name | `baseRef = requested branch name`, `baseSha = resolved merge-base(<branch>, HEAD)`, `headRef = current symbolic HEAD if available`, `headSha = current HEAD sha` |
-| `commits` | commit range or commit list | normalized ordered commit list -> diff over that bounded history | canonical comma-separated full SHAs in oldest->newest order | `baseRef = NULL`, `baseSha = parent(oldest selected commit)` when available, `headRef = NULL`, `headSha = newest selected commit sha` |
+
+| Source type | Requested input             | Diff acquisition                                                 | Persisted sourceRef                                         | Persisted source anchor semantics                                                                                                                                |
+| ----------- | --------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `staged`    | no ref                      | `git diff --cached --no-color --unified=3`                       | `NULL`                                                      | `baseRef = 'HEAD'`, `baseSha = current HEAD sha`, `headRef = NULL`, `headSha = NULL`; persisted hunks are the authoritative snapshot                             |
+| `branch`    | branch/ref name             | `git diff <branch>...HEAD --no-color --unified=3`                | requested branch/ref name                                   | `baseRef = requested branch name`, `baseSha = resolved merge-base(<branch>, HEAD)`, `headRef = current symbolic HEAD if available`, `headSha = current HEAD sha` |
+| `commits`   | commit range or commit list | normalized ordered commit list -> diff over that bounded history | canonical comma-separated full SHAs in oldest->newest order | `baseRef = NULL`, `baseSha = parent(oldest selected commit)` when available, `headRef = NULL`, `headSha = newest selected commit sha`                            |
 
 ### Lifecycle integration
+
 Per `docs/specs/review-lifecycle.md`, successful source ingestion creates an immutable review snapshot and enters `workflow_state = 'created'`. Source ingestion does not change the lifecycle graph. After capture succeeds, the same downstream analysis path moves the review through `created -> analyzing -> ready`. Source-specific validation failures happen before lifecycle entry and therefore produce no review row.
 
 ### Current implementation gaps against this model
+
 - `ReviewService.create()` persists hunks only when `sourceType === 'staged'`; branch and commit reviews store `hunks_data = null`.
 - `ReviewService.getFileHunks()` re-runs `git.getBranchDiff()` / `git.getCommitDiff()` for branch and commit reviews, violating immutable snapshots.
 - `snapshot_data` version 2 currently stores repository metadata only; it does not persist source anchors or diff summary.
@@ -126,12 +140,15 @@ Per `docs/specs/review-lifecycle.md`, successful source ingestion creates an imm
 - `src/routes/new.tsx` creates staged reviews only and does not expose branch or commit creation in the UI.
 
 ## API / CLI / MCP Implications
+
 ### HTTP / core API
+
 - The canonical create contract remains source-driven, but it MUST normalize into one internal source-ingestion call.
 - `CreateReviewInput` MUST continue to discriminate by `sourceType`, but adapters MUST convert user-friendly inputs into a canonical source reference before invoking the service.
 - `getFileHunks()` MUST become a pure snapshot read for all post-cutover reviews.
 
 ### CLI
+
 - `ringi review create` remains the canonical creation command.
 - `--source staged` continues to default when no source is provided.
 - `--source branch --branch <name>` MUST validate the branch exists before persistence.
@@ -140,17 +157,22 @@ Per `docs/specs/review-lifecycle.md`, successful source ingestion creates an imm
 - `ringi review status --source <type>` MUST report source-specific availability based on live repository state, but MUST NOT imply that an already-created review can change with live git.
 
 ### MCP
+
 - `sources.list()` and `sources.previewDiff()` remain the discovery surface for agents.
 - `reviews.create()` MUST ultimately resolve to the same ingestion path as CLI/HTTP.
 - For branch creation, MCP inputs `{ type: 'branch', baseRef, headRef }` MUST resolve to the same persisted anchor semantics as CLI branch creation; the authoritative persisted diff remains the captured snapshot, not later ref lookups.
 - For commit creation, MCP inputs `{ type: 'commits', commits: string[] }` MUST be normalized to the canonical oldest->newest full SHA list before persistence.
 
 ### UI
+
 - The UI MUST stop hardcoding staged-only creation. `src/routes/new.tsx` currently posts `{ sourceType: 'staged', sourceRef: null }` only; post-cutover UI MUST expose the same three source types documented in `CLI.md`.
 
 ## Data Model Impact
+
 ### Reviews table
+
 This spec builds on the `reviews` table shape defined in SPEC-001. Source ingestion uses these persisted fields:
+
 - `source_type` — queryable discriminator for `staged | branch | commits`
 - `source_ref` — canonical requested source reference:
   - `NULL` for `staged`
@@ -159,6 +181,7 @@ This spec builds on the `reviews` table shape defined in SPEC-001. Source ingest
 - `snapshot_data` — versioned structured JSON with repository metadata, resolved source anchor, diff summary, and integrity markers
 
 ### Review snapshot JSON
+
 For reviews created after this cutover, `snapshot_data` MUST conform to SPEC-001 `ReviewSnapshotData` version 3 with the following source semantics:
 
 ```ts
@@ -190,6 +213,7 @@ For reviews created after this cutover, `snapshot_data` MUST conform to SPEC-001
 ```
 
 ### Review files table
+
 `review_files` MUST become the authoritative per-file snapshot store. This spec requires the following additive shape:
 
 ```sql
@@ -206,6 +230,7 @@ ALTER TABLE review_files ADD COLUMN capture_note TEXT;
 ```
 
 Per-file persistence contract:
+
 - `hunks_data` contains serialized hunks for text files whose capture is complete.
 - `content_kind = 'binary'` means the file is part of the review snapshot but has no text hunks.
 - `content_kind = 'submodule'` means the diff represents submodule pointer movement, not inline file content.
@@ -215,6 +240,7 @@ Per-file persistence contract:
 **AMBIGUITY:** no current document defines concrete file-count or hunk-size limits. This spec requires configurable ingestion budgets and explicit degradation when exceeded, but the default numeric thresholds remain open.
 
 ## Service Boundaries
+
 - **ReviewService owns** orchestration of source ingestion, persistence transaction boundaries, error mapping, and lifecycle entry into `created`.
 - **GitService owns** repository inspection and raw git operations only: resolving refs/SHAs, reading diffs, listing branches/commits, and retrieving repository info.
 - **GitService MUST NOT own** review persistence rules, lifecycle decisions, snapshot JSON shape, or degraded-capture policy.
@@ -225,6 +251,7 @@ Per-file persistence contract:
 - **ReviewService MUST NOT call git after creation-time capture** when serving diff hunks for a fully anchored review.
 
 ## Edge Cases
+
 - **Empty diff** — reject creation with a source-specific error and no persisted rows.
 - **Binary files** — persist a `review_files` row with `content_kind = 'binary'`, `hunks_data = NULL`, and explicit capture note; do not drop the file.
 - **Very large diffs** — apply configurable ingestion budgets. Files over the budget remain in the review with `capture_status = 'truncated'`; overall snapshot integrity remains explicit.
@@ -238,7 +265,9 @@ Per-file persistence contract:
 - **Commit range input syntax** — adapters MUST normalize ranges into ordered commit SHAs before persistence. Passing raw range text through `source_ref` is insufficient because current service logic only splits commas.
 
 ## Observability
+
 The ingestion path MUST emit structured logs for:
+
 - source type requested
 - normalized source reference
 - resolved source anchors (`baseRef/baseSha/headRef/headSha`)
@@ -248,11 +277,13 @@ The ingestion path MUST emit structured logs for:
 - transaction success/failure duration
 
 Diagnostics SHOULD expose:
+
 - source validation failures in `ringi doctor` or equivalent local diagnostics
 - count of post-cutover reviews with degraded file capture
 - count of legacy reviews still relying on degraded integrity markers from SPEC-001
 
 ## Rollout Considerations
+
 1. Apply SPEC-001 review-lifecycle schema first so `snapshot_data` version 3 and derived lifecycle fields exist.
 2. Add the new `review_files` capture metadata columns before changing service behavior.
 3. Update `ReviewService.create()` to persist hunks for branch and commit reviews inside one transaction.
@@ -262,11 +293,13 @@ Diagnostics SHOULD expose:
 7. Update the UI to expose all three source types instead of staged-only creation.
 
 Backward compatibility rules:
+
 - Existing reviews remain readable.
 - Existing incomplete snapshots MUST surface degraded integrity, not silent recomputation.
 - New reviews created after the cutover MUST satisfy this spec fully.
 
 ## Open Questions
+
 1. **What are the default ingestion limits for file count and hunk size?**  
    Proposed resolution: add config-backed limits and finalize default values in implementation after measuring representative review sizes.
 2. **Should `commits` preserve the user-entered range string in addition to the normalized SHA list?**  
@@ -279,6 +312,7 @@ Backward compatibility rules:
    Proposed resolution: persist `headSha` always; persist `headRef` only when it resolves symbolically.
 
 ## Acceptance Criteria
+
 - `docs/specs/review-source-ingestion.md` exists and contains all mandatory sections.
 - The spec explicitly references `docs/specs/review-lifecycle.md` for lifecycle integration and snapshot schema alignment.
 - The spec defines all three source types and their persisted source-anchor semantics.

@@ -13,20 +13,20 @@ import type {
   UpdateReviewInput,
 } from "@/api/schemas/review";
 import { ReviewNotFound } from "@/api/schemas/review";
-
 import {
   ReviewFileRepo,
   parseHunks,
   serializeHunks,
-} from "../repos/review-file.repo";
-import { ReviewRepo } from "../repos/review.repo";
-import { parseDiff, getDiffSummary } from "./diff.service";
-import { GitService } from "./git.service";
+} from "@/core/repos/review-file.repo";
+import { ReviewRepo } from "@/core/repos/review.repo";
+import { parseDiff, getDiffSummary } from "@/core/services/diff.service";
+import { GitService } from "@/core/services/git.service";
 
 // ---------------------------------------------------------------------------
 // Error
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line max-classes-per-file -- tagged error and service stay co-located for this domain module.
 export class ReviewError extends Schema.TaggedError<ReviewError>()(
   "ReviewError",
   { code: Schema.String, message: Schema.String },
@@ -79,7 +79,6 @@ const parseSnapshotData = (s: string): Effect.Effect<SnapshotData> =>
 // Service
 // ---------------------------------------------------------------------------
 
-/** @effect-leakable-service */
 export class ReviewService extends Effect.Service<ReviewService>()(
   "ReviewService",
   {
@@ -88,12 +87,12 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       ReviewFileRepo.Default,
       GitService.Default,
     ],
-    effect: Effect.gen(function* effect() {
+    effect: Effect.sync(() => {
       // -----------------------------------------------------------------------
       // create
       // -----------------------------------------------------------------------
       const create = (input: CreateReviewInput) =>
-        Effect.gen(function* create() {
+        Effect.gen(function*  create() {
           const git = yield* GitService;
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
@@ -155,6 +154,12 @@ export class ReviewService extends Effect.Service<ReviewService>()(
               baseRef = shas.at(-1) ?? null;
               break;
             }
+            default: {
+              return yield* new ReviewError({
+                code: "INVALID_SOURCE",
+                message: "Unsupported review source",
+              });
+            }
           }
 
           const files = parseDiff(diffText);
@@ -211,7 +216,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
         repositoryPath?: string;
         sourceType?: string;
       }) =>
-        Effect.gen(function* list() {
+        Effect.gen(function*  list() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
 
@@ -250,7 +255,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // getById
       // -----------------------------------------------------------------------
       const getById = (id: ReviewId) =>
-        Effect.gen(function* getById() {
+        Effect.gen(function*  getById() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
 
@@ -294,7 +299,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // getFileHunks — lazy load hunks for a single file
       // -----------------------------------------------------------------------
       const getFileHunks = (reviewId: ReviewId, filePath: string) =>
-        Effect.gen(function* getFileHunks() {
+        Effect.gen(function*  getFileHunks() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
           const git = yield* GitService;
@@ -346,7 +351,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // update
       // -----------------------------------------------------------------------
       const update = (id: ReviewId, input: UpdateReviewInput) =>
-        Effect.gen(function* update() {
+        Effect.gen(function*  update() {
           const repo = yield* ReviewRepo;
 
           const existing = yield* repo.findById(id);
@@ -367,7 +372,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // remove
       // -----------------------------------------------------------------------
       const remove = (id: ReviewId) =>
-        Effect.gen(function* remove() {
+        Effect.gen(function*  remove() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
 
@@ -385,7 +390,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // -----------------------------------------------------------------------
       // getStats
       // -----------------------------------------------------------------------
-      const getStats = Effect.gen(function* getStats() {
+      const getStats = Effect.gen(function*  getStats() {
         const repo = yield* ReviewRepo;
 
         const total = yield* repo.countAll();

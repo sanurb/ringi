@@ -23,7 +23,6 @@ export interface SSEEvent {
 // Service
 // ---------------------------------------------------------------------------
 
-/** @effect-leakable-service */
 export class EventService extends Effect.Service<EventService>()(
   "EventService",
   {

@@ -2,8 +2,7 @@ import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import * as Effect from "effect/Effect";
 
 import { DomainApi } from "@/api/domain-api";
-
-import { TodoService } from "../services/todo.service";
+import { TodoService } from "@/core/services/todo.service";
 
 export const TodosApiLive = HttpApiBuilder.group(
   DomainApi,

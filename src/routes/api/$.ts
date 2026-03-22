@@ -9,23 +9,13 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
-import * as ManagedRuntime from "effect/ManagedRuntime";
 import * as Stream from "effect/Stream";
 
 import { DomainApi } from "@/api/domain-api";
 import { DomainRpc } from "@/api/domain-rpc";
+import { CoreLive, createCoreRuntime } from "@/core/runtime";
+import { EventService } from "@/core/services/event.service";
 
-import { SqliteService } from "./-lib/db/database";
-import { CommentRepo } from "./-lib/repos/comment.repo";
-import { ReviewFileRepo } from "./-lib/repos/review-file.repo";
-import { ReviewRepo } from "./-lib/repos/review.repo";
-import { TodoRepo } from "./-lib/repos/todo.repo";
-import { CommentService } from "./-lib/services/comment.service";
-import { EventService } from "./-lib/services/event.service";
-import { ExportService } from "./-lib/services/export.service";
-import { GitService } from "./-lib/services/git.service";
-import { ReviewService } from "./-lib/services/review.service";
-import { TodoService } from "./-lib/services/todo.service";
 import { CommentsApiLive } from "./-lib/wiring/comments-api-live";
 import { DiffApiLive, ReviewFilesApiLive } from "./-lib/wiring/diff-api-live";
 import { EventsApiLive } from "./-lib/wiring/events-api-live";
@@ -61,22 +51,9 @@ const RpcLoggerLive = Layer.succeed(
 );
 
 // ── Shared service layers ───────────────────────────────────────
-// ReviewService methods leak ReviewRepo, ReviewFileRepo, GitService as
-// runtime requirements (accessed via yield* inside each method). We provide
-// them once here so both HTTP and RPC routers share the same instances.
-const ServiceLayers = Layer.mergeAll(
-  ReviewService.Default,
-  ReviewRepo.Default,
-  ReviewFileRepo.Default,
-  CommentService.Default,
-  CommentRepo.Default,
-  TodoService.Default,
-  TodoRepo.Default,
-  GitService.Default,
-  EventService.Default,
-  ExportService.Default,
-  SqliteService.Default
-);
+// HTTP and RPC adapters share the same core composition root used by other
+// runtimes so server wiring does not own business-layer construction.
+const ServiceLayers = CoreLive;
 
 // ── Routes ──────────────────────────────────────────────────────
 const RpcRouter = RpcServer.layerHttpRouter({
@@ -155,7 +132,7 @@ const { handler, dispose } = HttpLayerRouter.toWebHandler(AllRoutes, {
 });
 const effectHandler = ({ request }: { request: Request }) => handler(request);
 
-export const serverRuntime = ManagedRuntime.make(ServiceLayers, memoMap);
+export const serverRuntime = createCoreRuntime();
 
 globalHmr.__EFFECT_DISPOSE__ = async () => {
   await dispose();

@@ -2,8 +2,7 @@ import * as Effect from "effect/Effect";
 
 import type { Comment, CommentId } from "@/api/schemas/comment";
 import type { ReviewId } from "@/api/schemas/review";
-
-import { SqliteService } from "../db/database";
+import { SqliteService } from "@/core/db/database";
 
 // ---------------------------------------------------------------------------
 // Internal row shape (snake_case from SQLite)
