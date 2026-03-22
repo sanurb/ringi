@@ -30,7 +30,7 @@ export const withTransaction = <A, E, R>(
   );
 
 export class SqliteService extends Effect.Service<SqliteService>()(
-  "SqliteService",
+  "@ringi/SqliteService",
   {
     effect: Effect.gen(function* effect() {
       const dbPath = yield* Config.string("DB_PATH").pipe(

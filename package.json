@@ -1,6 +1,9 @@
 {
   "name": "ringi",
   "private": true,
+  "bin": {
+    "ringi": "./src/cli/main.ts"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 3000",

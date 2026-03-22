@@ -20,5 +20,12 @@
   "tabWidth": 2,
   "trailingComma": "es5",
   "useTabs": false,
-  "ignorePatterns": ["src/routeTree.gen.ts"],
+  "ignorePatterns": [
+    ".plans",
+    ".output",
+    "node_modules",
+    "pnpm-lock.yaml",
+    "*.tsbuildinfo",
+    "**/routeTree.gen.ts",
+  ]
 }

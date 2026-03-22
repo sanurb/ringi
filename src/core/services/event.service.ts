@@ -24,7 +24,7 @@ export interface SSEEvent {
 // ---------------------------------------------------------------------------
 
 export class EventService extends Effect.Service<EventService>()(
-  "EventService",
+  "@ringi/EventService",
   {
     effect: Effect.gen(function* effect() {
       const rt = yield* Effect.runtime<never>();

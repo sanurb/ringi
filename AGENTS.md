@@ -7,7 +7,7 @@
 ## Testing Policy
 
 - Mocking frameworks are banned in this repository. Do not use `vi.mock()`, `vi.stubGlobal()`, or `vi.spyOn()`.
-- Tests must use hand-written stubs, fakes, or constructor/parameter dependency injection instead.
+- Tests must use stub or constructor/parameter dependency injection instead.
 
 ## Project Snapshot
 

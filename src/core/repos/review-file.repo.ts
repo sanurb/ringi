@@ -68,7 +68,7 @@ export const serializeHunks = (hunks: readonly DiffHunk[]): string =>
 // ---------------------------------------------------------------------------
 
 export class ReviewFileRepo extends Effect.Service<ReviewFileRepo>()(
-  "ReviewFileRepo",
+  "@ringi/ReviewFileRepo",
   {
     dependencies: [SqliteService.Default],
     effect: Effect.gen(function* effect() {

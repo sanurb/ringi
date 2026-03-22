@@ -4,9 +4,25 @@
     "./node_modules/ultracite/config/oxlint/core/.oxlintrc.json",
     "./node_modules/ultracite/config/oxlint/react/.oxlintrc.json"
   ],
-  "jsPlugins": ["./eslint-plugins/ringi-testing-policy.js"],
-  "rules": {
-    "ringi/no-vitest-mocks": "error"
+  "categories": {
+    "correctness": "warn",
+    "suspicious": "warn",
+    "perf": "warn"
   },
-  "ignorePatterns": ["src/routeTree.gen.ts"]
+  
+  "plugins": ["eslint", "unicorn", "typescript"],
+  "jsPlugins": ["./eslint-plugins/ringi-no-vi-mock-plugin.js"],
+  "rules": {
+    "react-in-jsx-scope": "off",
+    "eslint/no-shadow": "off",
+    "eslint/no-await-in-loop": "off",
+    "ringi/no-vi-mock": "error"
+  },
+  "ignorePatterns": [
+    "dist",
+    "node_modules",
+    "pnpm-lock.yaml",
+    "*.tsbuildinfo",
+    "**/routeTree.gen.ts"
+  ],
 }

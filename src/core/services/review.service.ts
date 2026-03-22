@@ -80,7 +80,7 @@ const parseSnapshotData = (s: string): Effect.Effect<SnapshotData> =>
 // ---------------------------------------------------------------------------
 
 export class ReviewService extends Effect.Service<ReviewService>()(
-  "ReviewService",
+  "@ringi/ReviewService",
   {
     dependencies: [
       ReviewRepo.Default,
@@ -92,7 +92,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // create
       // -----------------------------------------------------------------------
       const create = (input: CreateReviewInput) =>
-        Effect.gen(function*  create() {
+        Effect.gen(function* create() {
           const git = yield* GitService;
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
@@ -216,7 +216,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
         repositoryPath?: string;
         sourceType?: string;
       }) =>
-        Effect.gen(function*  list() {
+        Effect.gen(function* list() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
 
@@ -255,7 +255,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // getById
       // -----------------------------------------------------------------------
       const getById = (id: ReviewId) =>
-        Effect.gen(function*  getById() {
+        Effect.gen(function* getById() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
 
@@ -299,7 +299,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // getFileHunks — lazy load hunks for a single file
       // -----------------------------------------------------------------------
       const getFileHunks = (reviewId: ReviewId, filePath: string) =>
-        Effect.gen(function*  getFileHunks() {
+        Effect.gen(function* getFileHunks() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
           const git = yield* GitService;
@@ -351,7 +351,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // update
       // -----------------------------------------------------------------------
       const update = (id: ReviewId, input: UpdateReviewInput) =>
-        Effect.gen(function*  update() {
+        Effect.gen(function* update() {
           const repo = yield* ReviewRepo;
 
           const existing = yield* repo.findById(id);
@@ -372,7 +372,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // remove
       // -----------------------------------------------------------------------
       const remove = (id: ReviewId) =>
-        Effect.gen(function*  remove() {
+        Effect.gen(function* remove() {
           const repo = yield* ReviewRepo;
           const fileRepo = yield* ReviewFileRepo;
 
@@ -390,7 +390,7 @@ export class ReviewService extends Effect.Service<ReviewService>()(
       // -----------------------------------------------------------------------
       // getStats
       // -----------------------------------------------------------------------
-      const getStats = Effect.gen(function*  getStats() {
+      const getStats = Effect.gen(function* getStats() {
         const repo = yield* ReviewRepo;
 
         const total = yield* repo.countAll();

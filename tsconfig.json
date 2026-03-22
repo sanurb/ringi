@@ -32,7 +32,10 @@
         "namespaceImportPackages": ["effect", "@effect/*"],
         "topLevelNamedReexports": "follow",
         "diagnosticSeverity": {
-          "importFromBarrel": "error"
+          "importFromBarrel": "error",
+          "anyUnknownInErrorContext": "warning",
+          "instanceOfSchema": "warning",
+          "deterministicKeys": "warning"
         },
         "importAliases": {
           "Array": "Arr",

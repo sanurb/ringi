@@ -1,4 +1,4 @@
-const BANNED_VITEST_METHODS = new Set(["mock", "spyOn", "stubGlobal"]);
+const BANNED_METHODS = new Set(["mock", "stubGlobal", "spyOn"]);
 
 const getImportedSpecifierName = function getImportedSpecifierName(specifier) {
   if (!specifier) {
@@ -102,11 +102,7 @@ const isVitestViReference = function isVitestViReference(sourceCode, node) {
   return isVitestViImport(variable);
 };
 
-const buildDiagnosticMessage = function buildDiagnosticMessage(methodName) {
-  return `vi.${methodName}() is banned. Use hand-written stubs or constructor/parameter dependency injection instead. Never mock anything.`;
-};
-
-const noVitestMocksRule = {
+const noViMockRule = {
   create(context) {
     const sourceCode = context.sourceCode ?? context.getSourceCode?.();
 
@@ -121,25 +117,32 @@ const noVitestMocksRule = {
         }
 
         const methodName = getMemberPropertyName(memberExpression);
-        if (!methodName || !BANNED_VITEST_METHODS.has(methodName)) {
+        if (!methodName || !BANNED_METHODS.has(methodName)) {
           return;
         }
 
-        const bindingName = memberExpression.object.name;
-        if (
-          bindingName &&
-          isVitestViReference(sourceCode, memberExpression.object)
-        ) {
-          context.report({
-            message: buildDiagnosticMessage(methodName),
-            node,
-          });
+        if (!isVitestViReference(sourceCode, memberExpression.object)) {
+          return;
         }
+
+        context.report({
+          data: { method: methodName },
+          messageId: "banned",
+          node,
+        });
       },
     };
   },
   meta: {
+    docs: {
+      description: "Disallow vi.mock(), vi.stubGlobal(), and vi.spyOn().",
+    },
+    messages: {
+      banned:
+        "vi.{{method}}() is banned. Use constructor/parameter dependency injection instead. Never mock anything.",
+    },
     schema: [],
+    type: "problem",
   },
 };
 
@@ -148,7 +151,7 @@ const ringiTestingPolicyPlugin = {
     name: "ringi",
   },
   rules: {
-    "no-vitest-mocks": noVitestMocksRule,
+    "no-vi-mock": noViMockRule,
   },
 };
 

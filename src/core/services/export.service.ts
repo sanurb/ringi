@@ -10,7 +10,7 @@ import { TodoService } from "@/core/services/todo.service";
 // ---------------------------------------------------------------------------
 
 export class ExportService extends Effect.Service<ExportService>()(
-  "ExportService",
+  "@ringi/ExportService",
   {
     dependencies: [
       ReviewService.Default,
@@ -19,7 +19,7 @@ export class ExportService extends Effect.Service<ExportService>()(
     ],
     effect: Effect.sync(() => {
       const exportReview = (reviewId: ReviewId) =>
-        Effect.gen(function*  exportReview() {
+        Effect.gen(function* exportReview() {
           const reviewSvc = yield* ReviewService;
           const commentSvc = yield* CommentService;
           const todoSvc = yield* TodoService;

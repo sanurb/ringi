@@ -42,7 +42,7 @@ interface FindAllOpts {
   readonly offset?: number;
 }
 
-export class TodoRepo extends Effect.Service<TodoRepo>()("TodoRepo", {
+export class TodoRepo extends Effect.Service<TodoRepo>()("@ringi/TodoRepo", {
   dependencies: [SqliteService.Default],
   effect: Effect.gen(function* effect() {
     const { db } = yield* SqliteService;
