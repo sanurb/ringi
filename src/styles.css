@@ -199,6 +199,42 @@ code {
   }
 }
 
+/* ─── @pierre/diffs: gutter utility slot fix ─────────────────────────────── */
+/*
+ * The library's React integration wraps renderGutterUtility content in a
+ * <div slot="gutter-utility-slot" style="position: absolute; …">.
+ *
+ * That `position: absolute` takes the element out of the parent
+ * [data-gutter-utility-slot] flex container's flow, collapsing the
+ * container to 0-width and pushing the button into the code-content area
+ * where it's invisible (clipped / behind content backgrounds).
+ *
+ * Overriding to `position: static` restores flex-child participation so
+ * the parent's `justify-content: flex-end` can position the button inside
+ * the gutter column — matching the library's own default utility-button
+ * placement.  We also size it to 1lh × 1lh (one line-height unit) and
+ * vertically centre it, exactly like the built-in [data-utility-button].
+ */
+.ringi-diff-file [slot="gutter-utility-slot"] {
+  position: static !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 1lh;
+  height: 1lh;
+  white-space: normal;
+}
+
+.ringi-gutter-add-btn {
+  width: 1lh;
+  height: 1lh;
+  font-size: var(--diffs-font-size, 13px);
+  line-height: var(--diffs-line-height, 20px);
+  /* Pull the button leftward so it overlaps the gutter – exactly the same
+     negative margin the library applies to its own [data-utility-button]. */
+  margin-right: calc((1lh - 1ch) * -1);
+}
+
 /* ─── @pierre/diffs host-level theme overrides ─── */
 
 pierrediffs-file,

@@ -29,10 +29,11 @@ export interface CommentDraft {
 
 interface InlineCommentComposerProps {
   draft: CommentDraft;
-  reviewId: string;
+  reviewId?: string;
   originalCode?: string;
   onCancel: () => void;
   onSubmitted: () => void;
+  onLocalSubmit?: (content: string, suggestion: string | null) => void;
 }
 
 const resizeTextarea = (textarea: HTMLTextAreaElement | null) => {
@@ -75,6 +76,7 @@ export const InlineCommentComposer = ({
   originalCode,
   onCancel,
   onSubmitted,
+  onLocalSubmit,
 }: InlineCommentComposerProps) => {
   const [value, setValue] = useState("");
   const [suggestion, setSuggestion] = useState("");
@@ -87,6 +89,8 @@ export const InlineCommentComposer = ({
   const errorMessageId = useId();
   const trimmedValue = value.trim();
   const commentLength = value.length;
+  const commentHint =
+    commentLength > 0 ? `${commentLength} chars` : "Empty comment";
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -96,13 +100,28 @@ export const InlineCommentComposer = ({
     resizeTextarea(textareaRef.current);
   }, [value]);
 
+  const canSubmit =
+    trimmedValue.length > 0 &&
+    !submitting &&
+    Boolean(reviewId || onLocalSubmit);
+
   const handleSubmit = useCallback(() => {
     if (submitting || trimmedValue.length === 0) {
       return;
     }
 
     const trimmedSuggestion = suggestion.trim();
+    const resolvedSuggestion =
+      showSuggestion && trimmedSuggestion ? trimmedSuggestion : null;
 
+    /* ── Local-only mode (no review context) ── */
+    if (!reviewId) {
+      onLocalSubmit?.(trimmedValue, resolvedSuggestion);
+      onSubmitted();
+      return;
+    }
+
+    /* ── Persisted mode (API) ── */
     setSubmitting(true);
     setError(null);
 
@@ -116,8 +135,7 @@ export const InlineCommentComposer = ({
             filePath: draft.filePath,
             lineNumber: draft.lineNumber,
             lineType: draft.lineType,
-            suggestion:
-              showSuggestion && trimmedSuggestion ? trimmedSuggestion : null,
+            suggestion: resolvedSuggestion,
           },
         });
       }).pipe(
@@ -133,6 +151,7 @@ export const InlineCommentComposer = ({
     draft.filePath,
     draft.lineNumber,
     draft.lineType,
+    onLocalSubmit,
     onSubmitted,
     reviewId,
     router,
@@ -256,7 +275,7 @@ export const InlineCommentComposer = ({
 
       <div className="mt-2 flex items-center justify-between gap-3">
         <span className="font-mono text-[10px] text-text-tertiary">
-          {commentLength > 0 ? `${commentLength} chars` : "Empty comment"}
+          {commentHint}
         </span>
 
         <div className="flex items-center gap-2">
@@ -269,7 +288,7 @@ export const InlineCommentComposer = ({
           </button>
           <button
             type="submit"
-            disabled={trimmedValue.length === 0 || submitting}
+            disabled={!canSubmit}
             className={cn(
               "rounded bg-accent-primary px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/40 disabled:cursor-not-allowed disabled:opacity-40",
               submitting && "pointer-events-none"

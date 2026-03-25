@@ -1,70 +1,54 @@
-import { useEffect, useRef } from "react";
+import { useMemo } from "react";
 
 import type { Comment } from "@/api/schemas/comment";
-import type {
-  DiffFile as DiffFileType,
-  DiffSummary as DiffSummaryType,
-} from "@/api/schemas/diff";
+import type { DiffFile as DiffFileType } from "@/api/schemas/diff";
 
 import { DiffFile } from "./diff-file";
-import { DiffSummary } from "./diff-summary";
+import type { LocalComment } from "./diff-file";
 
+/**
+ * Single-file diff renderer.
+ *
+ * Renders **only** the currently selected file. The previous implementation
+ * mounted every DiffFile in the review, which meant N × PatchDiff instances
+ * on load. This version renders exactly one.
+ */
 export const DiffView = ({
-  files,
-  summary,
+  file,
   reviewId,
   diffMode = "split",
-  selectedFile,
   comments = [],
+  onLocalCommentsChange,
+  viewed = false,
+  onToggleViewed,
 }: {
-  files: readonly DiffFileType[];
-  summary: DiffSummaryType;
+  file: DiffFileType;
   reviewId?: string;
   diffMode?: "split" | "unified";
-  selectedFile?: string | null;
   comments?: readonly Comment[];
+  onLocalCommentsChange?: (
+    filePath: string,
+    localComments: readonly LocalComment[]
+  ) => void;
+  viewed?: boolean;
+  onToggleViewed?: (filePath: string) => void;
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!selectedFile || !containerRef.current) {
-      return;
-    }
-
-    const id = `diff-file-${selectedFile.replaceAll("/", "-")}`;
-    const element = containerRef.current.querySelector(`#${CSS.escape(id)}`);
-    element?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [selectedFile]);
-
-  if (files.length === 0) {
-    return (
-      <div className="rounded-sm border border-border-default bg-surface-elevated p-8 text-center">
-        <p className="text-sm text-text-tertiary">No changes to display.</p>
-      </div>
-    );
-  }
+  const fileComments = useMemo(
+    () => comments.filter((c) => c.filePath === file.newPath),
+    [comments, file.newPath]
+  );
 
   return (
-    <div ref={containerRef} className="space-y-3">
-      <DiffSummary summary={summary} />
-      <div className="space-y-2">
-        {files.map((file, index) => {
-          const fileComments = comments.filter(
-            (comment) => comment.filePath === file.newPath
-          );
-
-          return (
-            <DiffFile
-              key={file.newPath}
-              file={file}
-              comments={fileComments}
-              defaultExpanded={index < 5}
-              diffMode={diffMode}
-              reviewId={reviewId}
-            />
-          );
-        })}
-      </div>
-    </div>
+    <DiffFile
+      key={file.newPath}
+      file={file}
+      comments={fileComments}
+      defaultExpanded
+      diffMode={diffMode}
+      reviewId={reviewId}
+      onLocalCommentsChange={onLocalCommentsChange}
+      viewed={viewed}
+      onToggleViewed={onToggleViewed}
+    />
   );
 };

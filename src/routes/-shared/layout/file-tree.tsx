@@ -1,18 +1,33 @@
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 
 import type { DiffFileMetadata, DiffStatus } from "@/api/schemas/diff";
 import { cn } from "@/lib/utils";
+
+// ---------------------------------------------------------------------------
+// Motion tokens
+// ---------------------------------------------------------------------------
+
+const EASE_OUT = "[transition-timing-function:cubic-bezier(0.23,1,0.32,1)]";
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 
 interface FileTreeProps {
   files: readonly DiffFileMetadata[];
   selectedFile: string | null;
   onSelectFile: (path: string) => void;
   reviewedFiles?: ReadonlySet<string>;
+  onToggleViewed?: (filePath: string) => void;
   groupLabel?: string;
   headerAction?: ReactNode;
   emptyStateMessage?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Tree data structures & algorithms (unchanged)
+// ---------------------------------------------------------------------------
 
 interface TreeNode {
   name: string;
@@ -20,30 +35,6 @@ interface TreeNode {
   children: TreeNode[];
   file?: DiffFileMetadata;
 }
-
-const statusConfig: Record<DiffStatus, { letter: string; className: string }> =
-  {
-    added: {
-      className:
-        "border border-diff-add-border bg-diff-add-bg text-diff-add-text",
-      letter: "A",
-    },
-    deleted: {
-      className:
-        "border border-diff-remove-border bg-diff-remove-bg text-diff-remove-text",
-      letter: "D",
-    },
-    modified: {
-      className:
-        "border border-accent-primary/20 bg-accent-muted text-accent-primary",
-      letter: "M",
-    },
-    renamed: {
-      className:
-        "border border-status-info/20 bg-status-info/15 text-status-info",
-      letter: "R",
-    },
-  };
 
 const collapseTree = (node: TreeNode): void => {
   for (const child of node.children) {
@@ -135,30 +126,116 @@ const buildTree = (files: readonly DiffFileMetadata[]): TreeNode => {
   return root;
 };
 
-const StatusBadge = ({ status }: { status: DiffStatus }) => {
-  const cfg = statusConfig[status];
-  return (
-    <span
-      className={cn(
-        "ringi-status-badge inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[9px] font-semibold leading-none",
-        cfg.className
-      )}
-    >
-      {cfg.letter}
-    </span>
-  );
+// ---------------------------------------------------------------------------
+// Status letter (inline, minimal)
+// ---------------------------------------------------------------------------
+
+const statusColor: Record<DiffStatus, string> = {
+  added: "text-diff-add-text",
+  deleted: "text-diff-remove-text",
+  modified: "text-accent-primary",
+  renamed: "text-status-info",
 };
+
+const statusLetter: Record<DiffStatus, string> = {
+  added: "A",
+  deleted: "D",
+  modified: "M",
+  renamed: "R",
+};
+
+const StatusLetter = ({ status }: { status: DiffStatus }) => (
+  <span
+    className={cn(
+      "inline-flex w-3 shrink-0 text-center font-mono text-[10px] font-semibold leading-none",
+      statusColor[status]
+    )}
+  >
+    {statusLetter[status]}
+  </span>
+);
+
+// ---------------------------------------------------------------------------
+// Disclosure arrow
+// ---------------------------------------------------------------------------
 
 const DisclosureArrow = ({ expanded }: { expanded: boolean }) => (
   <span
     className={cn(
-      "ringi-disclosure-arrow inline-flex h-4 w-4 shrink-0 items-center justify-center text-[10px] text-text-tertiary",
+      "inline-flex h-4 w-4 shrink-0 items-center justify-center text-[10px] text-text-quaternary transition-transform duration-100",
+      EASE_OUT,
       expanded && "rotate-90"
     )}
   >
     ▶
   </span>
 );
+
+// ---------------------------------------------------------------------------
+// Viewed checkbox (explicit mark action)
+// ---------------------------------------------------------------------------
+
+const ViewedCheckbox = ({
+  checked,
+  onToggle,
+  filePath,
+}: {
+  checked: boolean;
+  onToggle?: (filePath: string) => void;
+  filePath: string;
+}) => {
+  const handleClick = useCallback(
+    (event: ReactMouseEvent) => {
+      event.stopPropagation();
+      onToggle?.(filePath);
+    },
+    [filePath, onToggle]
+  );
+
+  return (
+    <label
+      className={cn(
+        "relative flex h-3 w-3 shrink-0 cursor-pointer items-center justify-center rounded-[3px] border transition-[border-color,background-color,color] duration-100",
+        EASE_OUT,
+        checked
+          ? "border-status-success/50 bg-status-success/15 text-status-success"
+          : "border-border-subtle text-transparent hover:border-text-quaternary"
+      )}
+      onClick={handleClick}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        readOnly
+        className="sr-only"
+        aria-label={checked ? "Unmark as viewed" : "Mark as viewed"}
+        tabIndex={0}
+      />
+      <svg
+        width="7"
+        height="7"
+        viewBox="0 0 7 7"
+        fill="none"
+        className={cn(
+          "pointer-events-none transition-opacity duration-100",
+          checked ? "opacity-100" : "opacity-0"
+        )}
+      >
+        <path
+          d="M1 3.5L2.75 5.25L6 1.75"
+          stroke="currentColor"
+          strokeWidth="1.25"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </label>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Tree item
+// ---------------------------------------------------------------------------
 
 interface TreeItemProps {
   node: TreeNode;
@@ -168,6 +245,7 @@ interface TreeItemProps {
   expanded: ReadonlySet<string>;
   onToggle: (path: string) => void;
   reviewedFiles?: ReadonlySet<string>;
+  onToggleViewed?: (filePath: string) => void;
 }
 
 const TreeItem = ({
@@ -178,6 +256,7 @@ const TreeItem = ({
   expanded,
   onToggle,
   reviewedFiles,
+  onToggleViewed,
 }: TreeItemProps) => {
   const isDir = !node.file;
   const selectedPath = node.file?.newPath ?? null;
@@ -203,11 +282,11 @@ const TreeItem = ({
         <button
           type="button"
           onClick={handleToggle}
-          className="ringi-tree-item flex w-full items-center gap-1 px-2 py-1 text-left"
-          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+          className="ringi-tree-item flex w-full items-center gap-1 px-2 py-[3px] text-left"
+          style={{ paddingLeft: `${depth * 14 + 8}px` }}
         >
           <DisclosureArrow expanded={isExpanded} />
-          <span className="truncate text-xs text-text-secondary">
+          <span className="truncate text-[11px] text-text-tertiary">
             {node.name}
           </span>
         </button>
@@ -222,6 +301,7 @@ const TreeItem = ({
                 expanded={expanded}
                 onToggle={onToggle}
                 reviewedFiles={reviewedFiles}
+                onToggleViewed={onToggleViewed}
               />
             ))
           : null}
@@ -239,41 +319,52 @@ const TreeItem = ({
       type="button"
       onClick={handleSelect}
       className={cn(
-        "ringi-tree-item ringi-file-tree-item group flex w-full items-center gap-1.5 px-2 py-1 text-left",
+        "ringi-tree-item ringi-file-tree-item group flex w-full items-center gap-1.5 py-[3px] pr-2 text-left transition-[background-color,border-color,opacity] duration-100",
+        EASE_OUT,
         isSelected
-          ? "border-l-2 border-accent-primary bg-accent-muted text-text-primary"
-          : "border-l-2 border-transparent text-text-secondary",
-        isReviewed && !isSelected && "opacity-50"
+          ? "border-l-2 border-accent-primary bg-accent-muted/50"
+          : "border-l-2 border-transparent hover:bg-surface-overlay/50",
+        isReviewed && !isSelected && "opacity-45"
       )}
-      style={{ paddingLeft: `${depth * 16 + 8}px` }}
+      style={{ paddingLeft: `${depth * 14 + 8}px` }}
     >
-      <StatusBadge status={file.status} />
-      <span className="min-w-0 flex-1 truncate font-mono text-xs">
+      {onToggleViewed ? (
+        <ViewedCheckbox
+          checked={!!isReviewed}
+          onToggle={onToggleViewed}
+          filePath={file.newPath}
+        />
+      ) : null}
+      <StatusLetter status={file.status} />
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate font-mono text-[11px]",
+          isSelected ? "text-text-primary" : "text-text-secondary"
+        )}
+      >
         {node.name}
       </span>
-      {isReviewed ? (
-        <span
-          className="ringi-status-badge shrink-0 text-[10px] text-status-success"
-          title="Reviewed"
-        >
-          ✓
-        </span>
-      ) : null}
-      <span className="ml-auto flex shrink-0 gap-1 text-[10px]">
+      {/* Line counts — only show on hover or selection for less noise */}
+      <span
+        className={cn(
+          "ml-auto flex shrink-0 gap-1 text-[10px] tabular-nums transition-opacity duration-100",
+          isSelected ? "opacity-60" : "opacity-0 group-hover:opacity-50"
+        )}
+      >
         {file.additions > 0 ? (
-          <span className="ringi-status-badge text-diff-add-text">
-            +{file.additions}
-          </span>
+          <span className="text-diff-add-text">+{file.additions}</span>
         ) : null}
         {file.deletions > 0 ? (
-          <span className="ringi-status-badge text-diff-remove-text">
-            -{file.deletions}
-          </span>
+          <span className="text-diff-remove-text">-{file.deletions}</span>
         ) : null}
       </span>
     </button>
   );
 };
+
+// ---------------------------------------------------------------------------
+// Keyboard navigation
+// ---------------------------------------------------------------------------
 
 const useFileKeyboardNav = (
   flatFiles: readonly string[],
@@ -331,20 +422,168 @@ const useFileKeyboardNav = (
   }, [flatFiles, onSelectFile, selectedFile]);
 };
 
+// ---------------------------------------------------------------------------
+// Progress strip with filter toggle
+// ---------------------------------------------------------------------------
+
+const ProgressStrip = ({
+  reviewedCount,
+  totalCount,
+  hideViewed,
+  hiddenCount,
+  onToggleHideViewed,
+}: {
+  reviewedCount: number;
+  totalCount: number;
+  hideViewed: boolean;
+  hiddenCount: number;
+  onToggleHideViewed: () => void;
+}) => {
+  const pendingCount = totalCount - reviewedCount;
+  const allReviewed = totalCount > 0 && reviewedCount === totalCount;
+  const progressPct = totalCount > 0 ? (reviewedCount / totalCount) * 100 : 0;
+
+  return (
+    <div className="flex items-center gap-2 border-b border-border-subtle px-3 pb-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-baseline gap-1 text-[10px] tabular-nums">
+          <span className="font-medium text-text-secondary">
+            {reviewedCount}
+            <span className="text-text-quaternary">/{totalCount}</span>
+          </span>
+          {reviewedCount > 0 && !allReviewed ? (
+            <span className="text-text-quaternary">
+              · {pendingCount} pending
+            </span>
+          ) : null}
+          {allReviewed ? (
+            <span className="text-status-success">· Complete</span>
+          ) : null}
+        </div>
+        {totalCount > 0 ? (
+          <div className="h-[2px] w-full overflow-hidden rounded-full bg-border-subtle">
+            <div
+              className={cn(
+                "h-full rounded-full transition-[width] duration-300",
+                EASE_OUT,
+                allReviewed ? "bg-status-success/60" : "bg-accent-primary/40"
+              )}
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        ) : null}
+      </div>
+
+      {reviewedCount > 0 ? (
+        <button
+          type="button"
+          onClick={onToggleHideViewed}
+          aria-pressed={hideViewed}
+          title={
+            hideViewed
+              ? `Show all files (${hiddenCount} viewed hidden)`
+              : "Show pending only"
+          }
+          className={cn(
+            "flex h-6 shrink-0 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium transition-[background-color,color] duration-100",
+            EASE_OUT,
+            hideViewed
+              ? "bg-accent-muted text-accent-primary"
+              : "text-text-quaternary hover:bg-surface-overlay hover:text-text-tertiary"
+          )}
+        >
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 12 12"
+            fill="none"
+            className="shrink-0"
+          >
+            {hideViewed ? (
+              <>
+                <path
+                  d="M1.5 1.5L10.5 10.5"
+                  stroke="currentColor"
+                  strokeWidth="1.25"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M2.4 4.8C1.8 5.4 1.5 6 1.5 6s1.5 3 4.5 3c.6 0 1.1-.1 1.6-.3M9.6 7.2C10.2 6.6 10.5 6 10.5 6s-1.5-3-4.5-3c-.6 0-1.1.1-1.6.3"
+                  stroke="currentColor"
+                  strokeWidth="1.25"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </>
+            ) : (
+              <>
+                <path
+                  d="M1.5 6s1.5-3 4.5-3 4.5 3 4.5 3-1.5 3-4.5 3S1.5 6 1.5 6z"
+                  stroke="currentColor"
+                  strokeWidth="1.25"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle
+                  cx="6"
+                  cy="6"
+                  r="1.5"
+                  stroke="currentColor"
+                  strokeWidth="1.25"
+                />
+              </>
+            )}
+          </svg>
+          <span>{hideViewed ? "Filtered" : "Pending"}</span>
+        </button>
+      ) : null}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// FileTree
+// ---------------------------------------------------------------------------
+
 export const FileTree = ({
   files,
   selectedFile,
   onSelectFile,
   reviewedFiles,
+  onToggleViewed,
   groupLabel,
   headerAction,
   emptyStateMessage = "No files",
 }: FileTreeProps) => {
-  const tree = useMemo(() => buildTree(files), [files]);
+  const [hideViewed, setHideViewed] = useState(false);
+
+  const toggleHideViewed = useCallback(() => {
+    setHideViewed((previous) => !previous);
+  }, []);
+
+  const reviewedCount = reviewedFiles?.size ?? 0;
+
+  // Filter files when hiding viewed
+  const visibleFiles = useMemo(() => {
+    if (!hideViewed || !reviewedFiles || reviewedFiles.size === 0) {
+      return files;
+    }
+
+    return files.filter((file) => !reviewedFiles.has(file.newPath));
+  }, [files, hideViewed, reviewedFiles]);
+
+  const hiddenCount = files.length - visibleFiles.length;
+
+  const tree = useMemo(() => buildTree(visibleFiles), [visibleFiles]);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(
     () => new Set(collectDirPaths(tree))
   );
   const [groupOpen, setGroupOpen] = useState(true);
+
+  // Re-expand dirs when tree structure changes
+  useEffect(() => {
+    setExpanded(new Set(collectDirPaths(tree)));
+  }, [tree]);
 
   const toggleDir = useCallback((path: string) => {
     setExpanded((previous) => {
@@ -366,10 +605,8 @@ export const FileTree = ({
   const flatFiles = useMemo(() => flatFileList(tree), [tree]);
   useFileKeyboardNav(flatFiles, selectedFile, onSelectFile);
 
-  const reviewedCount = reviewedFiles?.size ?? 0;
   const totalAdditions = files.reduce((sum, file) => sum + file.additions, 0);
   const totalDeletions = files.reduce((sum, file) => sum + file.deletions, 0);
-  const headerCount = headerAction ? null : `${reviewedCount}/${files.length}`;
 
   const treeContent = groupLabel ? (
     <>
@@ -383,7 +620,7 @@ export const FileTree = ({
           {groupLabel}
         </span>
         <span className="ml-auto text-[10px] tabular-nums text-text-tertiary">
-          {files.length}
+          {visibleFiles.length}
         </span>
       </button>
       {groupOpen
@@ -397,6 +634,7 @@ export const FileTree = ({
               expanded={expanded}
               onToggle={toggleDir}
               reviewedFiles={reviewedFiles}
+              onToggleViewed={onToggleViewed}
             />
           ))
         : null}
@@ -412,46 +650,63 @@ export const FileTree = ({
         expanded={expanded}
         onToggle={toggleDir}
         reviewedFiles={reviewedFiles}
+        onToggleViewed={onToggleViewed}
       />
     ))
   );
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border-default bg-surface-secondary">
-      <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+      {/* ── Header: title + source selector ──────────────────────── */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="text-[10px] font-medium uppercase tracking-widest text-text-tertiary">
+          <span className="text-[11px] font-semibold text-text-primary">
             Files
           </span>
           {headerAction}
         </div>
-        {headerCount ? (
-          <span className="shrink-0 text-[10px] tabular-nums text-text-tertiary">
-            {headerCount}
-          </span>
-        ) : null}
       </div>
 
-      <div className="flex-1 overflow-x-hidden overflow-y-auto">
-        {files.length === 0 ? (
-          <div className="flex h-32 items-center justify-center px-3 text-center text-xs text-text-tertiary">
-            {emptyStateMessage}
+      {/* ── Progress strip: reviewed/pending + filter toggle ─────── */}
+      <ProgressStrip
+        reviewedCount={reviewedCount}
+        totalCount={files.length}
+        hideViewed={hideViewed}
+        hiddenCount={hiddenCount}
+        onToggleHideViewed={toggleHideViewed}
+      />
+
+      {/* ── File list ────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-x-hidden overflow-y-auto py-0.5">
+        {visibleFiles.length === 0 ? (
+          <div className="flex h-32 items-center justify-center px-3 text-center text-[11px] text-text-tertiary">
+            {hideViewed && hiddenCount > 0
+              ? "All files reviewed"
+              : emptyStateMessage}
           </div>
         ) : (
           treeContent
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-border-subtle px-3 py-2">
-        <span className="flex gap-2 text-[10px] tabular-nums">
+      {/* ── Footer: stat totals + keyboard hint ──────────────────── */}
+      <div className="flex items-center justify-between border-t border-border-subtle px-3 py-1.5">
+        <span className="flex gap-1.5 text-[10px] tabular-nums text-text-quaternary">
           {totalAdditions > 0 ? (
-            <span className="text-diff-add-text">+{totalAdditions}</span>
+            <span className="text-diff-add-text/70">+{totalAdditions}</span>
           ) : null}
           {totalDeletions > 0 ? (
-            <span className="text-diff-remove-text">-{totalDeletions}</span>
+            <span className="text-diff-remove-text/70">-{totalDeletions}</span>
           ) : null}
         </span>
-        <span className="text-[10px] text-text-tertiary">j/k to navigate</span>
+        <span className="text-[10px] text-text-quaternary">
+          <kbd className="rounded border border-border-subtle bg-surface-primary px-1 py-px font-mono text-[9px]">
+            j
+          </kbd>{" "}
+          <kbd className="rounded border border-border-subtle bg-surface-primary px-1 py-px font-mono text-[9px]">
+            k
+          </kbd>
+        </span>
       </div>
     </aside>
   );
