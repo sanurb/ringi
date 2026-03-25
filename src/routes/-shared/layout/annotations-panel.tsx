@@ -43,11 +43,8 @@ function SpeechBubbleIcon() {
 
 function EmptyState() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4">
+    <div className="flex flex-1 flex-col items-center justify-center px-4">
       <SpeechBubbleIcon />
-      <p className="text-center text-xs text-text-tertiary">
-        Click on lines to add annotations
-      </p>
     </div>
   );
 }
@@ -55,8 +52,8 @@ function EmptyState() {
 function CommentCard({ comment, index }: { comment: Comment; index: number }) {
   return (
     <div
-      className="ringi-comment-card flex flex-col gap-1 rounded border border-border-subtle bg-surface-elevated px-2.5 py-2"
-      style={{ transitionDelay: `${index * 50}ms` }}
+      className="ringi-comment-card flex flex-col gap-1 rounded border border-border-subtle bg-surface-elevated px-2.5 py-2 animate-in fade-in duration-100"
+      style={{ animationDelay: `${index * 40}ms` }}
     >
       {comment.lineNumber != null && (
         <span className="font-mono text-[10px] text-text-tertiary">
@@ -99,7 +96,7 @@ export function AnnotationsPanel({ comments, isOpen }: AnnotationsPanelProps) {
     <aside
       aria-hidden={!isOpen}
       className={cn(
-        "ringi-annotations-panel flex w-64 shrink-0 flex-col overflow-hidden border-l border-border-default bg-surface-secondary",
+        "ringi-annotations-panel flex w-64 shrink-0 flex-col overflow-hidden border-l border-border-default bg-surface-secondary transition-[transform,opacity] duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)]",
         isOpen
           ? "translate-x-0 opacity-100"
           : "pointer-events-none translate-x-full opacity-0"

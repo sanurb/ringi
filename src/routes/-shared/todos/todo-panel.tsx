@@ -91,7 +91,14 @@ export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
         <div
           className="fixed inset-0 z-40 bg-black/50 transition-opacity"
           onClick={onClose}
-          aria-hidden
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              onClose();
+            }
+          }}
+          role="button"
+          tabIndex={-1}
+          aria-label="Close panel"
         />
       )}
 
