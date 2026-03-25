@@ -495,6 +495,177 @@ const parseTodoList = (state: ParseState): ParseResult => {
   return Either.right({ kind: "todo-list" as const, ...acc });
 };
 
+// -- positional-id-only commands (shared factory) ---------------------------
+
+/**
+ * Factory for commands that take exactly one positional `<id>` and no
+ * command-specific flags (only globals). Avoids duplication for done/undone.
+ */
+const positionalIdParser =
+  <K extends string>(kind: K, label: string) =>
+  (state: ParseState): ParseResult => {
+    const id = state.tokens[state.index];
+    if (!id) {
+      return Either.left(usageError(`${label} requires <id>.`));
+    }
+    state.index += 1;
+
+    while (state.index < state.tokens.length) {
+      if (!maybeParseGlobalFlag(state)) {
+        return Either.left(
+          usageError(`Unknown flag for ${label}: ${state.tokens[state.index]}.`)
+        );
+      }
+    }
+    return Either.right({ id, kind } as ParsedCommand);
+  };
+
+const parseTodoDone = positionalIdParser("todo-done" as const, "todo done");
+const parseTodoUndone = positionalIdParser(
+  "todo-undone" as const,
+  "todo undone"
+);
+
+// -- todo move --------------------------------------------------------------
+
+interface TodoMoveAcc {
+  position: number | undefined;
+}
+
+const TODO_MOVE_FLAGS: Readonly<Record<string, FlagHandler<TodoMoveAcc>>> = {
+  "--position": positiveIntFlag("position"),
+};
+
+const parseTodoMove = (state: ParseState): ParseResult => {
+  const id = state.tokens[state.index];
+  if (!id) {
+    return Either.left(usageError("todo move requires <id>."));
+  }
+  state.index += 1;
+
+  const acc: TodoMoveAcc = { position: undefined };
+  const error = runFlagLoop(state, acc, TODO_MOVE_FLAGS, "todo move");
+  if (Option.isSome(error)) {
+    return Either.left(error.value);
+  }
+  if (acc.position === undefined) {
+    return Either.left(usageError("todo move requires --position."));
+  }
+  return Either.right({
+    id,
+    kind: "todo-move" as const,
+    position: acc.position,
+  });
+};
+
+// -- todo remove ------------------------------------------------------------
+
+interface TodoRemoveAcc {
+  yes: boolean;
+}
+
+const TODO_REMOVE_FLAGS: Readonly<Record<string, FlagHandler<TodoRemoveAcc>>> =
+  {
+    "--yes": boolFlag("yes"),
+  };
+
+const parseTodoRemove = (state: ParseState): ParseResult => {
+  const id = state.tokens[state.index];
+  if (!id) {
+    return Either.left(usageError("todo remove requires <id>."));
+  }
+  state.index += 1;
+
+  const acc: TodoRemoveAcc = { yes: false };
+  const error = runFlagLoop(state, acc, TODO_REMOVE_FLAGS, "todo remove");
+  if (Option.isSome(error)) {
+    return Either.left(error.value);
+  }
+  return Either.right({ id, kind: "todo-remove" as const, ...acc });
+};
+
+// -- todo clear -------------------------------------------------------------
+
+interface TodoClearAcc {
+  all: boolean;
+  doneOnly: boolean;
+  reviewId: string | undefined;
+  yes: boolean;
+}
+
+const TODO_CLEAR_FLAGS: Readonly<Record<string, FlagHandler<TodoClearAcc>>> = {
+  "--all": boolFlag("all"),
+  "--done-only": boolFlag("doneOnly"),
+  "--review": stringFlag("reviewId"),
+  "--yes": boolFlag("yes"),
+};
+
+const parseTodoClear = (state: ParseState): ParseResult => {
+  const acc: TodoClearAcc = {
+    all: false,
+    doneOnly: true,
+    reviewId: undefined,
+    yes: false,
+  };
+  const error = runFlagLoop(state, acc, TODO_CLEAR_FLAGS, "todo clear");
+  if (Option.isSome(error)) {
+    return Either.left(error.value);
+  }
+  return Either.right({ kind: "todo-clear" as const, ...acc });
+};
+
+// -- review status ----------------------------------------------------------
+
+interface ReviewStatusAcc {
+  reviewId: string | undefined;
+  source: ReviewSourceType | undefined;
+}
+
+const REVIEW_STATUS_FLAGS: Readonly<
+  Record<string, FlagHandler<ReviewStatusAcc>>
+> = {
+  "--review": stringFlag("reviewId"),
+  "--source": enumFlag("source", REVIEW_SOURCES, "review source"),
+};
+
+const parseReviewStatus = (state: ParseState): ParseResult => {
+  const acc: ReviewStatusAcc = { reviewId: undefined, source: undefined };
+  const error = runFlagLoop(state, acc, REVIEW_STATUS_FLAGS, "review status");
+  if (Option.isSome(error)) {
+    return Either.left(error.value);
+  }
+  return Either.right({ kind: "review-status" as const, ...acc });
+};
+
+// -- review resolve ---------------------------------------------------------
+
+interface ReviewResolveAcc {
+  allComments: boolean;
+  yes: boolean;
+}
+
+const REVIEW_RESOLVE_FLAGS: Readonly<
+  Record<string, FlagHandler<ReviewResolveAcc>>
+> = {
+  "--all-comments": boolFlag("allComments"),
+  "--yes": boolFlag("yes"),
+};
+
+const parseReviewResolve = (state: ParseState): ParseResult => {
+  const id = state.tokens[state.index];
+  if (!id) {
+    return Either.left(usageError("review resolve requires <id|last>."));
+  }
+  state.index += 1;
+
+  const acc: ReviewResolveAcc = { allComments: true, yes: false };
+  const error = runFlagLoop(state, acc, REVIEW_RESOLVE_FLAGS, "review resolve");
+  if (Option.isSome(error)) {
+    return Either.left(error.value);
+  }
+  return Either.right({ id, kind: "review-resolve" as const, ...acc });
+};
+
 // -- todo add ---------------------------------------------------------------
 
 interface TodoAddAcc {
@@ -550,7 +721,9 @@ const REVIEW_VERB_PARSERS: Readonly<
   create: parseReviewCreate,
   export: parseReviewExport,
   list: parseReviewList,
+  resolve: parseReviewResolve,
   show: parseReviewShow,
+  status: parseReviewStatus,
 };
 
 /** Todo verb parsers keyed by verb name. */
@@ -558,7 +731,12 @@ const TODO_VERB_PARSERS: Readonly<
   Record<string, (state: ParseState) => ParseResult>
 > = {
   add: parseTodoAdd,
+  clear: parseTodoClear,
+  done: parseTodoDone,
   list: parseTodoList,
+  move: parseTodoMove,
+  remove: parseTodoRemove,
+  undone: parseTodoUndone,
 };
 
 /** Subcommand family parsers keyed by family name. */

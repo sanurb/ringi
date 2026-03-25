@@ -6,7 +6,7 @@ import * as Effect from "effect/Effect";
 import type { ReviewId } from "@/api/schemas/review";
 import { CliConfig } from "@/cli/config";
 import { CliFailure, ExitCode } from "@/cli/contracts";
-import type { CommandOutput, ParsedCommand } from "@/cli/contracts";
+import type { CommandOutput, NextAction, ParsedCommand } from "@/cli/contracts";
 import { CommentService } from "@/core/services/comment.service";
 import { getDiffSummary, parseDiff } from "@/core/services/diff.service";
 import { ExportService } from "@/core/services/export.service";
@@ -319,9 +319,34 @@ const runReviewList = Effect.fn("CLI.reviewList")(function* runReviewList(
     status: command.status,
   });
 
+  const nextActions: NextAction[] = [];
+  for (const review of result.reviews.slice(0, 3)) {
+    nextActions.push({
+      command: `ringi review show ${review.id} --comments --todos`,
+      description: `Inspect review ${review.id} (${review.status})`,
+    });
+  }
+  if (result.reviews.length > 0) {
+    nextActions.push({
+      command: "ringi review show <id> [--comments] [--todos]",
+      description: "Show full review details",
+      params: {
+        id: { description: "Review ID or 'last'", required: true },
+      },
+    });
+  }
+  nextActions.push({
+    command: "ringi review create [--source <source>]",
+    description: "Create a new review session",
+    params: {
+      source: { default: "staged", enum: ["staged", "branch", "commits"] },
+    },
+  });
+
   return {
     data: result,
     human: renderReviewList(result.reviews),
+    nextActions,
   } satisfies CommandOutput<typeof result>;
 });
 
@@ -341,9 +366,33 @@ const runReviewShow = Effect.fn("CLI.reviewShow")(function* runReviewShow(
     : undefined;
 
   const data = { comments, review, todos };
+  const nextActions: NextAction[] = [
+    {
+      command: `ringi review export ${reviewId}`,
+      description: "Export this review as markdown",
+    },
+    {
+      command: `ringi review show ${reviewId} --comments --todos`,
+      description: "Show with comments and todos",
+    },
+    {
+      command: "ringi todo list [--review <review-id>] [--status <status>]",
+      description: "List todos for this review",
+      params: {
+        "review-id": { value: reviewId },
+        status: { default: "pending", enum: ["pending", "done", "all"] },
+      },
+    },
+    {
+      command: "ringi review list",
+      description: "Back to review list",
+    },
+  ];
+
   return {
     data,
     human: renderReviewShow(data),
+    nextActions,
   } satisfies CommandOutput<typeof data>;
 });
 
@@ -380,11 +429,23 @@ const runReviewExport = Effect.fn("CLI.reviewExport")(function* runReviewExport(
   const shouldPrintMarkdown = command.stdout || !outputPath;
   const data = { markdown, outputPath: outputPath ?? null, reviewId };
 
+  const nextActions: NextAction[] = [
+    {
+      command: `ringi review show ${reviewId}`,
+      description: "View the exported review",
+    },
+    {
+      command: "ringi review list",
+      description: "Back to review list",
+    },
+  ];
+
   return {
     data,
     human: shouldPrintMarkdown
       ? markdown
       : `Exported review ${reviewId} to ${outputPath}.`,
+    nextActions,
   } satisfies CommandOutput<typeof data>;
 });
 
@@ -404,9 +465,31 @@ const runSourceList = Effect.fn("CLI.sourceList")(function* runSourceList() {
     stagedFiles,
   };
 
+  const nextActions: NextAction[] = [
+    {
+      command: "ringi source diff <source> [--stat]",
+      description: "View diff for a source",
+      params: {
+        source: { enum: ["staged", "branch", "commits"] },
+      },
+    },
+    {
+      command: "ringi review create [--source <source>]",
+      description: "Create a review from a source",
+      params: {
+        source: { default: "staged", enum: ["staged", "branch", "commits"] },
+      },
+    },
+    {
+      command: "ringi review list",
+      description: "List existing reviews",
+    },
+  ];
+
   return {
     data,
     human: renderSourceList(data),
+    nextActions,
   } satisfies CommandOutput<typeof data>;
 });
 
@@ -439,6 +522,17 @@ const runSourceDiff = Effect.fn("CLI.sourceDiff")(function* runSourceDiff(
     summary: getDiffSummary(files),
   };
 
+  const nextActions: NextAction[] = [
+    {
+      command: `ringi review create --source ${command.source}`,
+      description: `Create a review from this ${command.source} diff`,
+    },
+    {
+      command: "ringi source list",
+      description: "List repository sources",
+    },
+  ];
+
   return {
     data,
     human: command.stat
@@ -449,6 +543,122 @@ const runSourceDiff = Effect.fn("CLI.sourceDiff")(function* runSourceDiff(
           `Deletions: ${data.summary.totalDeletions}`,
         ].join("\n")
       : diffText,
+    nextActions,
+  } satisfies CommandOutput<typeof data>;
+});
+
+const runReviewStatus = Effect.fn("CLI.reviewStatus")(function* runReviewStatus(
+  command: Extract<ParsedCommand, { kind: "review-status" }>
+) {
+  const reviewService = yield* ReviewService;
+  const todoService = yield* TodoService;
+  const commentService = yield* CommentService;
+  const gitService = yield* GitService;
+  const cliConfig = yield* CliConfig;
+
+  const repo = yield* gitService.getRepositoryInfo;
+  const stagedFiles = yield* gitService.getStagedFiles;
+
+  // Resolve which review to show status for
+  let reviewId: string | undefined;
+  if (command.reviewId) {
+    reviewId = yield* resolveReviewSelector(command.reviewId);
+  }
+
+  // Get the latest review if none specified
+  const reviews = yield* reviewService.list({
+    page: 1,
+    pageSize: 1,
+    repositoryPath: cliConfig.repoRoot,
+    sourceType: command.source,
+  });
+  const latestReview = reviewId
+    ? yield* reviewService.getById(reviewId as ReviewId)
+    : reviews.reviews[0];
+
+  let commentStats:
+    | { resolved: number; total: number; unresolved: number }
+    | undefined;
+  let todoStats:
+    | { completed: number; pending: number; total: number }
+    | undefined;
+
+  if (latestReview) {
+    commentStats = yield* commentService.getStats(latestReview.id);
+    todoStats = yield* todoService.getStats();
+  }
+
+  const data = {
+    commentStats: commentStats ?? null,
+    repository: {
+      branch: repo.branch,
+      name: repo.name,
+      path: repo.path,
+      stagedFileCount: stagedFiles.length,
+    },
+    review: latestReview
+      ? {
+          createdAt: latestReview.createdAt,
+          id: latestReview.id,
+          sourceType: latestReview.sourceType,
+          status: latestReview.status,
+        }
+      : null,
+    todoStats: todoStats ?? null,
+  };
+
+  const lines = [
+    `Repository: ${repo.name}`,
+    `Branch: ${repo.branch}`,
+    `Staged files: ${stagedFiles.length}`,
+  ];
+
+  if (latestReview) {
+    lines.push(
+      "",
+      `Review: ${latestReview.id}`,
+      `Status: ${latestReview.status}`,
+      `Source: ${latestReview.sourceType}`
+    );
+    if (commentStats) {
+      lines.push(
+        `Comments: ${commentStats.unresolved} unresolved / ${commentStats.total} total`
+      );
+    }
+    if (todoStats) {
+      lines.push(
+        `Todos: ${todoStats.pending} pending / ${todoStats.total} total`
+      );
+    }
+  } else {
+    lines.push("", "No review sessions found.");
+  }
+
+  const nextActions: NextAction[] = [];
+  if (latestReview) {
+    nextActions.push(
+      {
+        command: `ringi review show ${latestReview.id} --comments --todos`,
+        description: "Inspect the latest review",
+      },
+      {
+        command: `ringi review export ${latestReview.id}`,
+        description: "Export the latest review",
+      }
+    );
+  }
+  nextActions.push({
+    command: "ringi review create [--source <source>]",
+    description: "Create a new review session",
+    params: {
+      source: { default: "staged", enum: ["staged", "branch", "commits"] },
+    },
+  });
+
+  return {
+    data,
+    human: lines.join("\n"),
+    nextActions,
   } satisfies CommandOutput<typeof data>;
 });
 
@@ -463,9 +673,31 @@ const runTodoList = Effect.fn("CLI.todoList")(function* runTodoList(
     reviewId: command.reviewId,
   });
 
+  const nextActions: NextAction[] = [];
+  if (command.reviewId) {
+    nextActions.push({
+      command: `ringi review show ${command.reviewId}`,
+      description: "View the associated review",
+    });
+  }
+  nextActions.push(
+    {
+      command: "ringi todo add --text <text> [--review <review-id>]",
+      description: "Add a new todo",
+      params: {
+        text: { description: "Todo text", required: true },
+      },
+    },
+    {
+      command: "ringi review list",
+      description: "List reviews",
+    }
+  );
+
   return {
     data: result,
     human: renderTodoList(result.data),
+    nextActions,
   } satisfies CommandOutput<typeof result>;
 });
 
@@ -487,15 +719,45 @@ const COMMAND_HANDLERS: Readonly<Record<string, CommandHandler>> = {
     runReviewExport(c as Extract<ParsedCommand, { kind: "review-export" }>),
   "review-list": (c) =>
     runReviewList(c as Extract<ParsedCommand, { kind: "review-list" }>),
+  "review-resolve": () => requireServerMode("ringi review resolve"),
   "review-show": (c) =>
     runReviewShow(c as Extract<ParsedCommand, { kind: "review-show" }>),
+  "review-status": (c) =>
+    runReviewStatus(c as Extract<ParsedCommand, { kind: "review-status" }>),
   "source-diff": (c) =>
     runSourceDiff(c as Extract<ParsedCommand, { kind: "source-diff" }>),
   "source-list": () => runSourceList(),
   "todo-add": () => requireServerMode("ringi todo add"),
+  "todo-clear": () => requireServerMode("ringi todo clear"),
+  "todo-done": () => requireServerMode("ringi todo done"),
   "todo-list": (c) =>
     runTodoList(c as Extract<ParsedCommand, { kind: "todo-list" }>),
+  "todo-move": () => requireServerMode("ringi todo move"),
+  "todo-remove": () => requireServerMode("ringi todo remove"),
+  "todo-undone": () => requireServerMode("ringi todo undone"),
 };
+
+/** Human-readable command label for the JSON envelope `command` field. */
+const COMMAND_LABELS: Readonly<Record<string, string>> = {
+  "review-create": "ringi review create",
+  "review-export": "ringi review export",
+  "review-list": "ringi review list",
+  "review-resolve": "ringi review resolve",
+  "review-show": "ringi review show",
+  "review-status": "ringi review status",
+  "source-diff": "ringi source diff",
+  "source-list": "ringi source list",
+  "todo-add": "ringi todo add",
+  "todo-clear": "ringi todo clear",
+  "todo-done": "ringi todo done",
+  "todo-list": "ringi todo list",
+  "todo-move": "ringi todo move",
+  "todo-remove": "ringi todo remove",
+  "todo-undone": "ringi todo undone",
+};
+
+export const commandLabel = (command: ParsedCommand): string =>
+  COMMAND_LABELS[command.kind] ?? `ringi ${command.kind}`;
 
 export const runCommand = (command: ParsedCommand) => {
   const handler = COMMAND_HANDLERS[command.kind];

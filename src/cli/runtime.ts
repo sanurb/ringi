@@ -61,12 +61,14 @@ export const commandNeedsDatabase = (command: ParsedCommand): boolean =>
   command.kind === "review-list" ||
   command.kind === "review-show" ||
   command.kind === "review-export" ||
+  command.kind === "review-status" ||
   command.kind === "todo-list";
 
 export const commandUsesCoreRuntime = (command: ParsedCommand): boolean =>
   command.kind === "review-list" ||
   command.kind === "review-show" ||
   command.kind === "review-export" ||
+  command.kind === "review-status" ||
   command.kind === "todo-list" ||
   command.kind === "review-create" ||
   command.kind === "todo-add";

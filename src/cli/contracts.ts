@@ -13,11 +13,99 @@ export const ExitCode = {
 
 export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
 
-export interface JsonEnvelope<T> {
-  readonly data: T | null;
-  readonly error?: string;
-  readonly ok: boolean;
+// ---------------------------------------------------------------------------
+// Agent-first response envelope (RFC 9457-inspired)
+// ---------------------------------------------------------------------------
+
+/** Error family for agent routing logic — branch on category, not message text. */
+export type ErrorCategory =
+  | "auth"
+  | "config"
+  | "conflict"
+  | "connection"
+  | "not_found"
+  | "server"
+  | "validation";
+
+/** Machine-readable param descriptor for a HATEOAS next-action template. */
+export interface NextActionParam {
+  readonly default?: number | string;
+  readonly description?: string;
+  readonly enum?: readonly string[];
+  readonly required?: boolean;
+  readonly value?: number | string;
 }
+
+/**
+ * A command the agent can run next. Literal commands omit `params`;
+ * template commands use `<required>` / `[--flag <value>]` POSIX syntax
+ * and include a `params` map so the agent knows what to fill.
+ */
+export interface NextAction {
+  readonly command: string;
+  readonly description: string;
+  readonly params?: Readonly<Record<string, NextActionParam>>;
+}
+
+/** Structured error detail — stable fields agents can branch on. */
+export interface CliErrorDetail {
+  /** Error family for routing logic. */
+  readonly category: ErrorCategory;
+  /** Machine-readable error code, e.g. `REVIEW_NOT_FOUND`. */
+  readonly code: string;
+  /** Human-readable explanation of this occurrence. */
+  readonly message: string;
+  /** Whether a retry can succeed. */
+  readonly retryable: boolean;
+  /** Seconds to wait before retrying, when `retryable` is true. */
+  readonly retry_after?: number;
+  /** Documentation URI, e.g. `ringi://errors/REVIEW_NOT_FOUND`. */
+  readonly type?: string;
+}
+
+export interface CliSuccessEnvelope<T> {
+  readonly command: string;
+  readonly next_actions: readonly NextAction[];
+  readonly ok: true;
+  readonly result: T;
+}
+
+export interface CliErrorEnvelope {
+  readonly command: string;
+  readonly error: CliErrorDetail;
+  /** Plain-language actionable guidance for the agent. */
+  readonly fix: string;
+  readonly next_actions: readonly NextAction[];
+  readonly ok: false;
+}
+
+export type CliEnvelope<T> = CliErrorEnvelope | CliSuccessEnvelope<T>;
+
+// --- Envelope factory helpers ------------------------------------------------
+
+export const success = <T>(
+  command: string,
+  result: T,
+  nextActions: readonly NextAction[] = []
+): CliSuccessEnvelope<T> => ({
+  command,
+  next_actions: nextActions,
+  ok: true,
+  result,
+});
+
+export const failure = (
+  command: string,
+  error: CliErrorDetail,
+  fix: string,
+  nextActions: readonly NextAction[] = []
+): CliErrorEnvelope => ({
+  command,
+  error,
+  fix,
+  next_actions: nextActions,
+  ok: false,
+});
 
 export interface GlobalOptions {
   color: boolean;
@@ -33,6 +121,7 @@ export interface GlobalOptions {
 export interface CommandOutput<T> {
   readonly data: T;
   readonly human?: string;
+  readonly nextActions?: readonly NextAction[];
 }
 
 /**
@@ -102,4 +191,40 @@ export type ParsedCommand =
       readonly position?: number;
       readonly reviewId?: string;
       readonly text: string;
+    }
+  | {
+      readonly id: string;
+      readonly kind: "todo-done";
+    }
+  | {
+      readonly id: string;
+      readonly kind: "todo-undone";
+    }
+  | {
+      readonly id: string;
+      readonly kind: "todo-move";
+      readonly position: number;
+    }
+  | {
+      readonly id: string;
+      readonly kind: "todo-remove";
+      readonly yes: boolean;
+    }
+  | {
+      readonly all: boolean;
+      readonly doneOnly: boolean;
+      readonly kind: "todo-clear";
+      readonly reviewId?: string;
+      readonly yes: boolean;
+    }
+  | {
+      readonly kind: "review-status";
+      readonly reviewId?: string;
+      readonly source?: ReviewSourceType;
+    }
+  | {
+      readonly allComments: boolean;
+      readonly id: string;
+      readonly kind: "review-resolve";
+      readonly yes: boolean;
     };
