@@ -78,7 +78,7 @@ git push origin main --tags
 
 ```bash
 npx ringi@latest --version
-npm info ringi
+npm info @sanurb/ringi
 ```
 
 ## Why `--access public`?

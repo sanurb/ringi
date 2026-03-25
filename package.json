@@ -1,5 +1,5 @@
 {
-  "name": "ringi",
+  "name": "@sanurb/ringi",
   "version": "0.1.0",
   "description": "Local-first code review tool for AI-generated changes — CLI, Web UI, and MCP server",
   "keywords": [
