@@ -85,12 +85,8 @@ export const InlineCommentComposer = ({
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
-  const helperTextId = useId();
   const errorMessageId = useId();
   const trimmedValue = value.trim();
-  const commentLength = value.length;
-  const commentHint =
-    commentLength > 0 ? `${commentLength} chars` : "Empty comment";
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -202,45 +198,19 @@ export const InlineCommentComposer = ({
     <form
       onSubmit={handleFormSubmit}
       onKeyDownCapture={handleKeyDownCapture}
-      className="animate-in fade-in slide-in-from-top-1 duration-150 border-t border-accent-primary/20 bg-surface-elevated px-4 py-3 shadow-md shadow-black/20"
+      className="animate-in fade-in duration-100 border-t border-border-subtle bg-surface-elevated px-3 py-2.5"
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="rounded bg-accent-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-accent-primary">
-            Line {draft.lineNumber}
-          </span>
-          <span className="truncate font-mono text-[10px] text-text-tertiary">
-            {draft.filePath}
-          </span>
-        </div>
-
-        <button
-          type="button"
-          onClick={onCancel}
-          aria-label="Close comment composer"
-          className="flex h-5 w-5 items-center justify-center rounded text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary focus-visible:bg-surface-overlay focus-visible:text-text-secondary focus-visible:outline-none"
-        >
-          ×
-        </button>
-      </div>
-
       <textarea
         ref={textareaRef}
         value={value}
         onChange={handleCommentChange}
         rows={MIN_TEXTAREA_ROWS}
         placeholder="Add a comment... (⌘Enter to submit)"
-        className="w-full resize-none rounded-sm border border-border-default bg-surface-primary p-2 font-mono text-xs text-text-primary transition-[border-color,box-shadow] placeholder:text-text-tertiary/60 focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary/30"
+        className="w-full resize-none rounded-sm border border-border-default bg-surface-primary p-2 font-mono text-xs text-text-primary transition-[border-color,box-shadow] duration-150 ease placeholder:text-text-tertiary/60 focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary/30"
         aria-label={`Comment for ${draft.filePath} line ${draft.lineNumber}`}
-        aria-describedby={
-          error ? `${helperTextId} ${errorMessageId}` : helperTextId
-        }
+        aria-describedby={error ? errorMessageId : undefined}
         aria-invalid={error ? true : undefined}
       />
-
-      <div id={helperTextId} className="mt-1 text-[10px] text-text-tertiary">
-        Comment is required. Press Escape to cancel.
-      </div>
 
       {error ? (
         <p
@@ -273,30 +243,24 @@ export const InlineCommentComposer = ({
         </div>
       ) : null}
 
-      <div className="mt-2 flex items-center justify-between gap-3">
-        <span className="font-mono text-[10px] text-text-tertiary">
-          {commentHint}
-        </span>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded px-2.5 py-1 text-xs text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary focus-visible:bg-surface-overlay focus-visible:text-text-secondary focus-visible:outline-none"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className={cn(
-              "rounded bg-accent-primary px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/40 disabled:cursor-not-allowed disabled:opacity-40",
-              submitting && "pointer-events-none"
-            )}
-          >
-            {submitting ? "Posting…" : "Comment"}
-          </button>
-        </div>
+      <div className="mt-2 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded px-2 py-1 text-xs text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary focus-visible:bg-surface-overlay focus-visible:text-text-secondary focus-visible:outline-none"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className={cn(
+            "rounded bg-accent-primary px-2.5 py-1 text-xs font-medium text-white transition-[transform,background-color] duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/40 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transform-none",
+            submitting && "pointer-events-none"
+          )}
+        >
+          {submitting ? "Posting…" : "Comment"}
+        </button>
       </div>
     </form>
   );

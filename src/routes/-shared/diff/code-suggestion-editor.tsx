@@ -56,13 +56,6 @@ const editorPaneClassName =
 const codeBlockClassName =
   "h-full min-h-[180px] w-full rounded-md border border-transparent bg-transparent px-3 py-2.5 font-mono text-xs leading-5 text-text-primary outline-none";
 
-const formatLineLabel = (lineNumber?: number) => {
-  if (lineNumber === undefined) {
-    return null;
-  }
-  return `Line ${lineNumber}`;
-};
-
 const getOriginalCodeValue = (originalCode?: string) => {
   if (originalCode && originalCode.length > 0) {
     return originalCode;
@@ -82,11 +75,6 @@ export const CodeSuggestionEditor = ({
   const expandedTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [expandedValue, setExpandedValue] = useState(value);
   const [isExpanded, setIsExpanded] = useState(false);
-  const lineLabel = formatLineLabel(lineNumber);
-  const suggestionLengthLabel =
-    expandedValue.trim().length > 0
-      ? `${expandedValue.trim().length} chars`
-      : "Empty suggestion";
 
   useEffect(() => {
     resizeTextarea(inlineTextareaRef.current);
@@ -192,23 +180,11 @@ export const CodeSuggestionEditor = ({
 
   return (
     <>
-      <div className="animate-in fade-in slide-in-from-top-1 rounded-lg border border-border-default/80 bg-surface-elevated duration-150">
+      <div className="animate-in fade-in rounded-lg border border-border-default/80 bg-surface-elevated duration-100">
         <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-3 py-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-text-tertiary">
-              Suggested change
-            </span>
-            {lineLabel ? (
-              <span className="rounded bg-accent-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-accent-primary">
-                {lineLabel}
-              </span>
-            ) : null}
-            {filePath ? (
-              <span className="truncate text-[10px] text-text-tertiary">
-                {filePath}
-              </span>
-            ) : null}
-          </div>
+          <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-text-tertiary">
+            Suggestion
+          </span>
 
           <div className="flex items-center gap-1">
             <button
@@ -252,20 +228,14 @@ export const CodeSuggestionEditor = ({
         aria-label="Expanded code suggestion editor"
       >
         <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-text-primary">
-              Review suggested change
-            </p>
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-[10px] text-text-tertiary">
-              {lineLabel ? (
-                <span className="rounded bg-accent-muted px-1.5 py-0.5 font-mono font-medium text-accent-primary">
-                  {lineLabel}
-                </span>
-              ) : null}
-              {filePath ? (
-                <span className="truncate font-mono">{filePath}</span>
-              ) : null}
-            </div>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="text-sm font-medium text-text-primary">Suggestion</p>
+            {filePath ? (
+              <span className="truncate font-mono text-[10px] text-text-tertiary">
+                {filePath}
+                {lineNumber != null ? `:${lineNumber}` : ""}
+              </span>
+            ) : null}
           </div>
 
           <button
@@ -318,27 +288,21 @@ export const CodeSuggestionEditor = ({
           </section>
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-border-subtle px-4 py-3">
-          <span className="font-mono text-[10px] text-text-tertiary">
-            {suggestionLengthLabel}
-          </span>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={closeExpandedModal}
-              className="rounded-md px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleApply}
-              className="rounded-md bg-accent-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/50"
-            >
-              Apply
-            </button>
-          </div>
+        <div className="flex items-center justify-end gap-2 border-t border-border-subtle px-4 py-3">
+          <button
+            type="button"
+            onClick={closeExpandedModal}
+            className="rounded-md px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-overlay hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleApply}
+            className="rounded-md bg-accent-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/50"
+          >
+            Apply
+          </button>
         </div>
       </dialog>
     </>

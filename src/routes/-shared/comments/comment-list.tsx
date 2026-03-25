@@ -18,7 +18,6 @@ export function CommentList({
   const [showForm, setShowForm] = useState(false);
 
   const resolved = comments.filter((c) => c.resolved).length;
-  const unresolved = comments.length - resolved;
 
   const handleResolve = useCallback(async (id: string) => {
     const res = await fetch(`/api/comments/${id}/resolve`, { method: "POST" });
@@ -69,18 +68,14 @@ export function CommentList({
 
   return (
     <div className="space-y-4">
-      {/* Stats bar */}
-      <div className="flex items-center gap-4 text-xs text-text-tertiary">
-        <span>{comments.length} comments</span>
-        <span className="text-green-400">{resolved} resolved</span>
-        <span className="text-yellow-400">{unresolved} unresolved</span>
-      </div>
-
-      {comments.length === 0 && !showForm && (
-        <div className="rounded-lg border border-border-default bg-surface-elevated p-6 text-center">
-          <p className="text-sm text-text-secondary">No comments yet.</p>
+      {comments.length > 0 ? (
+        <div className="flex items-center gap-3 text-xs text-text-tertiary">
+          <span>{comments.length} comments</span>
+          {resolved > 0 ? (
+            <span className="text-status-success">{resolved} resolved</span>
+          ) : null}
         </div>
-      )}
+      ) : null}
 
       {/* Comments grouped by line */}
       {[...grouped.entries()].map(([key, group]) => (

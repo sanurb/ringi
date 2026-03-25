@@ -62,13 +62,13 @@ const CommentCard = ({
   return (
     <article
       className={cn(
-        "group animate-in fade-in duration-100 rounded-md border border-border-subtle bg-surface-elevated/80 px-2 py-1.5 shadow-sm shadow-black/10 transition-opacity",
+        "group animate-in fade-in duration-100 rounded bg-surface-elevated/50 px-2 py-1.5 transition-opacity",
         comment.resolved && "opacity-50"
       )}
-      style={{ transitionDelay: `${index * 50}ms` }}
+      style={{ animationDelay: `${index * 40}ms` }}
     >
       <div className="flex items-start gap-2">
-        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-muted font-mono text-[10px] font-semibold text-accent-primary">
+        <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-text-tertiary/10 font-mono text-[9px] font-medium text-text-tertiary">
           {getCommentInitials(comment.id)}
         </div>
 
@@ -78,9 +78,7 @@ const CommentCard = ({
               {formatCompactDate(comment.createdAt)}
             </span>
             {comment.resolved ? (
-              <span className="rounded-full bg-status-success/15 px-1.5 py-0.5 text-[10px] font-medium text-status-success">
-                Resolved
-              </span>
+              <span className="text-[10px] text-text-tertiary">· Resolved</span>
             ) : null}
             <div className="ml-auto flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
               <button
@@ -109,8 +107,8 @@ const CommentCard = ({
           </p>
 
           {comment.suggestion ? (
-            <div className="mt-1.5 border-l-2 border-status-success/35 bg-surface-primary/80 pl-2">
-              <pre className="overflow-x-auto whitespace-pre-wrap break-words py-1 font-mono text-[10px] leading-4 text-text-secondary">
+            <div className="mt-1.5 rounded bg-surface-primary/60 px-2 py-1">
+              <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-[10px] leading-4 text-text-secondary">
                 {comment.suggestion}
               </pre>
             </div>
@@ -196,7 +194,7 @@ export const InlineCommentThread = ({
   return (
     <div
       data-review-id={reviewId}
-      className="animate-in fade-in slide-in-from-top-1 duration-150 border-l-2 border-accent-primary/30 pl-2"
+      className="animate-in fade-in duration-100 pl-2"
     >
       <div className="flex flex-col gap-1.5">
         {visibleComments.map((comment, index) => (
@@ -215,7 +213,7 @@ export const InlineCommentThread = ({
             type="button"
             onClick={toggleExpanded}
             aria-expanded={expanded}
-            className="self-start rounded px-1 py-0.5 text-[10px] font-medium text-accent-primary transition-colors hover:bg-accent-muted/40 hover:text-accent-primary-hover focus-visible:bg-accent-muted/40 focus-visible:text-accent-primary-hover focus-visible:outline-none"
+            className="self-start rounded px-1 py-0.5 text-[10px] font-medium text-text-tertiary transition-colors hover:bg-surface-overlay hover:text-text-secondary focus-visible:bg-surface-overlay focus-visible:text-text-secondary focus-visible:outline-none"
           >
             {expanded ? "Show less" : `Show ${hiddenCount} more`}
           </button>
