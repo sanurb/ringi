@@ -24,7 +24,7 @@
     "url": "git+https://github.com/sanurb/ringi.git"
   },
   "bin": {
-    "ringi": "./dist/cli.js"
+    "ringi": "dist/cli.js"
   },
   "files": [
     "dist",
