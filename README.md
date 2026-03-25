@@ -76,7 +76,7 @@ bun install -g ringi
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/ringi.git
+git clone https://github.com/sanurb/ringi.git
 cd ringi
 
 # Install dependencies
