@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
-import { useState, useCallback, useMemo } from "react";
+import { useReducer, useCallback, useMemo } from "react";
 
 import { ApiClient } from "@/api/api-client";
 import type { Comment } from "@/api/schemas/comment";
@@ -114,15 +114,70 @@ const updateStatus = (reviewId: string, status: string) =>
   });
 
 // ---------------------------------------------------------------------------
+// Review detail reducer — groups related UI state
+// ---------------------------------------------------------------------------
+
+interface ReviewDetailState {
+  status: string;
+  diffMode: "split" | "unified";
+  annotationsOpen: boolean;
+  exportOpen: boolean;
+  selectedFile: string | null;
+  viewedFiles: ReadonlySet<string>;
+}
+
+type ReviewDetailAction =
+  | { type: "SET_STATUS"; status: string }
+  | { type: "TOGGLE_DIFF_MODE" }
+  | { type: "TOGGLE_ANNOTATIONS" }
+  | { type: "SET_EXPORT_OPEN"; open: boolean }
+  | { type: "SELECT_FILE"; path: string }
+  | { type: "TOGGLE_VIEWED"; filePath: string };
+
+const reviewDetailReducer = (
+  state: ReviewDetailState,
+  action: ReviewDetailAction
+): ReviewDetailState => {
+  switch (action.type) {
+    case "SET_STATUS": {
+      return { ...state, status: action.status };
+    }
+    case "TOGGLE_DIFF_MODE": {
+      return {
+        ...state,
+        diffMode: state.diffMode === "split" ? "unified" : "split",
+      };
+    }
+    case "TOGGLE_ANNOTATIONS": {
+      return { ...state, annotationsOpen: !state.annotationsOpen };
+    }
+    case "SET_EXPORT_OPEN": {
+      return { ...state, exportOpen: action.open };
+    }
+    case "SELECT_FILE": {
+      return { ...state, selectedFile: action.path };
+    }
+    case "TOGGLE_VIEWED": {
+      const next = new Set(state.viewedFiles);
+      if (next.has(action.filePath)) {
+        next.delete(action.filePath);
+      } else {
+        next.add(action.filePath);
+      }
+      return { ...state, viewedFiles: next };
+    }
+    default: {
+      return state;
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
 const ReviewDetailPage = () => {
   const data = Route.useLoaderData();
-  const [status, setStatus] = useState(data.status);
-  const [diffMode, setDiffMode] = useState<"split" | "unified">("split");
-  const [annotationsOpen, setAnnotationsOpen] = useState(true);
-  const [exportOpen, setExportOpen] = useState(false);
 
   // Build DiffFile array from metadata (hunks empty — loaded lazily by DiffFile)
   const diffFiles: readonly DiffFileType[] = useMemo(
@@ -138,41 +193,37 @@ const ReviewDetailPage = () => {
     [data.files]
   );
 
-  // Single-file selection — default to first file
-  const [selectedFile, setSelectedFile] = useState<string | null>(
-    () => diffFiles[0]?.newPath ?? null
-  );
-  const [viewedFiles, setViewedFiles] = useState<ReadonlySet<string>>(
-    new Set()
-  );
+  const [state, dispatch] = useReducer(reviewDetailReducer, {
+    annotationsOpen: true,
+    diffMode: "split",
+    exportOpen: false,
+    selectedFile: diffFiles[0]?.newPath ?? null,
+    status: data.status,
+    viewedFiles: new Set<string>(),
+  });
 
   const selectedFileData = useMemo(
-    () => diffFiles.find((f) => f.newPath === selectedFile) ?? null,
-    [diffFiles, selectedFile]
+    () => diffFiles.find((f) => f.newPath === state.selectedFile) ?? null,
+    [diffFiles, state.selectedFile]
   );
 
   const handleSelectFile = useCallback((path: string) => {
-    setSelectedFile(path);
+    dispatch({ path, type: "SELECT_FILE" });
   }, []);
 
   const handleToggleViewed = useCallback((filePath: string) => {
-    setViewedFiles((prev) => {
-      const next = new Set(prev);
-      if (next.has(filePath)) {
-        next.delete(filePath);
-      } else {
-        next.add(filePath);
-      }
-
-      return next;
-    });
+    dispatch({ filePath, type: "TOGGLE_VIEWED" });
   }, []);
 
   const handleStatusChange = useCallback(
     (newStatus: string) => {
       clientRuntime.runFork(
         updateStatus(data.id, newStatus).pipe(
-          Effect.tap(() => Effect.sync(() => setStatus(newStatus))),
+          Effect.tap(() =>
+            Effect.sync(() =>
+              dispatch({ status: newStatus, type: "SET_STATUS" })
+            )
+          ),
           Effect.tapErrorCause((cause) =>
             Effect.logError("Failed to update review status", cause)
           )
@@ -183,15 +234,19 @@ const ReviewDetailPage = () => {
   );
 
   const toggleDiffMode = useCallback(() => {
-    setDiffMode((prev) => (prev === "split" ? "unified" : "split"));
+    dispatch({ type: "TOGGLE_DIFF_MODE" });
   }, []);
 
   const toggleAnnotations = useCallback(() => {
-    setAnnotationsOpen((prev) => !prev);
+    dispatch({ type: "TOGGLE_ANNOTATIONS" });
   }, []);
 
   const handleExport = useCallback(() => {
-    setExportOpen(true);
+    dispatch({ open: true, type: "SET_EXPORT_OPEN" });
+  }, []);
+
+  const handleExportOpenChange = useCallback((open: boolean) => {
+    dispatch({ open, type: "SET_EXPORT_OPEN" });
   }, []);
 
   const diffSummary: DiffSummaryType = data.summary;
@@ -202,12 +257,12 @@ const ReviewDetailPage = () => {
       <ActionBar
         repoName={repoName}
         reviewId={data.id}
-        status={status}
+        status={state.status}
         onStatusChange={handleStatusChange}
-        diffMode={diffMode}
+        diffMode={state.diffMode}
         onToggleDiffMode={toggleDiffMode}
         commentCount={data.commentStats.total}
-        isAnnotationsOpen={annotationsOpen}
+        isAnnotationsOpen={state.annotationsOpen}
         onToggleAnnotations={toggleAnnotations}
         onExport={handleExport}
       />
@@ -215,9 +270,9 @@ const ReviewDetailPage = () => {
       <div className="flex min-h-0 flex-1">
         <FileTree
           files={diffFiles}
-          selectedFile={selectedFile}
+          selectedFile={state.selectedFile}
           onSelectFile={handleSelectFile}
-          reviewedFiles={viewedFiles}
+          reviewedFiles={state.viewedFiles}
           onToggleViewed={handleToggleViewed}
         />
 
@@ -228,9 +283,13 @@ const ReviewDetailPage = () => {
               <DiffView
                 file={selectedFileData}
                 reviewId={data.id}
-                diffMode={diffMode}
+                diffMode={state.diffMode}
                 comments={data.comments}
-                viewed={selectedFile ? viewedFiles.has(selectedFile) : false}
+                viewed={
+                  state.selectedFile
+                    ? state.viewedFiles.has(state.selectedFile)
+                    : false
+                }
                 onToggleViewed={handleToggleViewed}
               />
             </div>
@@ -245,15 +304,15 @@ const ReviewDetailPage = () => {
 
         <AnnotationsPanel
           comments={data.comments}
-          selectedFile={selectedFile}
+          selectedFile={state.selectedFile}
           reviewId={data.id}
-          isOpen={annotationsOpen}
+          isOpen={state.annotationsOpen}
         />
       </div>
 
       <ExportFeedbackModal
-        open={exportOpen}
-        onOpenChange={setExportOpen}
+        open={state.exportOpen}
+        onOpenChange={handleExportOpenChange}
         comments={data.comments}
         reviewId={data.id}
       />
