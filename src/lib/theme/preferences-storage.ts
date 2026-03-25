@@ -15,7 +15,9 @@ export const DEFAULT_RINGI_PREFERENCES: RingiPreferences = {
   palette: "ringi",
 };
 
-const PALETTE_IDS = new Set<PaletteId>(RINGI_PALETTES.map((p) => p.id));
+const PALETTE_IDS = new Set<PaletteId>(
+  RINGI_PALETTES.map((p: (typeof RINGI_PALETTES)[number]) => p.id)
+);
 
 const isAppearanceMode = (v: unknown): v is AppearanceMode =>
   v === "dark" || v === "light" || v === "system";
@@ -63,6 +65,8 @@ export const writeRingiPreferencesToStorage = (prefs: RingiPreferences) => {
 /** Inline script for <head>: applies class + palette before paint (must stay in sync with read logic). */
 export const getRingiThemeBootScript = (): string => {
   const key = JSON.stringify(RINGI_PREFERENCES_STORAGE_KEY);
-  const allowed = `{${RINGI_PALETTES.map((x) => `${JSON.stringify(x.id)}:1`).join(",")}}`;
+  const allowed = `{${RINGI_PALETTES.map(
+    (x: (typeof RINGI_PALETTES)[number]) => `${JSON.stringify(x.id)}:1`
+  ).join(",")}}`;
   return `(function(){try{var k=${key};var ok=${allowed};var d=JSON.parse(localStorage.getItem(k)||'null');var a=d&&d.appearance;var p=d&&d.palette;var appearance=a==='dark'||a==='light'||a==='system'?a:'system';var pal=ok[p]?p:'ringi';var dark=appearance==='dark'||(appearance==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',dark);document.documentElement.dataset.ringiPalette=pal;}catch(e){document.documentElement.classList.add('dark');document.documentElement.dataset.ringiPalette='ringi';}})();`;
 };
