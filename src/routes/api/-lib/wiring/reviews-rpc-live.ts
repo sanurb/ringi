@@ -45,7 +45,7 @@ export const ReviewsRpcLive = ReviewsRpc.toLayer({
   reviews_stats: (_) =>
     Effect.gen(function* reviews_stats() {
       const svc = yield* ReviewService;
-      return yield* svc.getStats;
+      return yield* svc.getStats();
     }),
   reviews_update: (_) =>
     Effect.gen(function* reviews_update() {

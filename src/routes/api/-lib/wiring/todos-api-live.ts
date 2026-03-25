@@ -66,7 +66,7 @@ export const TodosApiLive = HttpApiBuilder.group(
       .handle("stats", (_) =>
         Effect.gen(function* TodosApiLive() {
           const svc = yield* TodoService;
-          return yield* svc.getStats;
+          return yield* svc.getStats();
         })
       )
 );

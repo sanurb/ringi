@@ -56,7 +56,7 @@ export const ReviewsApiLive = HttpApiBuilder.group(
       .handle("stats", (_) =>
         Effect.gen(function* ReviewsApiLive() {
           const svc = yield* ReviewService;
-          return yield* svc.getStats;
+          return yield* svc.getStats();
         })
       )
 );
