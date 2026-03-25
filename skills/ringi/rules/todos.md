@@ -2,6 +2,16 @@
 
 Track follow-up tasks during code review.
 
+## Quick start
+
+```bash
+# Add a follow-up task (link it to the current review)
+ringi todo add --text "Write tests for the new endpoint" --review last
+
+# See what's still pending before committing
+ringi todo list
+```
+
 ## Creating Todos
 
 ### From the Web UI
@@ -65,6 +75,12 @@ Todos interact with the review lifecycle:
 - **Reopening a todo** on an `approved` review **reopens** it
 - **Completing a todo** does NOT auto-approve the review
 - **After export**, no todos can be created or modified
+
+## Decision points
+
+- Use a todo when the issue is real but **not worth blocking** approval right now.
+- If a todo is blocking approval, keep the review open and resolve it before `ringi review resolve`.
+- If you add a todo after approval, expect the review to reopen (intentional).
 
 ## Workflow Integration
 

@@ -19,6 +19,12 @@ ringi export last --output review.md
 ringi todo list
 ```
 
+## Decision points
+
+- If you’re not sure what’s staged: preview first with `ringi source diff staged --stat`.
+- If you’re about to push a branch: create a branch-based review (`--source branch --branch main`).
+- If the review is large: split the work into multiple small reviews/commits for higher signal.
+
 ## Keyboard Shortcuts
 
 In the web interface:

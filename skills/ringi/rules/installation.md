@@ -2,7 +2,7 @@
 
 Ringi runs locally — no cloud dependency, no account required.
 
-## Quick Start
+## Quick start
 
 ```bash
 ringi serve
@@ -10,7 +10,9 @@ ringi serve
 
 This starts the local Ringi server and opens the web interface at http://localhost:3000.
 
-## Custom Port
+## Common options
+
+### Custom port
 
 ```bash
 ringi serve --port 4123 --no-open
@@ -36,13 +38,18 @@ Ringi stores all review data in `.ringi/reviews.db` (SQLite database) at the rep
 
 Ringi operates in three modes:
 
-| Mode                 | Entry              | What works                                                |
-| -------------------- | ------------------ | --------------------------------------------------------- |
-| **Standalone**       | Direct CLI reads   | `ringi review list`, `ringi review show`, `ringi export`  |
-| **Server-connected** | `ringi serve`      | Full review creation, comments, todos, export, live UI    |
-| **MCP stdio**        | `ringi mcp`        | Agent integration through review-scoped namespaces        |
+| Mode                 | Entry            | What works                                               |
+| -------------------- | ---------------- | -------------------------------------------------------- |
+| **Standalone**       | Direct CLI reads | `ringi review list`, `ringi review show`, `ringi export` |
+| **Server-connected** | `ringi serve`    | Full review creation, comments, todos, export, live UI   |
+| **MCP stdio**        | `ringi mcp`      | Agent integration through review-scoped namespaces       |
 
 Standalone mode requires no running server — it reads directly from `.ringi/reviews.db`. Mutations (creating reviews, adding comments/todos, resolving) require the server.
+
+## Decision points
+
+- If you just need to **read** existing review data (`review list/show`, `todo list`, `export`, `source diff`), you can often do it without running `ringi serve`.
+- If you need to **create or mutate** review state (create reviews, add comments/todos, resolve), start `ringi serve` first.
 
 ## HTTPS and Auth (Optional)
 

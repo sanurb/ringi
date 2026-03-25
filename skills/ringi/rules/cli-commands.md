@@ -143,13 +143,13 @@ ringi doctor --json
 
 ## Global Options
 
-| Option       | Description                              |
-| ------------ | ---------------------------------------- |
-| `--json`     | Emit structured JSON envelope to stdout  |
-| `--quiet`    | Suppress human-readable success output   |
-| `--repo`     | Override repository root                 |
-| `--verbose`  | Add diagnostics and stack traces         |
-| `--no-color` | Disable ANSI color                       |
+| Option       | Description                             |
+| ------------ | --------------------------------------- |
+| `--json`     | Emit structured JSON envelope to stdout |
+| `--quiet`    | Suppress human-readable success output  |
+| `--repo`     | Override repository root                |
+| `--verbose`  | Add diagnostics and stack traces        |
+| `--no-color` | Disable ANSI color                      |
 
 ## Exit Codes
 

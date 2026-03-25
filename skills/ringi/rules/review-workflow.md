@@ -2,7 +2,28 @@
 
 The complete workflow for reviewing AI-generated code changes before committing.
 
-## Basic Workflow
+## Quick path (copy/paste)
+
+```bash
+# Stage what you actually want to review
+git add -A
+
+# Start server + open UI
+ringi serve
+
+# Snapshot staged diff into a review session
+ringi review create
+
+# (Review in browser: comments/suggestions/todos)
+
+# Decide + approve
+ringi review resolve last --yes
+
+# Export audit record
+ringi export last --output review.md
+```
+
+## Basic workflow
 
 ### 1. AI Makes Changes
 
@@ -81,9 +102,16 @@ created → analyzing → ready → in_review → approved → exported
 ```
 
 Key rules:
+
 - **Approved reviews reopen** when new comments are added or todos are created
 - **Exported is terminal** — no mutations after export
 - Reviews are **snapshot-based** — the diff is captured at creation time and does not change when refs move
+
+## Decision points
+
+- If the diff is messy: preview before snapshotting (`ringi source diff staged --stat`), then stage only what you want and create the review.
+- If you need “PR-style” review: use branch source (`--source branch --branch main`) to capture the full divergence.
+- If you’re reviewing after-the-fact: use commit source (`--source commits --commits <sha>`).
 
 ## Example Session
 

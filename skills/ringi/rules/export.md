@@ -2,6 +2,16 @@
 
 Export review sessions as markdown for documentation, sharing, or audit trails.
 
+## Quick start
+
+```bash
+# Approve first (export requires a decision)
+ringi review resolve last --yes
+
+# Export to a file
+ringi export last --output review.md
+```
+
 ## Basic Export
 
 ```bash
@@ -41,6 +51,12 @@ Exports interact with the review lifecycle:
 - **Export is terminal** — the first successful export sets `exported_at` and locks the review. No comments, todos, or lifecycle changes are allowed after export.
 - **Export is idempotent** — attempting to export an already-exported review returns the existing export, not an error.
 - **Export is snapshot-based** — the export uses stored review data, never live git state. The same review always produces the same export.
+
+## Decision points
+
+- Export is the “write-once audit record”: after export, the review is locked.
+- If you need a shorter artifact: use filtering flags (`--no-resolved`, `--no-snippets`).
+- Prefer saving exports under a deterministic path (e.g. `.ringi/exports/<topic>.md` or `docs/reviews/<topic>.md`).
 
 ## Export Filtering
 

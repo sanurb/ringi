@@ -2,7 +2,14 @@
 
 Add inline comments and code suggestions to reviews.
 
-## Adding Comments
+## Quick start (UI)
+
+- Click a line in the diff.
+- Write a comment.
+- Optionally add a suggestion (replacement code).
+- Submit.
+
+## Adding comments
 
 ### In the Web UI
 
@@ -50,6 +57,12 @@ Comments interact with the review lifecycle:
 - **Unresolving a comment** on an approved review **reopens** it automatically
 - **Resolving all comments** is required before approval can succeed
 - **After export**, no comments can be created or modified
+
+## Decision points
+
+- If you know the exact fix: prefer a **suggestion** (fast to apply).
+- If it’s a larger follow-up: create a **todo** (keeps the review moving without losing the work).
+- If it must block approval: leave an **issue** comment and keep it unresolved until fixed.
 
 ## Best Practices
 

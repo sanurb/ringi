@@ -2,6 +2,19 @@
 
 Ringi supports three review sources. Each captures a snapshot at creation time.
 
+## Quick start (recommended)
+
+```bash
+# Preview what you would review
+ringi source diff staged --stat
+
+# Stage only what you intend to approve
+git add -A
+
+# Snapshot staged diff into a review session
+ringi review create
+```
+
 ## Review Sources
 
 ### Staged Changes (Default)
@@ -61,6 +74,12 @@ Once a review session is created, the diff is **captured and stored**. The revie
 - Staged changes are modified
 
 This is intentional — exports and review annotations must be reproducible from stored data.
+
+## Decision points
+
+- Use **staged** source when you want maximum control and a tight, atomic review.
+- Use **branch** source when you want “PR diff” semantics before pushing.
+- Use **commits** source when you want to review changes that already exist as commits.
 
 ## Staging in the Web UI
 
