@@ -34,6 +34,8 @@ import {
 } from "@/lib/session-draft";
 import type { SessionDraft } from "@/lib/session-draft";
 
+import { AnnotationsPanel } from "./-shared/annotations/annotations-panel";
+import { useAnnotationsPanel } from "./-shared/annotations/use-annotations-panel";
 import type { LocalComment } from "./-shared/diff/diff-file";
 import { DiffSummary } from "./-shared/diff/diff-summary";
 import { DiffView } from "./-shared/diff/diff-view";
@@ -128,6 +130,8 @@ const DiffContent = ({
   onLocalCommentsChange,
   viewed,
   onToggleViewed,
+  pendingDeleteId,
+  onPendingDeleteHandled,
 }: {
   hasFiles: boolean;
   emptyMessage: string;
@@ -140,6 +144,8 @@ const DiffContent = ({
   ) => void;
   viewed?: boolean;
   onToggleViewed?: (filePath: string) => void;
+  pendingDeleteId?: string | null;
+  onPendingDeleteHandled?: () => void;
 }) => {
   if (!hasFiles) {
     return <EmptyDiffState message={emptyMessage} />;
@@ -158,6 +164,8 @@ const DiffContent = ({
         onLocalCommentsChange={onLocalCommentsChange}
         viewed={viewed}
         onToggleViewed={onToggleViewed}
+        pendingDeleteId={pendingDeleteId}
+        onPendingDeleteHandled={onPendingDeleteHandled}
       />
     </div>
   );
@@ -215,6 +223,9 @@ const ChangesPage = () => {
     readonly ExportableComment[]
   >([]);
 
+  // Track annotation count changes to force re-render of panel
+  const [annotationVersion, setAnnotationVersion] = useState(0);
+
   // ── Draft recovery state ─────────────────────────────────────────────
   const [recoveryDraft, setRecoveryDraft] = useState<SessionDraft | null>(
     () => {
@@ -227,6 +238,79 @@ const ChangesPage = () => {
   const selectedFileData = useMemo(
     () => data.files.find((f) => f.newPath === selectedFile) ?? null,
     [data.files, selectedFile]
+  );
+
+  // ── Annotations panel ────────────────────────────────────────────────
+  const getLocalComments = useCallback(
+    () =>
+      localCommentsRef.current as ReadonlyMap<string, readonly LocalComment[]>,
+    []
+  );
+
+  const handleAnnotationNavigate = useCallback(
+    (filePath: string, _lineNumber?: number) => {
+      setSelectedFile(filePath);
+      // Scroll to the diff file anchor after React flushes the file change
+      requestAnimationFrame(() => {
+        const anchorId = `diff-file-${filePath.replaceAll("/", "-")}`;
+        const el = document.querySelector(`#${anchorId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+    },
+    []
+  );
+
+  // Pending delete for the currently-displayed DiffFile
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  const handleClearPendingDelete = useCallback(() => {
+    setPendingDeleteId(null);
+  }, []);
+
+  const handleDeleteAnnotation = useCallback(
+    (id: string) => {
+      // Check if the annotation belongs to the currently-displayed file
+      const currentFileComments = selectedFile
+        ? localCommentsRef.current.get(selectedFile)
+        : undefined;
+      const isInCurrentFile = currentFileComments?.some((c) => c.id === id);
+
+      if (isInCurrentFile) {
+        // DiffFile owns this state — tell it to delete via pending prop
+        setPendingDeleteId(id);
+      } else {
+        // Not displayed — mutate the ref directly
+        for (const [filePath, comments] of localCommentsRef.current) {
+          const filtered = comments.filter((c) => c.id !== id);
+          if (filtered.length !== comments.length) {
+            if (filtered.length === 0) {
+              localCommentsRef.current.delete(filePath);
+            } else {
+              localCommentsRef.current.set(filePath, filtered);
+            }
+            break;
+          }
+        }
+        setAnnotationVersion((v) => v + 1);
+      }
+    },
+    [selectedFile]
+  );
+
+  const annotationsPanel = useAnnotationsPanel({
+    getLocalComments,
+    onDeleteAnnotation: handleDeleteAnnotation,
+    onNavigate: handleAnnotationNavigate,
+  });
+
+  // Snapshot groups for the panel (rebuilt on version change)
+  const { buildGroups: buildAnnotationGroups } = annotationsPanel;
+  const annotationGroups = useMemo(
+    () => buildAnnotationGroups(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- annotationVersion is intentional trigger
+    [buildAnnotationGroups, annotationVersion]
   );
 
   // ── Reset on scope change ────────────────────────────────────────────
@@ -295,6 +379,8 @@ const ChangesPage = () => {
       } else {
         localCommentsRef.current.set(filePath, comments);
       }
+      // Bump version so annotations panel re-snapshots
+      setAnnotationVersion((v) => v + 1);
     },
     []
   );
@@ -315,6 +401,11 @@ const ChangesPage = () => {
     setLocalCommentSnapshot(all);
     setExportOpen(true);
   }, []);
+
+  const { handleCopyFeedback } = annotationsPanel;
+  const handleCopyAnnotationFeedback = useCallback(() => {
+    handleCopyFeedback(annotationGroups);
+  }, [handleCopyFeedback, annotationGroups]);
 
   const toggleDiffMode = useCallback(() => {
     setDiffMode((prev) => (prev === "split" ? "unified" : "split"));
@@ -413,6 +504,9 @@ const ChangesPage = () => {
         selectedFilePath={selectedFile}
         onGitAdd={showGitAdd ? handleGitAdd : undefined}
         onCopyFileDiff={handleCopyFileDiff}
+        commentCount={annotationsPanel.totalCount}
+        isAnnotationsOpen={annotationsPanel.isOpen}
+        onToggleAnnotations={annotationsPanel.handleToggle}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -444,8 +538,21 @@ const ChangesPage = () => {
             onLocalCommentsChange={handleLocalCommentsChange}
             viewed={selectedFile ? viewedFiles.has(selectedFile) : false}
             onToggleViewed={handleToggleViewed}
+            pendingDeleteId={pendingDeleteId}
+            onPendingDeleteHandled={handleClearPendingDelete}
           />
         </div>
+
+        <AnnotationsPanel
+          isOpen={annotationsPanel.isOpen}
+          onClose={annotationsPanel.handleClose}
+          groups={annotationGroups}
+          totalCount={annotationsPanel.totalCount}
+          copyStatus={annotationsPanel.copyStatus}
+          onAnnotationClick={annotationsPanel.handleAnnotationClick}
+          onDeleteAnnotation={annotationsPanel.handleDeleteAnnotation}
+          onCopyFeedback={handleCopyAnnotationFeedback}
+        />
       </div>
 
       <ExportFeedbackModal
