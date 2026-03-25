@@ -28,7 +28,7 @@ Predictable defaults reduce friction without hiding behavior. Defaults are alway
 
 The CLI must compose with pipes, `xargs`, shell scripts, CI jobs, and agent runtimes. That means:
 
-- machine-readable output is opt-in with `--json`
+- machine-readable output is opt-in with `--json` (agent-first envelope with HATEOAS `next_actions`)
 - stdout is reserved for data
 - stderr is reserved for diagnostics and errors
 - exit codes are stable and meaningful
@@ -1054,69 +1054,233 @@ ringi data reset --yes --keep-exports --json
 
 ## JSON Output Convention
 
-Every JSON-capable command returns the same top-level envelope:
+Every JSON-capable command returns a structured agent-first envelope. The design is inspired by [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) and the [Cloudflare agent error pages](https://blog.cloudflare.com/rfc-9457-agent-error-pages/) approach to machine-readable responses.
+
+### Success Envelope
 
 ```ts
-{
-  ok: boolean;
-  data: T | null;
-  error?: string;
+interface CliSuccessEnvelope<T> {
+  ok: true;
+  command: string; // the command that ran, e.g. "ringi review list"
+  result: T; // command-specific payload
+  next_actions: NextAction[]; // HATEOAS: what to do next
 }
 ```
 
-Rules:
+### Error Envelope
 
-- `ok: true` means the command satisfied its contract.
-- `data` contains the command payload. Empty lists are represented as empty arrays, not `null`.
-- `data: null` is reserved for commands whose meaningful outcome is side-effect-only.
-- `error` is present only when `ok: false`.
-- Error details still go to stderr in human-readable mode.
+```ts
+interface CliErrorEnvelope {
+  ok: false;
+  command: string;
+  error: {
+    message: string; // human-readable explanation
+    code: string; // machine-readable, e.g. "RESOURCE_NOT_FOUND"
+    type?: string; // documentation URI, e.g. "ringi://errors/RESOURCE_NOT_FOUND"
+    category: ErrorCategory; // error family for routing logic
+    retryable: boolean; // can the agent retry this?
+    retry_after?: number; // seconds to wait if retryable
+  };
+  fix: string; // actionable guidance for the agent
+  next_actions: NextAction[]; // recovery/diagnostic actions
+}
+```
 
-Examples:
+### NextAction (HATEOAS)
+
+Every response includes `next_actions` -- command templates the agent can run next. Templates use POSIX/docopt placeholder syntax:
+
+```ts
+interface NextAction {
+  command: string; // literal command or template
+  description: string; // what it does
+  params?: Record<
+    string,
+    {
+      // presence = command is a template
+      description?: string;
+      value?: string | number; // pre-filled from current context
+      default?: string | number;
+      enum?: string[]; // valid choices
+      required?: boolean;
+    }
+  >;
+}
+```
+
+`next_actions` are **contextual** -- they change based on what just happened. A successful `review list` suggests `review show <id>` with the top review IDs pre-filled. A failed command suggests diagnostics and recovery steps.
+
+### Success Example
 
 ```json
 {
   "ok": true,
-  "data": {
+  "command": "ringi review list",
+  "result": {
     "reviews": [],
     "total": 0,
     "page": 1,
     "pageSize": 20,
     "hasMore": false
-  }
+  },
+  "next_actions": [
+    {
+      "command": "ringi review create [--source <source>]",
+      "description": "Create a new review session",
+      "params": {
+        "source": {
+          "default": "staged",
+          "enum": ["staged", "branch", "commits"]
+        }
+      }
+    }
+  ]
 }
 ```
+
+### Error Example
 
 ```json
 {
   "ok": false,
-  "data": null,
-  "error": "No .ringi directory found under /repo"
+  "command": "ringi review show",
+  "error": {
+    "message": "No review sessions exist for this repository yet.",
+    "code": "RESOURCE_NOT_FOUND",
+    "type": "ringi://errors/RESOURCE_NOT_FOUND",
+    "category": "not_found",
+    "retryable": false
+  },
+  "fix": "Verify the resource ID. Use 'ringi review list' or 'ringi todo list' to find valid IDs.",
+  "next_actions": [
+    { "command": "ringi review list", "description": "List available reviews" },
+    { "command": "ringi todo list", "description": "List available todos" }
+  ]
 }
 ```
 
+## Error Categories
+
+Every error is classified into a `category` that agents can branch on -- replacing brittle message parsing with deterministic routing logic.
+
+| Category     | Meaning                                        | What the agent should do                                       | Retryable |
+| ------------ | ---------------------------------------------- | -------------------------------------------------------------- | --------- |
+| `auth`       | Authentication or authorization failure        | Do not retry. Check credentials.                               | No        |
+| `config`     | Missing `.ringi/` state or invalid repo config | Do not retry. Run `ringi serve` or check `--repo`/`--db-path`. | No        |
+| `connection` | Server not reachable                           | Retry after ensuring `ringi serve` is running.                 | Yes       |
+| `conflict`   | Resource state conflict                        | Resolve conflict, then retry.                                  | No        |
+| `not_found`  | Review, todo, or resource not found            | Do not retry. Use `ringi review list` to find valid IDs.       | No        |
+| `server`     | Runtime or storage failure                     | Retry. If persistent, check logs.                              | Yes       |
+| `validation` | Invalid flags, missing arguments               | Do not retry as-is. Fix usage per `--help`.                    | No        |
+
+Two fields drive agent control flow:
+
+- `retryable` answers whether a retry can succeed
+- `fix` provides plain-language guidance on what to do
+
+```typescript
+// Agent consumption pattern
+const result = JSON.parse(output);
+if (!result.ok) {
+  if (result.error.retryable) {
+    await sleep(result.error.retry_after ?? 5);
+    return retry(result.command);
+  }
+  if (result.error.category === "not_found") {
+    return escalate(result.fix);
+  }
+  throw new Error(result.error.message);
+}
+// Success: follow next_actions
+for (const action of result.next_actions) {
+  // action.command is ready to run (or a template to fill)
+}
+```
+
+## Self-Documenting Root
+
+`ringi --json` with no command (or `ringi --help --json`) returns the full command tree as structured JSON:
+
+```json
+{
+  "ok": true,
+  "command": "ringi",
+  "result": {
+    "description": "ringi \u2014 local-first code review CLI",
+    "version": "0.0.0-dev",
+    "commands": [
+      {
+        "name": "review list",
+        "description": "List review sessions",
+        "usage": "ringi review list [--status <status>] ..."
+      },
+      {
+        "name": "review show",
+        "description": "Show review details",
+        "usage": "ringi review show <id|last> [--comments] [--todos]"
+      },
+      {
+        "name": "source list",
+        "description": "List repository sources",
+        "usage": "ringi source list"
+      }
+    ]
+  },
+  "next_actions": [
+    { "command": "ringi review list", "description": "List review sessions" },
+    { "command": "ringi source list", "description": "List repository sources" }
+  ]
+}
+```
+
+Agents discover commands via this root response. Every command is listed with its usage pattern.
+
 ## Error Behavior
 
-Errors are reported with three layers of signal:
+Errors are reported with four layers of signal:
 
-1. **stderr message** — concise explanation and recovery hint
-2. **exit code** — stable automation signal
-3. **optional verbose detail** — stack trace or transport detail when `--verbose` is enabled
+1. **stderr message** -- concise explanation and recovery hint
+2. **exit code** -- stable automation signal
+3. **JSON error envelope** -- structured error with `code`, `category`, `retryable`, `fix`, and recovery `next_actions` (when `--json` is used)
+4. **optional verbose detail** -- stack trace or transport detail when `--verbose` is enabled
 
 Error rules:
 
 - stdout is never polluted with diagnostics in normal mode
-- missing review session and missing todo are not generic failures; they return exit code `3`
-- missing `.ringi/` state returns exit code `4`
-- validation and flag mistakes return exit code `2`
-- runtime and storage failures return exit code `1`
+- missing review session and missing todo are not generic failures; they return exit code `3` and `category: "not_found"`
+- missing `.ringi/` state returns exit code `4` and `category: "config"`
+- validation and flag mistakes return exit code `2` and `category: "validation"`
+- runtime and storage failures return exit code `1` and `category: "server"`
 - `--verbose` adds stack traces and transport detail to stderr only
+- error `fix` field always provides actionable guidance
+- error `next_actions` suggest recovery or diagnostic commands
 
-Examples of good errors:
+## Agent Consumption Pattern
 
-- `No staged changes found. Stage files or choose --source branch|commits.`
-- `Review not found: rvw_01JY6Z4Y9B6GJ6T4J9M7AQ8S3R.`
-- `Local state is missing at /repo/.ringi/reviews.db. Run 'ringi data migrate'.`
+Agents interacting with `ringi` follow this workflow:
+
+1. **Discover**: Call `ringi --json --help` to get the command tree with usage patterns
+2. **Execute**: Run a command with `--json`, parse the envelope
+3. **Branch on success/failure**: Check `ok` field
+4. **On success**: Use `result` data, follow `next_actions` for workflow continuation
+5. **On failure**: Branch on `error.category` and `error.retryable`
+   - Retryable? Wait `error.retry_after` seconds, retry the `command`
+   - Not retryable? Read `fix` for guidance, follow `next_actions` for recovery
+6. **Navigate**: Use `next_actions` as affordances -- they show what's possible and pre-fill context-specific values
+
+```bash
+# Step 1: Discover
+ringi --json --help
+
+# Step 2: List reviews
+ringi review list --json
+
+# Step 3: Follow next_actions to inspect a specific review
+ringi review show rvw_01JY6Z4Y9B6GJ6T4J9M7AQ8S3R --comments --todos --json
+
+# Step 4: Follow next_actions to export
+ringi review export rvw_01JY6Z4Y9B6GJ6T4J9M7AQ8S3R --json
+```
 
 ## Authentication
 
@@ -1159,11 +1323,12 @@ This command is planned, not required for the initial CLI foundation.
 
 A CLI for Ringi is not about color or ASCII theater. It is about operational sharpness:
 
-- **fast startup** — read-only review session commands should feel local because they are local
-- **no unnecessary output** — success confirms the action and gets out of the way
-- **progressive disclosure** — default output is terse, `--json` is structured, `--verbose` is diagnostic
-- **composable with Unix tools** — predictable stdout, stderr, and exit codes
-- **review-first language** — commands speak in review session, review source, todo, export, provenance, relationship, group, evidence, and confidence terms instead of generic task-tracker jargon
-- **honest transport semantics** — users can tell whether a command works standalone, needs the local server, or starts MCP stdio
+- **fast startup** -- read-only review session commands should feel local because they are local
+- **no unnecessary output** -- success confirms the action and gets out of the way
+- **progressive disclosure** -- default output is terse, `--json` is structured, `--verbose` is diagnostic
+- **composable with Unix tools** -- predictable stdout, stderr, and exit codes
+- **agent-first JSON** -- structured envelopes with HATEOAS next_actions for workflow automation
+- **review-first language** -- commands speak in review session, review source, todo, export terms
+- **honest transport semantics** -- users can tell whether a command works standalone, needs the local server, or starts MCP stdio
 
-not more commands, but a cleaner contract.
+Not more commands, but a cleaner contract.
