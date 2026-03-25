@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env node
 
 import * as Either from "effect/Either";
 
@@ -17,7 +17,8 @@ import type {
 import { parseCliArgs } from "@/cli/parser";
 import { createCliRuntimeResources } from "@/cli/runtime";
 
-const CLI_VERSION = "0.0.0-dev";
+const CLI_VERSION =
+  process.env.RINGI_VERSION ?? process.env.npm_package_version ?? "0.0.0-dev";
 
 // ---------------------------------------------------------------------------
 // Self-documenting command tree (returned for `ringi --json` with no command)

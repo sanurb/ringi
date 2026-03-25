@@ -1,0 +1,39 @@
+# Everything is excluded by "files" in package.json.
+# This file exists as a safety net — if "files" is accidentally removed,
+# these patterns prevent leaking source, config, and dev artifacts.
+
+src/
+.agents/
+.claude/
+.cursor/
+.git/
+.github/
+.githuman/
+.output/
+.ringi/
+.tanstack/
+.vscode/
+assets/
+docs/
+eslint-plugins/
+node_modules/
+public/
+skills/
+
+*.test.ts
+*.test.tsx
+tsconfig.json
+tsup.config.ts
+vite.config.ts
+lefthook.yml
+components.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+.oxfmtrc.jsonc
+.oxlintrc.json
+.cta.json
+.mcp.json
+.gitignore
+.DS_Store
+AGENTS.md
+skills-lock.json

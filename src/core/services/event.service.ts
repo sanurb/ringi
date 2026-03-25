@@ -102,11 +102,7 @@ export class EventService extends Effect.Service<EventService>()(
 
       // -- client count ------------------------------------------------------
 
-      const getClientCount = Effect.fn("EventService.getClientCount")(
-        function* getClientCount() {
-          return subscribers.size;
-        }
-      );
+      const getClientCount = () => Effect.sync(() => subscribers.size);
 
       return {
         broadcast,

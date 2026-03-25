@@ -149,7 +149,7 @@ const PaletteGrid = ({
         onValueChange={onPaletteValueChange}
         value={value}
       >
-        {RINGI_PALETTES.map((p) => {
+        {RINGI_PALETTES.map((p: (typeof RINGI_PALETTES)[number]) => {
           const selected = value === p.id;
           return (
             <RadioGroupPrimitive.Item
@@ -163,7 +163,7 @@ const PaletteGrid = ({
               )}
             >
               <div className="flex items-center gap-1.5" aria-hidden>
-                {p.swatches.map((hex) => (
+                {p.swatches.map((hex: string) => (
                   <span
                     key={hex}
                     className="size-2.5 rounded-full border border-border-subtle shadow-sm"
@@ -252,7 +252,7 @@ export const SettingsModal = ({ onOpenChange, open }: SettingsModalProps) => {
     const t = (e.target as HTMLElement).closest(
       "[data-ringi-settings-section]"
     );
-    const raw = t?.dataset.ringiSettingsSection;
+    const raw = (t as HTMLElement | null)?.dataset.ringiSettingsSection;
     if (raw === "general" || raw === "theme" || raw === "shortcuts") {
       setSection(raw);
     }
@@ -261,7 +261,7 @@ export const SettingsModal = ({ onOpenChange, open }: SettingsModalProps) => {
   const onAppearanceClick = useEffectEvent(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const el = (e.target as HTMLElement).closest("[data-ringi-appearance]");
-      const m = el?.dataset.ringiAppearance;
+      const m = (el as HTMLElement | null)?.dataset.ringiAppearance;
       if (m === "dark" || m === "light" || m === "system") {
         setAppearance(m);
       }

@@ -1,0 +1,87 @@
+name: Release
+
+# Triggered manually OR by pushing a version tag.
+# The actual `npm publish` is a manual step — this workflow validates
+# everything and produces a ready-to-publish artifact.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run only (no publish)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write # Required for npm provenance
+
+jobs:
+  release:
+    name: Build & Validate Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint & format
+        run: pnpm check
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build CLI
+        run: pnpm build:cli
+
+      - name: Smoke test
+        run: |
+          node dist/cli.js --version
+          node dist/cli.js --help
+          node dist/cli.js --json | jq .version
+
+      - name: Package dry-run
+        run: npm pack --dry-run
+
+      - name: Verify tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "❌ Tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+          echo "✅ Tag v$TAG_VERSION matches package.json version $PKG_VERSION"
+
+      # ── Publish (only on tag push, NOT dry-run) ──
+      # Uses npm provenance for supply-chain integrity.
+      # Requires NPM_TOKEN secret with publish access.
+      - name: Publish to npm
+        if: startsWith(github.ref, 'refs/tags/v') && inputs.dry_run != true
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Upload tarball artifact
+        if: always()
+        run: npm pack
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ringi-npm-tarball
+          path: ringi-*.tgz
+          retention-days: 30

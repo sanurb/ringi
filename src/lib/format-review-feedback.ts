@@ -67,7 +67,9 @@ export const formatReviewFeedback = (
   const lines: string[] = ["# Code Review Feedback", ""];
 
   const groups = groupByFile(comments);
-  const sortedFiles = [...groups.keys()].toSorted((a, b) => a.localeCompare(b));
+  const sortedFiles = [...groups.keys()].toSorted((a: string, b: string) =>
+    a.localeCompare(b)
+  );
 
   for (const filePath of sortedFiles) {
     const fileComments = groups.get(filePath);

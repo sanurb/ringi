@@ -1,7 +1,5 @@
-export type PaletteId = (typeof RINGI_PALETTES)[number]["id"];
-
 export interface RingiPalette {
-  id: PaletteId;
+  id: string;
   label: string;
   description: string;
   /** Four swatches for card preview: surface, accent, add, remove */
@@ -59,3 +57,5 @@ export const RINGI_PALETTES = [
     swatches: ["#1a1625", "#f97e72", "#34d3c6", "#b794f6"],
   },
 ] as const satisfies readonly RingiPalette[];
+
+export type PaletteId = (typeof RINGI_PALETTES)[number]["id"];
