@@ -12,6 +12,12 @@ describe("commandLabel", () => {
     ["todo-clear", "ringi todo clear"],
     ["review-status", "ringi review status"],
     ["review-resolve", "ringi review resolve"],
+    ["serve", "ringi serve"],
+    ["mcp", "ringi mcp"],
+    ["doctor", "ringi doctor"],
+    ["events", "ringi events"],
+    ["data-migrate", "ringi data migrate"],
+    ["data-reset", "ringi data reset"],
   ];
 
   for (const [kind, expected] of cases) {

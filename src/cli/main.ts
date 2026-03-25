@@ -104,6 +104,37 @@ const COMMAND_TREE = {
       name: "todo clear",
       usage: "ringi todo clear [--review <id>] [--done-only] [--all] [--yes]",
     },
+    {
+      description: "Start the local Ringi server",
+      name: "serve",
+      usage:
+        "ringi serve [--host <host>] [--port <port>] [--https] [--auth] [--no-open]",
+    },
+    {
+      description: "Start the MCP stdio server",
+      name: "mcp",
+      usage: "ringi mcp [--readonly] [--log-level <level>]",
+    },
+    {
+      description: "Run local diagnostics",
+      name: "doctor",
+      usage: "ringi doctor",
+    },
+    {
+      description: "Tail server events",
+      name: "events",
+      usage: "ringi events [--type <reviews|comments|todos|files>]",
+    },
+    {
+      description: "Run database migrations",
+      name: "data migrate",
+      usage: "ringi data migrate",
+    },
+    {
+      description: "Reset local data",
+      name: "data reset",
+      usage: "ringi data reset [--yes] [--keep-exports]",
+    },
   ],
   description: "ringi — local-first code review CLI",
   version: CLI_VERSION,
@@ -181,6 +212,12 @@ Commands:
 `;
 
 const HELP_TOPICS: Readonly<Record<string, string>> = {
+  data: `ringi data
+
+Usage:
+  ringi data migrate
+  ringi data reset [--yes] [--keep-exports]
+`,
   review: `ringi review
 
 Usage:

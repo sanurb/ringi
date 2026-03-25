@@ -314,6 +314,45 @@ pierrediffs-diff,
   }
 }
 
+/* ─── Split diff splitter ────────────────────────────────────────────────── */
+
+.ringi-split-diff-wrapper {
+  /* Ensure the wrapper doesn't create stacking issues */
+  isolation: isolate;
+}
+
+.ringi-split-splitter:focus-visible .ringi-split-splitter__bar {
+  width: 3px;
+  background-color: var(--color-accent-primary);
+  opacity: 0.6;
+}
+
+.ringi-split-splitter:focus-visible .ringi-split-splitter__grip {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ringi-split-splitter:hover .ringi-split-splitter__bar {
+    width: 2px;
+    background-color: var(--color-accent-primary);
+    opacity: 0.4;
+  }
+
+  .ringi-split-splitter:hover .ringi-split-splitter__grip {
+    opacity: 0.7;
+  }
+}
+
+.ringi-split-splitter--active .ringi-split-splitter__bar {
+  width: 3px !important;
+  background-color: var(--color-accent-primary) !important;
+  opacity: 0.6 !important;
+}
+
+.ringi-split-splitter--active .ringi-split-splitter__grip {
+  opacity: 1 !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ringi-pierre-diff,
   [data-diff],
@@ -335,5 +374,10 @@ pierrediffs-diff,
   .ringi-status-badge,
   .ringi-tree-item {
     transition-property: opacity, background-color, border-color !important;
+  }
+
+  .ringi-split-splitter__bar,
+  .ringi-split-splitter__grip {
+    transition-duration: 0ms !important;
   }
 }

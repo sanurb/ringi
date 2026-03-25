@@ -15,6 +15,7 @@ import type {
   DiffStatus,
 } from "@/api/schemas/diff";
 import type { ReviewId } from "@/api/schemas/review";
+import { SplitDiffSplitter } from "@/components/review/split-diff-splitter";
 import { clientRuntime } from "@/lib/client-runtime";
 import { pierreDiffOptions } from "@/lib/pierre-diffs-theme";
 import { cn } from "@/lib/utils";
@@ -599,14 +600,16 @@ export const DiffFile = ({
     );
   } else {
     diffContent = (
-      <PatchDiff<LineAnnotationMeta>
-        patch={patchString}
-        options={diffOptions}
-        lineAnnotations={lineAnnotations}
-        renderAnnotation={renderAnnotation}
-        renderGutterUtility={renderGutterUtility}
-        className="ringi-diff-file"
-      />
+      <SplitDiffSplitter enabled={diffMode === "split"}>
+        <PatchDiff<LineAnnotationMeta>
+          patch={patchString}
+          options={diffOptions}
+          lineAnnotations={lineAnnotations}
+          renderAnnotation={renderAnnotation}
+          renderGutterUtility={renderGutterUtility}
+          className="ringi-diff-file"
+        />
+      </SplitDiffSplitter>
     );
   }
 

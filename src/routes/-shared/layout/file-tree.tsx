@@ -1,7 +1,26 @@
-import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+} from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import type { DiffFileMetadata, DiffStatus } from "@/api/schemas/diff";
+import {
+  Tree,
+  TreeExpander,
+  TreeIcon,
+  TreeNode,
+  TreeNodeContent,
+  TreeNodeTrigger,
+} from "@/components/ui/tree";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -26,17 +45,17 @@ interface FileTreeProps {
 }
 
 // ---------------------------------------------------------------------------
-// Tree data structures & algorithms (unchanged)
+// Tree data structures & algorithms
 // ---------------------------------------------------------------------------
 
-interface TreeNode {
+interface TreeNodeData {
   name: string;
   path: string;
-  children: TreeNode[];
+  children: TreeNodeData[];
   file?: DiffFileMetadata;
 }
 
-const collapseTree = (node: TreeNode): void => {
+const collapseTree = (node: TreeNodeData): void => {
   for (const child of node.children) {
     collapseTree(child);
   }
@@ -53,14 +72,13 @@ const collapseTree = (node: TreeNode): void => {
   }
 };
 
-const sortTree = (node: TreeNode): void => {
+const sortTree = (node: TreeNodeData): void => {
   node.children.sort((a, b) => {
     const aIsDir = !a.file;
     const bIsDir = !b.file;
     if (aIsDir !== bIsDir) {
       return aIsDir ? -1 : 1;
     }
-
     return a.name.localeCompare(b.name);
   });
 
@@ -69,7 +87,7 @@ const sortTree = (node: TreeNode): void => {
   }
 };
 
-const collectDirPaths = (node: TreeNode): string[] => {
+const collectDirPaths = (node: TreeNodeData): string[] => {
   const paths: string[] = [];
   for (const child of node.children) {
     if (!child.file) {
@@ -77,11 +95,10 @@ const collectDirPaths = (node: TreeNode): string[] => {
       paths.push(...collectDirPaths(child));
     }
   }
-
   return paths;
 };
 
-const flatFileList = (node: TreeNode): string[] => {
+const flatFileList = (node: TreeNodeData): string[] => {
   const result: string[] = [];
   for (const child of node.children) {
     if (child.file) {
@@ -90,12 +107,11 @@ const flatFileList = (node: TreeNode): string[] => {
       result.push(...flatFileList(child));
     }
   }
-
   return result;
 };
 
-const buildTree = (files: readonly DiffFileMetadata[]): TreeNode => {
-  const root: TreeNode = { children: [], name: "", path: "" };
+const buildTree = (files: readonly DiffFileMetadata[]): TreeNodeData => {
+  const root: TreeNodeData = { children: [], name: "", path: "" };
 
   for (const file of files) {
     const segments = file.newPath.split("/");
@@ -105,15 +121,12 @@ const buildTree = (files: readonly DiffFileMetadata[]): TreeNode => {
       const isFile = index === segments.length - 1;
       const childPath = segments.slice(0, index + 1).join("/");
 
-      let child = current.children.find(
-        (candidate) => candidate.name === segment
-      );
+      let child = current.children.find((c) => c.name === segment);
       if (!child) {
         child = { children: [], name: segment, path: childPath };
         if (isFile) {
           child.file = file;
         }
-
         current.children.push(child);
       }
 
@@ -127,7 +140,7 @@ const buildTree = (files: readonly DiffFileMetadata[]): TreeNode => {
 };
 
 // ---------------------------------------------------------------------------
-// Status letter (inline, minimal)
+// Status letter
 // ---------------------------------------------------------------------------
 
 const statusColor: Record<DiffStatus, string> = {
@@ -156,23 +169,7 @@ const StatusLetter = ({ status }: { status: DiffStatus }) => (
 );
 
 // ---------------------------------------------------------------------------
-// Disclosure arrow
-// ---------------------------------------------------------------------------
-
-const DisclosureArrow = ({ expanded }: { expanded: boolean }) => (
-  <span
-    className={cn(
-      "inline-flex h-4 w-4 shrink-0 items-center justify-center text-[10px] text-text-quaternary transition-transform duration-100",
-      EASE_OUT,
-      expanded && "rotate-90"
-    )}
-  >
-    ▶
-  </span>
-);
-
-// ---------------------------------------------------------------------------
-// Viewed checkbox (explicit mark action)
+// Viewed checkbox
 // ---------------------------------------------------------------------------
 
 const ViewedCheckbox = ({
@@ -234,131 +231,154 @@ const ViewedCheckbox = ({
 };
 
 // ---------------------------------------------------------------------------
-// Tree item
+// FileTree-level context (review state, separate from tree expand/select)
 // ---------------------------------------------------------------------------
 
-interface TreeItemProps {
-  node: TreeNode;
-  depth: number;
+interface FileTreeContextValue {
   selectedFile: string | null;
   onSelectFile: (path: string) => void;
-  expanded: ReadonlySet<string>;
-  onToggle: (path: string) => void;
   reviewedFiles?: ReadonlySet<string>;
   onToggleViewed?: (filePath: string) => void;
 }
 
-const TreeItem = ({
-  node,
-  depth,
-  selectedFile,
-  onSelectFile,
-  expanded,
-  onToggle,
-  reviewedFiles,
-  onToggleViewed,
-}: TreeItemProps) => {
-  const isDir = !node.file;
-  const selectedPath = node.file?.newPath ?? null;
-  const isExpanded = expanded.has(node.path);
-  const isSelected = selectedPath === selectedFile;
-  const isReviewed = selectedPath ? reviewedFiles?.has(selectedPath) : false;
+const FileTreeContext = createContext<FileTreeContextValue | null>(null);
 
-  const handleToggle = useCallback(() => {
-    onToggle(node.path);
-  }, [node.path, onToggle]);
+const useFileTreeContext = (): FileTreeContextValue => {
+  const ctx = useContext(FileTreeContext);
+  if (!ctx) {
+    throw new Error("FileItem must be rendered inside <FileTree>");
+  }
+  return ctx;
+};
+
+// ---------------------------------------------------------------------------
+// File row
+// ---------------------------------------------------------------------------
+
+interface FileItemProps {
+  node: TreeNodeData;
+  depth: number;
+}
+
+const FileItem = ({ node, depth }: FileItemProps) => {
+  const reviewCtx = useFileTreeContext();
+  const { file } = node;
+  const filePath = file?.newPath ?? "";
+  const isSelected = reviewCtx.selectedFile === filePath;
+  const isReviewed = reviewCtx.reviewedFiles?.has(filePath) ?? false;
+  const { onSelectFile, onToggleViewed } = reviewCtx;
 
   const handleSelect = useCallback(() => {
-    if (!selectedPath) {
-      return;
+    if (filePath) {
+      onSelectFile(filePath);
     }
+  }, [onSelectFile, filePath]);
 
-    onSelectFile(selectedPath);
-  }, [onSelectFile, selectedPath]);
+  const handleKeyDown = useCallback(
+    (e: ReactKeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleSelect();
+      }
+    },
+    [handleSelect]
+  );
 
-  if (isDir) {
-    return (
-      <>
-        <button
-          type="button"
-          onClick={handleToggle}
-          className="ringi-tree-item flex w-full items-center gap-1 px-2 py-[3px] text-left"
-          style={{ paddingLeft: `${depth * 14 + 8}px` }}
-        >
-          <DisclosureArrow expanded={isExpanded} />
-          <span className="truncate text-[11px] text-text-tertiary">
-            {node.name}
-          </span>
-        </button>
-        {isExpanded
-          ? node.children.map((child) => (
-              <TreeItem
-                key={child.path}
-                node={child}
-                depth={depth + 1}
-                selectedFile={selectedFile}
-                onSelectFile={onSelectFile}
-                expanded={expanded}
-                onToggle={onToggle}
-                reviewedFiles={reviewedFiles}
-                onToggleViewed={onToggleViewed}
-              />
-            ))
-          : null}
-      </>
-    );
-  }
-
-  const { file } = node;
   if (!file) {
     return null;
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleSelect}
-      className={cn(
-        "ringi-tree-item ringi-file-tree-item group flex w-full items-center gap-1.5 py-[3px] pr-2 text-left transition-[background-color,border-color,opacity] duration-100",
-        EASE_OUT,
-        isSelected
-          ? "border-l-2 border-accent-primary bg-accent-muted/50"
-          : "border-l-2 border-transparent hover:bg-surface-overlay/50",
-        isReviewed && !isSelected && "opacity-45"
-      )}
-      style={{ paddingLeft: `${depth * 14 + 8}px` }}
-    >
-      {onToggleViewed ? (
-        <ViewedCheckbox
-          checked={!!isReviewed}
-          onToggle={onToggleViewed}
-          filePath={file.newPath}
-        />
+    <TreeNode nodeId={filePath} level={depth}>
+      <div
+        role="row"
+        aria-current={isSelected ? "true" : undefined}
+        data-selected={isSelected ? "" : undefined}
+        onClick={handleSelect}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        className={cn(
+          "group flex w-full cursor-pointer items-center gap-1.5 py-[3px] pr-2 text-left outline-none",
+          "transition-[background-color,border-color,opacity] duration-100",
+          EASE_OUT,
+          isSelected
+            ? "border-l-2 border-accent-primary bg-accent-muted/50"
+            : "border-l-2 border-transparent hover:bg-surface-overlay/50",
+          isReviewed && !isSelected && "opacity-45",
+          "focus-visible:ring-1 focus-visible:ring-accent-primary/40"
+        )}
+        style={{ paddingLeft: `${depth * 14 + 8}px` }}
+      >
+        {onToggleViewed ? (
+          <ViewedCheckbox
+            checked={isReviewed}
+            onToggle={onToggleViewed}
+            filePath={filePath}
+          />
+        ) : null}
+        <StatusLetter status={file.status} />
+        <TreeIcon hasChildren={false} />
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate font-mono text-[11px]",
+            isSelected ? "text-text-primary" : "text-text-secondary"
+          )}
+        >
+          {node.name}
+        </span>
+        <span
+          className={cn(
+            "ml-auto flex shrink-0 gap-1 text-[10px] tabular-nums transition-opacity duration-100",
+            isSelected ? "opacity-60" : "opacity-0 group-hover:opacity-50"
+          )}
+        >
+          {file.additions > 0 ? (
+            <span className="text-diff-add-text">+{file.additions}</span>
+          ) : null}
+          {file.deletions > 0 ? (
+            <span className="text-diff-remove-text">-{file.deletions}</span>
+          ) : null}
+        </span>
+      </div>
+    </TreeNode>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Directory row
+// ---------------------------------------------------------------------------
+
+interface DirItemProps {
+  node: TreeNodeData;
+  depth: number;
+}
+
+const DirItem = ({ node, depth }: DirItemProps) => {
+  const hasChildren = node.children.length > 0;
+
+  return (
+    <TreeNode nodeId={node.path} level={depth}>
+      <TreeNodeTrigger
+        className={cn("gap-1 py-[3px] pr-2", "hover:bg-surface-overlay/50")}
+      >
+        <TreeExpander hasChildren={hasChildren} />
+        <TreeIcon hasChildren />
+        <span className="truncate text-[11px] text-text-tertiary">
+          {node.name}
+        </span>
+      </TreeNodeTrigger>
+      {hasChildren ? (
+        <TreeNodeContent>
+          {node.children.map((child) =>
+            child.file ? (
+              <FileItem key={child.path} node={child} depth={depth + 1} />
+            ) : (
+              <DirItem key={child.path} node={child} depth={depth + 1} />
+            )
+          )}
+        </TreeNodeContent>
       ) : null}
-      <StatusLetter status={file.status} />
-      <span
-        className={cn(
-          "min-w-0 flex-1 truncate font-mono text-[11px]",
-          isSelected ? "text-text-primary" : "text-text-secondary"
-        )}
-      >
-        {node.name}
-      </span>
-      {/* Line counts — only show on hover or selection for less noise */}
-      <span
-        className={cn(
-          "ml-auto flex shrink-0 gap-1 text-[10px] tabular-nums transition-opacity duration-100",
-          isSelected ? "opacity-60" : "opacity-0 group-hover:opacity-50"
-        )}
-      >
-        {file.additions > 0 ? (
-          <span className="text-diff-add-text">+{file.additions}</span>
-        ) : null}
-        {file.deletions > 0 ? (
-          <span className="text-diff-remove-text">-{file.deletions}</span>
-        ) : null}
-      </span>
-    </button>
+    </TreeNode>
   );
 };
 
@@ -383,15 +403,13 @@ const useFileKeyboardNav = (
         if (flatFiles.length === 0) {
           return;
         }
-
         if (selectedFile === null) {
           onSelectFile(flatFiles[0]);
           return;
         }
-
-        const index = flatFiles.indexOf(selectedFile);
-        if (index < flatFiles.length - 1) {
-          onSelectFile(flatFiles[index + 1]);
+        const idx = flatFiles.indexOf(selectedFile);
+        if (idx < flatFiles.length - 1) {
+          onSelectFile(flatFiles[idx + 1]);
         }
         return;
       }
@@ -401,18 +419,16 @@ const useFileKeyboardNav = (
         if (flatFiles.length === 0) {
           return;
         }
-
         if (selectedFile === null) {
-          const lastFile = flatFiles.at(-1);
-          if (lastFile) {
-            onSelectFile(lastFile);
+          const last = flatFiles.at(-1);
+          if (last) {
+            onSelectFile(last);
           }
           return;
         }
-
-        const index = flatFiles.indexOf(selectedFile);
-        if (index > 0) {
-          onSelectFile(flatFiles[index - 1]);
+        const idx = flatFiles.indexOf(selectedFile);
+        if (idx > 0) {
+          onSelectFile(flatFiles[idx - 1]);
         }
       }
     };
@@ -423,7 +439,23 @@ const useFileKeyboardNav = (
 };
 
 // ---------------------------------------------------------------------------
-// Progress strip with filter toggle
+// Disclosure arrow (group header)
+// ---------------------------------------------------------------------------
+
+const DisclosureArrow = ({ expanded }: { expanded: boolean }) => (
+  <span
+    className={cn(
+      "inline-flex h-4 w-4 shrink-0 items-center justify-center text-[10px] text-text-quaternary transition-transform duration-100",
+      EASE_OUT,
+      expanded && "rotate-90"
+    )}
+  >
+    ▶
+  </span>
+);
+
+// ---------------------------------------------------------------------------
+// Progress strip
 // ---------------------------------------------------------------------------
 
 const ProgressStrip = ({
@@ -542,7 +574,20 @@ const ProgressStrip = ({
 };
 
 // ---------------------------------------------------------------------------
-// FileTree
+// Render helpers
+// ---------------------------------------------------------------------------
+
+const renderTreeChildren = (nodes: TreeNodeData[], depth: number) =>
+  nodes.map((child) =>
+    child.file ? (
+      <FileItem key={child.path} node={child} depth={depth} />
+    ) : (
+      <DirItem key={child.path} node={child} depth={depth} />
+    )
+  );
+
+// ---------------------------------------------------------------------------
+// FileTree (public)
 // ---------------------------------------------------------------------------
 
 export const FileTree = ({
@@ -558,7 +603,7 @@ export const FileTree = ({
   const [hideViewed, setHideViewed] = useState(false);
 
   const toggleHideViewed = useCallback(() => {
-    setHideViewed((previous) => !previous);
+    setHideViewed((prev) => !prev);
   }, []);
 
   const reviewedCount = reviewedFiles?.size ?? 0;
@@ -568,8 +613,7 @@ export const FileTree = ({
     if (!hideViewed || !reviewedFiles || reviewedFiles.size === 0) {
       return files;
     }
-
-    return files.filter((file) => !reviewedFiles.has(file.newPath));
+    return files.filter((f) => !reviewedFiles.has(f.newPath));
   }, [files, hideViewed, reviewedFiles]);
 
   const hiddenCount = files.length - visibleFiles.length;
@@ -585,28 +629,25 @@ export const FileTree = ({
     setExpanded(new Set(collectDirPaths(tree)));
   }, [tree]);
 
-  const toggleDir = useCallback((path: string) => {
-    setExpanded((previous) => {
-      const next = new Set(previous);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-
-      return next;
-    });
+  const handleExpandedChange = useCallback((ids: ReadonlySet<string>) => {
+    setExpanded(ids);
   }, []);
 
   const toggleGroupOpen = useCallback(() => {
-    setGroupOpen((previous) => !previous);
+    setGroupOpen((prev) => !prev);
   }, []);
 
   const flatFiles = useMemo(() => flatFileList(tree), [tree]);
   useFileKeyboardNav(flatFiles, selectedFile, onSelectFile);
 
-  const totalAdditions = files.reduce((sum, file) => sum + file.additions, 0);
-  const totalDeletions = files.reduce((sum, file) => sum + file.deletions, 0);
+  const totalAdditions = files.reduce((sum, f) => sum + f.additions, 0);
+  const totalDeletions = files.reduce((sum, f) => sum + f.deletions, 0);
+
+  // Review-state context (kept separate from tree expand/select)
+  const reviewCtx = useMemo<FileTreeContextValue>(
+    () => ({ onSelectFile, onToggleViewed, reviewedFiles, selectedFile }),
+    [selectedFile, onSelectFile, reviewedFiles, onToggleViewed]
+  );
 
   const treeContent = groupLabel ? (
     <>
@@ -623,41 +664,15 @@ export const FileTree = ({
           {visibleFiles.length}
         </span>
       </button>
-      {groupOpen
-        ? tree.children.map((child) => (
-            <TreeItem
-              key={child.path}
-              node={child}
-              depth={0}
-              selectedFile={selectedFile}
-              onSelectFile={onSelectFile}
-              expanded={expanded}
-              onToggle={toggleDir}
-              reviewedFiles={reviewedFiles}
-              onToggleViewed={onToggleViewed}
-            />
-          ))
-        : null}
+      {groupOpen ? renderTreeChildren(tree.children, 0) : null}
     </>
   ) : (
-    tree.children.map((child) => (
-      <TreeItem
-        key={child.path}
-        node={child}
-        depth={0}
-        selectedFile={selectedFile}
-        onSelectFile={onSelectFile}
-        expanded={expanded}
-        onToggle={toggleDir}
-        reviewedFiles={reviewedFiles}
-        onToggleViewed={onToggleViewed}
-      />
-    ))
+    renderTreeChildren(tree.children, 0)
   );
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border-default bg-surface-secondary">
-      {/* ── Header: title + source selector ──────────────────────── */}
+      {/* ── Header ────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-2 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className="text-[11px] font-semibold text-text-primary">
@@ -667,7 +682,7 @@ export const FileTree = ({
         </div>
       </div>
 
-      {/* ── Progress strip: reviewed/pending + filter toggle ─────── */}
+      {/* ── Progress strip ────────────────────────────────────────── */}
       <ProgressStrip
         reviewedCount={reviewedCount}
         totalCount={files.length}
@@ -676,7 +691,7 @@ export const FileTree = ({
         onToggleHideViewed={toggleHideViewed}
       />
 
-      {/* ── File list ────────────────────────────────────────────── */}
+      {/* ── File list ─────────────────────────────────────────────── */}
       <div className="flex-1 overflow-x-hidden overflow-y-auto py-0.5">
         {visibleFiles.length === 0 ? (
           <div className="flex h-32 items-center justify-center px-3 text-center text-[11px] text-text-tertiary">
@@ -685,11 +700,20 @@ export const FileTree = ({
               : emptyStateMessage}
           </div>
         ) : (
-          treeContent
+          <FileTreeContext.Provider value={reviewCtx}>
+            <Tree
+              expandedIds={expanded}
+              onExpandedChange={handleExpandedChange}
+              showIcons
+              indent={14}
+            >
+              {treeContent}
+            </Tree>
+          </FileTreeContext.Provider>
         )}
       </div>
 
-      {/* ── Footer: stat totals + keyboard hint ──────────────────── */}
+      {/* ── Footer ────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between border-t border-border-subtle px-3 py-1.5">
         <span className="flex gap-1.5 text-[10px] tabular-nums text-text-quaternary">
           {totalAdditions > 0 ? (

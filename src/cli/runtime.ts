@@ -55,14 +55,18 @@ const resolveDbPath = (repoRoot: string, dbPathOverride?: string): string =>
     : resolve(repoRoot, ".ringi/reviews.db");
 
 export const commandNeedsRepository = (command: ParsedCommand): boolean =>
-  command.kind !== "help" && command.kind !== "version";
+  command.kind !== "help" &&
+  command.kind !== "version" &&
+  command.kind !== "mcp" &&
+  command.kind !== "serve";
 
 export const commandNeedsDatabase = (command: ParsedCommand): boolean =>
   command.kind === "review-list" ||
   command.kind === "review-show" ||
   command.kind === "review-export" ||
   command.kind === "review-status" ||
-  command.kind === "todo-list";
+  command.kind === "todo-list" ||
+  command.kind === "doctor";
 
 export const commandUsesCoreRuntime = (command: ParsedCommand): boolean =>
   command.kind === "review-list" ||
@@ -71,7 +75,8 @@ export const commandUsesCoreRuntime = (command: ParsedCommand): boolean =>
   command.kind === "review-status" ||
   command.kind === "todo-list" ||
   command.kind === "review-create" ||
-  command.kind === "todo-add";
+  command.kind === "todo-add" ||
+  command.kind === "doctor";
 
 export const resolveCliConfig = (args: {
   color: boolean;

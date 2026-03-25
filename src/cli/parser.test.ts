@@ -254,3 +254,153 @@ describe("parse: review-resolve", () => {
     expect(err.message).toContain("requires");
   });
 });
+
+// ---------------------------------------------------------------------------
+// serve
+// ---------------------------------------------------------------------------
+
+describe("parse: serve", () => {
+  it("parses with defaults", () => {
+    const cmd = parseCommand(["serve"]);
+    expect(cmd).toEqual({
+      auth: false,
+      host: "127.0.0.1",
+      https: false,
+      kind: "serve",
+      noOpen: false,
+      port: 3000,
+    });
+  });
+
+  it("parses --port and --host", () => {
+    const cmd = parseCommand(["serve", "--port", "4123", "--host", "0.0.0.0"]);
+    expect(cmd).toMatchObject({ host: "0.0.0.0", kind: "serve", port: 4123 });
+  });
+
+  it("parses --no-open", () => {
+    const cmd = parseCommand(["serve", "--no-open"]);
+    expect(cmd).toMatchObject({ kind: "serve", noOpen: true });
+  });
+
+  it("parses --auth with credentials", () => {
+    const cmd = parseCommand([
+      "serve",
+      "--auth",
+      "--username",
+      "admin",
+      "--password",
+      "secret",
+    ]);
+    expect(cmd).toMatchObject({
+      auth: true,
+      kind: "serve",
+      password: "secret",
+      username: "admin",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mcp
+// ---------------------------------------------------------------------------
+
+describe("parse: mcp", () => {
+  it("parses with defaults", () => {
+    const cmd = parseCommand(["mcp"]);
+    expect(cmd).toEqual({
+      kind: "mcp",
+      logLevel: "error",
+      readonly: false,
+    });
+  });
+
+  it("parses --readonly", () => {
+    const cmd = parseCommand(["mcp", "--readonly"]);
+    expect(cmd).toMatchObject({ kind: "mcp", readonly: true });
+  });
+
+  it("parses --log-level", () => {
+    const cmd = parseCommand(["mcp", "--log-level", "debug"]);
+    expect(cmd).toMatchObject({ kind: "mcp", logLevel: "debug" });
+  });
+
+  it("rejects invalid log level", () => {
+    const err = parseError(["mcp", "--log-level", "invalid"]);
+    expect(err.message).toContain("Invalid");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// doctor
+// ---------------------------------------------------------------------------
+
+describe("parse: doctor", () => {
+  it("parses with no flags", () => {
+    const cmd = parseCommand(["doctor"]);
+    expect(cmd).toEqual({ kind: "doctor" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// data
+// ---------------------------------------------------------------------------
+
+describe("parse: data", () => {
+  it("data migrate parses", () => {
+    const cmd = parseCommand(["data", "migrate"]);
+    expect(cmd).toEqual({ kind: "data-migrate" });
+  });
+
+  it("data reset parses with defaults", () => {
+    const cmd = parseCommand(["data", "reset"]);
+    expect(cmd).toEqual({
+      keepExports: false,
+      kind: "data-reset",
+      yes: false,
+    });
+  });
+
+  it("data reset parses --yes --keep-exports", () => {
+    const cmd = parseCommand(["data", "reset", "--yes", "--keep-exports"]);
+    expect(cmd).toEqual({
+      keepExports: true,
+      kind: "data-reset",
+      yes: true,
+    });
+  });
+
+  it("data with no subcommand shows help", () => {
+    const cmd = parseCommand(["data"]);
+    expect(cmd).toEqual({ kind: "help", topic: ["data"] });
+  });
+
+  it("rejects unknown data subcommand", () => {
+    const err = parseError(["data", "nope"]);
+    expect(err.message).toContain("Unknown");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// events
+// ---------------------------------------------------------------------------
+
+describe("parse: events", () => {
+  it("parses with no flags", () => {
+    const cmd = parseCommand(["events"]);
+    expect(cmd).toEqual({
+      kind: "events",
+      since: undefined,
+      type: undefined,
+    });
+  });
+
+  it("parses --type", () => {
+    const cmd = parseCommand(["events", "--type", "files"]);
+    expect(cmd).toMatchObject({ kind: "events", type: "files" });
+  });
+
+  it("rejects invalid event type", () => {
+    const err = parseError(["events", "--type", "invalid"]);
+    expect(err.message).toContain("Invalid");
+  });
+});

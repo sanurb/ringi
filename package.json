@@ -43,6 +43,7 @@
     "clsx": "^2.1.1",
     "effect": "^3.21.0",
     "lucide-react": "^0.544.0",
+    "motion": "^12.38.0",
     "nitro": "latest",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",

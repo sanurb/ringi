@@ -714,6 +714,23 @@ type CommandHandler = (
  * Adding a new command means adding one entry — no switch duplication.
  */
 const COMMAND_HANDLERS: Readonly<Record<string, CommandHandler>> = {
+  "data-migrate": () => requireServerMode("ringi data migrate"),
+  "data-reset": () => requireServerMode("ringi data reset"),
+  doctor: () =>
+    Effect.succeed({
+      data: { checks: [], ok: true },
+      human: "ringi doctor: not yet implemented.",
+      nextActions: [],
+    } satisfies CommandOutput<unknown>),
+  events: () => requireServerMode("ringi events"),
+  mcp: () =>
+    Effect.fail(
+      new CliFailure({
+        exitCode: ExitCode.UsageError,
+        message:
+          "ringi mcp is a runtime command. Use it directly, not through the command dispatcher.",
+      })
+    ),
   "review-create": () => requireServerMode("ringi review create"),
   "review-export": (c) =>
     runReviewExport(c as Extract<ParsedCommand, { kind: "review-export" }>),
@@ -724,6 +741,14 @@ const COMMAND_HANDLERS: Readonly<Record<string, CommandHandler>> = {
     runReviewShow(c as Extract<ParsedCommand, { kind: "review-show" }>),
   "review-status": (c) =>
     runReviewStatus(c as Extract<ParsedCommand, { kind: "review-status" }>),
+  serve: () =>
+    Effect.fail(
+      new CliFailure({
+        exitCode: ExitCode.UsageError,
+        message:
+          "ringi serve is a runtime command. Use it directly, not through the command dispatcher.",
+      })
+    ),
   "source-diff": (c) =>
     runSourceDiff(c as Extract<ParsedCommand, { kind: "source-diff" }>),
   "source-list": () => runSourceList(),
@@ -739,12 +764,18 @@ const COMMAND_HANDLERS: Readonly<Record<string, CommandHandler>> = {
 
 /** Human-readable command label for the JSON envelope `command` field. */
 const COMMAND_LABELS: Readonly<Record<string, string>> = {
+  "data-migrate": "ringi data migrate",
+  "data-reset": "ringi data reset",
+  doctor: "ringi doctor",
+  events: "ringi events",
+  mcp: "ringi mcp",
   "review-create": "ringi review create",
   "review-export": "ringi review export",
   "review-list": "ringi review list",
   "review-resolve": "ringi review resolve",
   "review-show": "ringi review show",
   "review-status": "ringi review status",
+  serve: "ringi serve",
   "source-diff": "ringi source diff",
   "source-list": "ringi source list",
   "todo-add": "ringi todo add",

@@ -696,6 +696,118 @@ const parseTodoAdd = (state: ParseState): ParseResult => {
   return Either.right({ kind: "todo-add" as const, ...acc });
 };
 
+// -- serve ------------------------------------------------------------------
+
+interface ServeAcc {
+  auth: boolean;
+  cert: string | undefined;
+  host: string;
+  https: boolean;
+  key: string | undefined;
+  noOpen: boolean;
+  password: string | undefined;
+  port: number;
+  username: string | undefined;
+}
+
+const SERVE_FLAGS: Readonly<Record<string, FlagHandler<ServeAcc>>> = {
+  "--auth": boolFlag("auth"),
+  "--cert": stringFlag("cert"),
+  "--host": stringFlag("host"),
+  "--https": boolFlag("https"),
+  "--key": stringFlag("key"),
+  "--no-open": boolFlag("noOpen"),
+  "--password": stringFlag("password"),
+  "--port": positiveIntFlag("port", { min: 0 }),
+  "--username": stringFlag("username"),
+};
+
+const parseServe = (state: ParseState): ParseResult => {
+  const acc: ServeAcc = {
+    auth: false,
+    cert: undefined,
+    host: "127.0.0.1",
+    https: false,
+    key: undefined,
+    noOpen: false,
+    password: undefined,
+    port: 3000,
+    username: undefined,
+  };
+  const error = runFlagLoop(state, acc, SERVE_FLAGS, "serve");
+  if (Option.isSome(error)) {
+    return Either.left(error.value);
+  }
+  return Either.right({ kind: "serve" as const, ...acc });
+};
+
+// -- mcp --------------------------------------------------------------------
+
+const MCP_LOG_LEVELS = new Set<string>(["debug", "error", "info", "silent"]);
+
+interface McpAcc {
+  logLevel: "debug" | "error" | "info" | "silent";
+  readonly: boolean;
+}
+
+const MCP_FLAGS: Readonly<Record<string, FlagHandler<McpAcc>>> = {
+  "--log-level": enumFlag("logLevel", MCP_LOG_LEVELS, "log level"),
+  "--readonly": boolFlag("readonly"),
+};
+
+const parseMcp = (state: ParseState): ParseResult => {
+  const acc: McpAcc = { logLevel: "error", readonly: false };
+  const error = runFlagLoop(state, acc, MCP_FLAGS, "mcp");
+  if (Option.isSome(error)) {
+    return Either.left(error.value);
+  }
+  return Either.right({ kind: "mcp" as const, ...acc });
+};
+
+// -- events -----------------------------------------------------------------
+
+const EVENT_TYPES = new Set<string>(["comments", "files", "reviews", "todos"]);
+
+interface EventsAcc {
+  since: number | undefined;
+  type: "comments" | "files" | "reviews" | "todos" | undefined;
+}
+
+const EVENTS_FLAGS: Readonly<Record<string, FlagHandler<EventsAcc>>> = {
+  "--since": positiveIntFlag("since"),
+  "--type": enumFlag("type", EVENT_TYPES, "event type"),
+};
+
+const parseEvents = (state: ParseState): ParseResult => {
+  const acc: EventsAcc = { since: undefined, type: undefined };
+  const error = runFlagLoop(state, acc, EVENTS_FLAGS, "events");
+  if (Option.isSome(error)) {
+    return Either.left(error.value);
+  }
+  return Either.right({ kind: "events" as const, ...acc });
+};
+
+// -- data reset -------------------------------------------------------------
+
+interface DataResetAcc {
+  keepExports: boolean;
+  yes: boolean;
+}
+
+const DATA_RESET_FLAGS: Readonly<Record<string, FlagHandler<DataResetAcc>>> = {
+  "--keep-exports": boolFlag("keepExports"),
+  "--yes": boolFlag("yes"),
+};
+
+const parseDataReset = (state: ParseState): ParseResult => {
+  const acc: DataResetAcc = { keepExports: false, yes: false };
+  const error = runFlagLoop(state, acc, DATA_RESET_FLAGS, "data reset");
+  if (Option.isSome(error)) {
+    return Either.left(error.value);
+  }
+  return Either.right({ kind: "data-reset" as const, ...acc });
+};
+
 // ---------------------------------------------------------------------------
 // Command family dispatch (lookup tables)
 // ---------------------------------------------------------------------------
@@ -740,10 +852,49 @@ const TODO_VERB_PARSERS: Readonly<
 };
 
 /** Subcommand family parsers keyed by family name. */
+/** Data verb parsers keyed by verb name. */
+const DATA_VERB_PARSERS: Readonly<
+  Record<string, (state: ParseState) => ParseResult>
+> = {
+  migrate: (state) => {
+    const error = ensureNoExtraArgs(state, "data migrate");
+    if (Option.isSome(error)) {
+      return Either.left(error.value);
+    }
+    return Either.right({ kind: "data-migrate" as const });
+  },
+  reset: parseDataReset,
+};
+
+/** Subcommand family parsers keyed by family name. */
 const FAMILY_PARSERS: Readonly<
   Record<string, (state: ParseState) => ParseResult>
 > = {
+  data: (state) => {
+    const verb = state.tokens[state.index];
+    if (!verb) {
+      return Either.right({
+        kind: "help" as const,
+        topic: ["data"] as const,
+      });
+    }
+    state.index += 1;
+    const parser = DATA_VERB_PARSERS[verb];
+    if (!parser) {
+      return Either.left(usageError(`Unknown data command: ${verb}.`));
+    }
+    return parser(state);
+  },
+  doctor: (state) => {
+    const error = ensureNoExtraArgs(state, "doctor");
+    if (Option.isSome(error)) {
+      return Either.left(error.value);
+    }
+    return Either.right({ kind: "doctor" as const });
+  },
+  events: parseEvents,
   export: parseReviewExport,
+  mcp: parseMcp,
   review: (state) => {
     const verb = state.tokens[state.index];
     if (!verb) {
@@ -759,6 +910,7 @@ const FAMILY_PARSERS: Readonly<
     }
     return parser(state);
   },
+  serve: parseServe,
   source: (state) => {
     const verb = state.tokens[state.index];
     if (!verb) {

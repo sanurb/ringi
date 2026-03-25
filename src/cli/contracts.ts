@@ -227,4 +227,37 @@ export type ParsedCommand =
       readonly id: string;
       readonly kind: "review-resolve";
       readonly yes: boolean;
+    }
+  | {
+      readonly auth: boolean;
+      readonly cert?: string;
+      readonly host: string;
+      readonly https: boolean;
+      readonly key?: string;
+      readonly kind: "serve";
+      readonly noOpen: boolean;
+      readonly password?: string;
+      readonly port: number;
+      readonly username?: string;
+    }
+  | {
+      readonly kind: "mcp";
+      readonly logLevel: "debug" | "error" | "info" | "silent";
+      readonly readonly: boolean;
+    }
+  | {
+      readonly kind: "doctor";
+    }
+  | {
+      readonly kind: "data-migrate";
+    }
+  | {
+      readonly keepExports: boolean;
+      readonly kind: "data-reset";
+      readonly yes: boolean;
+    }
+  | {
+      readonly kind: "events";
+      readonly since?: number;
+      readonly type?: "comments" | "files" | "reviews" | "todos";
     };

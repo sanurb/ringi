@@ -4,7 +4,6 @@ import * as vm from "node:vm";
 import * as Effect from "effect/Effect";
 import type * as ManagedRuntime from "effect/ManagedRuntime";
 
-import type { CreateCommentInput } from "@/api/schemas/comment";
 import type { ReviewId } from "@/api/schemas/review";
 import type { CreateTodoInput, TodoId } from "@/api/schemas/todo";
 import { CommentService } from "@/core/services/comment.service";
@@ -13,6 +12,8 @@ import { GitService } from "@/core/services/git.service";
 import { ReviewService } from "@/core/services/review.service";
 import { TodoService } from "@/core/services/todo.service";
 import type { McpConfigShape } from "@/mcp/config";
+import { createSandboxGlobals } from "@/mcp/sandbox";
+import type { SandboxDeps } from "@/mcp/sandbox";
 
 const EMPTY_RESULT = null;
 const MAX_CODE_LENGTH = 50_000;
@@ -37,33 +38,12 @@ interface OperationJournalEntry {
   readonly result?: unknown;
 }
 
-interface SessionContext {
-  readonly activeReviewId: string | null;
-  readonly readonly: boolean;
-  readonly repository: {
-    readonly branch: string;
-    readonly name: string;
-    readonly path: string;
-    readonly remote: string | null;
-  };
-  readonly serverMode: "stdio";
-}
-
-interface SandboxGlobals {
-  readonly comment: object;
-  readonly diff: object;
-  readonly export: object;
-  readonly session: object;
-  readonly todo: object;
-  readonly review: object;
-}
-
 const mutationRejectedMessage =
   "Mutation rejected: MCP server is running in readonly mode";
 
-const clampTimeout = (
+export const clampTimeout = (
   requestedTimeout: number | undefined,
-  config: McpConfigShape
+  config: Pick<McpConfigShape, "defaultTimeoutMs" | "maxTimeoutMs">
 ) => {
   if (requestedTimeout === undefined) {
     return config.defaultTimeoutMs;
@@ -123,7 +103,7 @@ const summarizeForJournal = (value: unknown): unknown => {
   return typeof value;
 };
 
-const finalizeOutput = (
+export const finalizeOutput = (
   output: ExecuteOutput,
   maxOutputBytes: number
 ): ExecuteOutput => {
@@ -149,13 +129,130 @@ const finalizeOutput = (
   return truncatedOutput;
 };
 
+export const ensureCode = (code: unknown): string => {
+  if (typeof code !== "string") {
+    throw new TypeError("Invalid code: expected a string");
+  }
+
+  const trimmed = code.trim();
+  if (trimmed.length === 0) {
+    throw new Error("Invalid code: expected a non-empty string");
+  }
+
+  if (trimmed.length > MAX_CODE_LENGTH) {
+    throw new Error(
+      `Invalid code: maximum length is ${MAX_CODE_LENGTH} characters`
+    );
+  }
+
+  return trimmed;
+};
+
+// ---------------------------------------------------------------------------
+// Input parsing helpers
+// ---------------------------------------------------------------------------
+
+const parseReviewId = (value: unknown, fieldName = "reviewId"): ReviewId => {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Invalid ${fieldName}: expected a non-empty string`);
+  }
+  return value as ReviewId;
+};
+
+const parseTodoId = (value: unknown, fieldName = "todoId"): TodoId => {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Invalid ${fieldName}: expected a non-empty string`);
+  }
+  return value as TodoId;
+};
+
+const isDefined = (value: unknown): boolean =>
+  value !== null && value !== undefined;
+
+const parseRequiredNonEmptyString = (
+  value: unknown,
+  fieldName: string
+): string => {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`Invalid ${fieldName}: expected a non-empty string`);
+  }
+  return value;
+};
+
+const parseOptionalString = (
+  value: unknown,
+  fieldName: string
+): string | null => {
+  if (!isDefined(value)) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    throw new TypeError(`Invalid ${fieldName}: expected a string or null`);
+  }
+  return value;
+};
+
+const parseTodoInput = (value: unknown): CreateTodoInput => {
+  if (typeof value !== "object" || value === null) {
+    throw new Error("Invalid todo input: expected an object");
+  }
+  const record = value as Record<string, unknown>;
+  // Accept both 'text' (MCP spec) and 'content' (legacy) for compatibility
+  const rawContent = record.text ?? record.content;
+  const content = parseRequiredNonEmptyString(rawContent, "todo input text");
+  const reviewId = parseOptionalString(record.reviewId, "todo input reviewId");
+  return {
+    content,
+    reviewId: (reviewId ?? null) as CreateTodoInput["reviewId"],
+  };
+};
+
+const parseReviewCreateInput = (
+  value: unknown
+): {
+  readonly sourceRef: string | null;
+  readonly sourceType: "branch" | "commits" | "staged";
+} => {
+  if (typeof value !== "object" || value === null) {
+    throw new Error("Invalid review input: expected an object");
+  }
+  const record = value as Record<string, unknown>;
+  // Accept both spec shape { source: { type, ... } } and legacy { sourceType, sourceRef }
+  let sourceType: string;
+  let sourceRef: string | null = null;
+
+  if (record.source && typeof record.source === "object") {
+    const src = record.source as Record<string, unknown>;
+    sourceType = (src.type as string) ?? "staged";
+    sourceRef = (src.baseRef as string) ?? null;
+  } else {
+    sourceType = (record.sourceType as string) ?? "staged";
+    sourceRef = (record.sourceRef as string) ?? null;
+  }
+
+  if (
+    sourceType !== "staged" &&
+    sourceType !== "branch" &&
+    sourceType !== "commits"
+  ) {
+    throw new Error(
+      'Invalid review input: sourceType must be "staged", "branch", or "commits"'
+    );
+  }
+
+  return { sourceRef, sourceType };
+};
+
+// ---------------------------------------------------------------------------
+// Sandbox console
+// ---------------------------------------------------------------------------
+
 const writeSandboxLog = (level: string, args: readonly unknown[]): void => {
   const line = args
     .map((arg) => {
       if (typeof arg === "string") {
         return arg;
       }
-
       try {
         return JSON.stringify(arg);
       } catch {
@@ -175,203 +272,20 @@ const createSandboxConsole = () =>
     warn: (...args: readonly unknown[]) => writeSandboxLog("warn", args),
   });
 
+// ---------------------------------------------------------------------------
+// VM sandbox runner
+// ---------------------------------------------------------------------------
+
 const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
   const timeoutPromise = (async () => {
     await sleep(timeoutMs);
     throw new Error(`Execution timed out after ${timeoutMs}ms`);
   })();
-
   return Promise.race([promise, timeoutPromise]);
 };
 
-const ensureCode = (code: unknown): string => {
-  if (typeof code !== "string") {
-    throw new TypeError("Invalid code: expected a string");
-  }
-
-  const trimmed = code.trim();
-  if (trimmed.length === 0) {
-    throw new Error("Invalid code: expected a non-empty string");
-  }
-
-  if (trimmed.length > MAX_CODE_LENGTH) {
-    throw new Error(
-      `Invalid code: maximum length is ${MAX_CODE_LENGTH} characters`
-    );
-  }
-
-  return trimmed;
-};
-
-const parseReviewId = (value: unknown, fieldName = "reviewId"): ReviewId => {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`Invalid ${fieldName}: expected a non-empty string`);
-  }
-
-  return value as ReviewId;
-};
-
-const parseTodoId = (value: unknown, fieldName = "todoId"): TodoId => {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`Invalid ${fieldName}: expected a non-empty string`);
-  }
-
-  return value as TodoId;
-};
-
-const isDefined = (value: unknown): boolean =>
-  value !== null && value !== undefined;
-
-const parseRequiredNonEmptyString = (
-  value: unknown,
-  fieldName: string
-): string => {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`Invalid ${fieldName}: expected a non-empty string`);
-  }
-
-  return value;
-};
-
-const parseOptionalString = (
-  value: unknown,
-  fieldName: string
-): string | null => {
-  if (!isDefined(value)) {
-    return null;
-  }
-
-  if (typeof value !== "string") {
-    throw new TypeError(`Invalid ${fieldName}: expected a string or null`);
-  }
-
-  return value;
-};
-
-const parseOptionalLineNumber = (value: unknown): number | null => {
-  if (!isDefined(value)) {
-    return null;
-  }
-
-  if (typeof value !== "number") {
-    throw new TypeError(
-      "Invalid comment input: lineNumber must be a number or null"
-    );
-  }
-
-  return value;
-};
-
-const parseOptionalLineType = (
-  value: unknown
-): CreateCommentInput["lineType"] => {
-  if (!isDefined(value)) {
-    return null;
-  }
-
-  if (value === "added" || value === "removed" || value === "context") {
-    return value;
-  }
-
-  throw new Error(
-    'Invalid comment input: lineType must be "added", "removed", "context", or null'
-  );
-};
-
-const parseTodoInput = (value: unknown): CreateTodoInput => {
-  if (typeof value !== "object" || value === null) {
-    throw new Error("Invalid todo input: expected an object");
-  }
-
-  const record = value as Record<string, unknown>;
-  const content = parseRequiredNonEmptyString(
-    record.content,
-    "todo input content"
-  );
-  const reviewId = parseOptionalString(record.reviewId, "todo input reviewId");
-
-  return {
-    content,
-    reviewId: (reviewId ?? null) as CreateTodoInput["reviewId"],
-  };
-};
-
-const parseCommentInput = (
-  value: unknown
-): CreateCommentInput & {
-  readonly reviewId: ReviewId;
-} => {
-  if (typeof value !== "object" || value === null) {
-    throw new Error("Invalid comment input: expected an object");
-  }
-
-  const record = value as Record<string, unknown>;
-  const content = parseRequiredNonEmptyString(
-    record.content,
-    "comment input content"
-  );
-  const filePath = parseRequiredNonEmptyString(
-    record.filePath,
-    "comment input filePath"
-  );
-  const lineNumber = parseOptionalLineNumber(record.lineNumber);
-  const lineType = parseOptionalLineType(record.lineType);
-  const reviewId = parseReviewId(record.reviewId);
-  const suggestion = parseOptionalString(
-    record.suggestion,
-    "comment input suggestion"
-  );
-
-  return {
-    content,
-    filePath,
-    lineNumber,
-    lineType,
-    reviewId,
-    suggestion,
-  };
-};
-
-const parseReviewCreateInput = (
-  value: unknown
-): {
-  readonly sourceRef: string | null;
-  readonly sourceType: "branch" | "commits" | "staged";
-} => {
-  if (typeof value !== "object" || value === null) {
-    throw new Error("Invalid review input: expected an object");
-  }
-
-  const record = value as Record<string, unknown>;
-  const sourceType = record.sourceType ?? "staged";
-  const sourceRef = record.sourceRef ?? null;
-
-  if (
-    sourceType !== "staged" &&
-    sourceType !== "branch" &&
-    sourceType !== "commits"
-  ) {
-    throw new Error(
-      'Invalid review input: sourceType must be "staged", "branch", or "commits"'
-    );
-  }
-
-  if (
-    sourceRef !== null &&
-    sourceRef !== undefined &&
-    typeof sourceRef !== "string"
-  ) {
-    throw new Error("Invalid review input: sourceRef must be a string or null");
-  }
-
-  return {
-    sourceRef,
-    sourceType,
-  };
-};
-
 const runSandbox = (
-  globals: SandboxGlobals,
+  globals: Record<string, unknown>,
   code: string,
   timeoutMs: number
 ): Promise<unknown> => {
@@ -402,8 +316,12 @@ const runSandbox = (
   return withTimeout(execution, timeoutMs);
 };
 
-export const executeCode = async <R, ER>(
-  runtime: ManagedRuntime.ManagedRuntime<R, ER>,
+// ---------------------------------------------------------------------------
+// executeCode — main entry point
+// ---------------------------------------------------------------------------
+
+export const executeCode = async (
+  runtime: ManagedRuntime.ManagedRuntime<any, any>,
   config: McpConfigShape,
   input: ExecuteInput
 ): Promise<ExecuteOutput> => {
@@ -418,9 +336,10 @@ export const executeCode = async <R, ER>(
     journal.push({ error: formatError(error), name, ok: false });
   };
 
-  const call = async <A, E, R0 extends R>(
+  /** Runs an Effect against the runtime with journal tracking. */
+  const callEffect = async <A, E>(
     name: string,
-    effect: Effect.Effect<A, E, R0>
+    effect: Effect.Effect<A, E, any>
   ) => {
     try {
       const result = await runtime.runPromise(effect);
@@ -438,237 +357,377 @@ export const executeCode = async <R, ER>(
     }
   };
 
-  const sessionContext = async (): Promise<SessionContext> => {
-    const repository = await call(
-      "session.context",
-      Effect.gen(function* repository() {
-        const git = yield* GitService;
-        return yield* git.getRepositoryInfo;
-      })
-    );
+  // -- Build Effect-backed SandboxDeps --------------------------------------
 
-    const latestReview = await call(
-      "session.latestReview",
-      Effect.gen(function* latestReview() {
-        const reviewService = yield* ReviewService;
-        return yield* reviewService.list({
-          page: 1,
-          pageSize: 1,
-          repositoryPath: config.repoRoot,
-        });
-      })
-    );
-
-    return {
-      activeReviewId: latestReview.reviews[0]?.id ?? null,
-      readonly: config.readonly,
-      repository,
-      serverMode: "stdio",
-    };
+  const deps: SandboxDeps = {
+    call: async (name, fn) => {
+      try {
+        const result = await fn();
+        recordSuccess(name, result);
+        return result;
+      } catch (error) {
+        recordFailure(name, error);
+        throw error;
+      }
+    },
+    getBranchDiff: (branch: string) =>
+      callEffect(
+        "git.getBranchDiff",
+        Effect.gen(function*  getBranchDiff() {
+          const git = yield* GitService;
+          return yield* git.getBranchDiff(branch);
+        })
+      ),
+    getBranches: () =>
+      callEffect(
+        "git.getBranches",
+        Effect.gen(function*  getBranches() {
+          const git = yield* GitService;
+          return yield* git.getBranches;
+        })
+      ),
+    getCommitDiff: (shas: string[]) =>
+      callEffect(
+        "git.getCommitDiff",
+        Effect.gen(function*  getCommitDiff() {
+          const git = yield* GitService;
+          return yield* git.getCommitDiff(shas);
+        })
+      ),
+    getLatestReviewId: async () => {
+      const result = await callEffect(
+        "reviews.latestId",
+        Effect.gen(function*  result() {
+          const reviewService = yield* ReviewService;
+          return yield* reviewService.list({
+            page: 1,
+            pageSize: 1,
+            repositoryPath: config.repoRoot,
+          });
+        })
+      );
+      return result.reviews[0]?.id ?? null;
+    },
+    getRecentCommits: async () => {
+      const result = await callEffect(
+        "git.getCommits",
+        Effect.gen(function*  result() {
+          const git = yield* GitService;
+          return yield* git.getCommits({ limit: 10, offset: 0 });
+        })
+      );
+      return result.commits;
+    },
+    getRepositoryInfo: () =>
+      callEffect(
+        "git.getRepositoryInfo",
+        Effect.gen(function*  getRepositoryInfo() {
+          const git = yield* GitService;
+          return yield* git.getRepositoryInfo;
+        })
+      ),
+    getStagedDiff: () =>
+      callEffect(
+        "git.getStagedDiff",
+        Effect.gen(function*  getStagedDiff() {
+          const git = yield* GitService;
+          return yield* git.getStagedDiff;
+        })
+      ),
+    getStagedFiles: () =>
+      callEffect(
+        "git.getStagedFiles",
+        Effect.gen(function*  getStagedFiles() {
+          const git = yield* GitService;
+          return yield* git.getStagedFiles;
+        })
+      ),
+    readonly: config.readonly,
+    repoRoot: config.repoRoot,
+    requireWritable,
   };
 
-  const globals: SandboxGlobals = {
-    comment: Object.freeze({
-      add: (inputValue: unknown) => {
-        requireWritable();
-        const parsed = parseCommentInput(inputValue);
-        return call(
-          "comment.add",
-          Effect.gen(function* add() {
+  // -- Build globals with runtime-backed reviews/todos ----------------------
+  // Override the stub methods from createSandboxGlobals with Effect-wired ones
+
+  const baseGlobals = createSandboxGlobals(deps);
+
+  // Wire reviews namespace to real services
+  const reviews = Object.freeze({
+    create: async (inputValue: unknown) => {
+      requireWritable();
+      const parsed = parseReviewCreateInput(inputValue);
+      return callEffect(
+        "reviews.create",
+        Effect.gen(function*  create() {
+          const reviewService = yield* ReviewService;
+          return yield* reviewService.create(parsed);
+        })
+      );
+    },
+    export: async (options: unknown) => {
+      if (typeof options !== "object" || options === null) {
+        throw new Error("Invalid options: expected an object with reviewId");
+      }
+      const opts = options as Record<string, unknown>;
+      const reviewId = parseReviewId(opts.reviewId);
+      const markdown = await callEffect(
+        "reviews.export",
+        Effect.gen(function*  markdown() {
+          const exportService = yield* ExportService;
+          return yield* exportService.exportReview(reviewId);
+        })
+      );
+      return { markdown, reviewId };
+    },
+    get: (reviewIdValue: unknown) => {
+      const reviewId = parseReviewId(reviewIdValue);
+      return callEffect(
+        "reviews.get",
+        Effect.gen(function*  get() {
+          const reviewService = yield* ReviewService;
+          return yield* reviewService.getById(reviewId);
+        })
+      );
+    },
+    getComments: (reviewIdValue: unknown, filePath?: unknown) => {
+      const reviewId = parseReviewId(reviewIdValue);
+      if (
+        filePath !== null &&
+        filePath !== undefined &&
+        typeof filePath !== "string"
+      ) {
+        throw new Error("Invalid filePath: expected a string");
+      }
+      return callEffect(
+        "reviews.getComments",
+        Effect.gen(function*  getComments() {
+          const commentService = yield* CommentService;
+          return yield* filePath
+            ? commentService.getByFile(reviewId, filePath as string)
+            : commentService.getByReview(reviewId);
+        })
+      );
+    },
+    getDiff: async (query: unknown) => {
+      if (typeof query !== "object" || query === null) {
+        throw new Error(
+          "Invalid query: expected an object with reviewId and filePath"
+        );
+      }
+      const q = query as Record<string, unknown>;
+      const reviewId = parseReviewId(q.reviewId);
+      const filePath = parseRequiredNonEmptyString(
+        q.filePath,
+        "query.filePath"
+      );
+      const hunks = await callEffect(
+        `reviews.getDiff:${filePath}`,
+        Effect.gen(function*  hunks() {
+          const reviewService = yield* ReviewService;
+          return yield* reviewService.getFileHunks(reviewId, filePath);
+        })
+      );
+      return { filePath, hunks, reviewId };
+    },
+    getFiles: async (reviewIdValue: unknown) => {
+      const reviewId = parseReviewId(reviewIdValue);
+      const review = await callEffect(
+        "reviews.getFiles",
+        Effect.gen(function*  review() {
+          const reviewService = yield* ReviewService;
+          return yield* reviewService.getById(reviewId);
+        })
+      );
+      return review.files;
+    },
+    getStatus: async (reviewIdValue: unknown) => {
+      const reviewId = parseReviewId(reviewIdValue);
+      const [review, stats] = await Promise.all([
+        callEffect(
+          "reviews.getStatus.review",
+          Effect.gen(function* () {
+            const reviewService = yield* ReviewService;
+            return yield* reviewService.getById(reviewId);
+          })
+        ),
+        callEffect(
+          "reviews.getStatus.comments",
+          Effect.gen(function* () {
             const commentService = yield* CommentService;
-            return yield* commentService.create(parsed.reviewId, parsed);
+            return yield* commentService.getStats(reviewId);
           })
-        );
-      },
-      list: (reviewIdValue: unknown, filePath?: unknown) => {
-        const reviewId = parseReviewId(reviewIdValue);
-        if (
-          filePath !== null &&
-          filePath !== undefined &&
-          typeof filePath !== "string"
-        ) {
-          throw new Error("Invalid filePath: expected a string");
-        }
+        ),
+      ]);
+      return {
+        resolvedComments: stats.resolved,
+        reviewId,
+        status: review.status,
+        totalComments: stats.total,
+        unresolvedComments: stats.unresolved,
+        withSuggestions: 0,
+      };
+    },
+    getSuggestions: async (reviewIdValue: unknown) => {
+      const reviewId = parseReviewId(reviewIdValue);
+      const comments = await callEffect(
+        "reviews.getSuggestions",
+        Effect.gen(function*  comments() {
+          const commentService = yield* CommentService;
+          return yield* commentService.getByReview(reviewId);
+        })
+      );
+      return comments
+        .filter((c: { suggestion?: string | null }) => c.suggestion != null)
+        .map((c: { id: string; suggestion: string | null }) => ({
+          commentId: c.id,
+          id: c.id,
+          originalCode: "",
+          suggestedCode: c.suggestion ?? "",
+        }));
+    },
+    list: (filters?: unknown) => {
+      if (
+        filters !== null &&
+        filters !== undefined &&
+        (typeof filters !== "object" || Array.isArray(filters))
+      ) {
+        throw new Error("Invalid filters: expected an object");
+      }
+      const record = (filters ?? {}) as Record<string, unknown>;
+      const page = typeof record.page === "number" ? record.page : 1;
+      const pageSize =
+        typeof record.pageSize === "number" ? record.pageSize : 20;
+      const limit = typeof record.limit === "number" ? record.limit : pageSize;
+      const status =
+        typeof record.status === "string" ? record.status : undefined;
+      const sourceType =
+        typeof record.sourceType === "string" ? record.sourceType : undefined;
 
-        return call(
-          "comment.list",
-          Effect.gen(function* list() {
-            const commentService = yield* CommentService;
-            return yield* filePath
-              ? commentService.getByFile(reviewId, filePath)
-              : commentService.getByReview(reviewId);
-          })
-        );
-      },
-    }),
-    diff: Object.freeze({
-      files: async (reviewIdValue: unknown) => {
-        const reviewId = parseReviewId(reviewIdValue);
-        const review = await call(
-          "diff.files",
-          Effect.gen(function* review() {
-            const reviewService = yield* ReviewService;
-            return yield* reviewService.getById(reviewId);
-          })
-        );
-        return review.files;
-      },
-      get: async (reviewIdValue: unknown) => {
-        const reviewId = parseReviewId(reviewIdValue);
-        const review = await call(
-          "diff.review",
-          Effect.gen(function* review() {
-            const reviewService = yield* ReviewService;
-            return yield* reviewService.getById(reviewId);
-          })
-        );
+      return callEffect(
+        "reviews.list",
+        Effect.gen(function*  list() {
+          const reviewService = yield* ReviewService;
+          return yield* reviewService.list({
+            page,
+            pageSize: limit,
+            repositoryPath: config.repoRoot,
+            sourceType,
+            status: status as
+              | "approved"
+              | "changes_requested"
+              | "in_progress"
+              | undefined,
+          });
+        })
+      );
+    },
+  });
 
-        const files = await Promise.all(
-          review.files.map(async (file) => ({
-            ...file,
-            hunks: await call(
-              `diff.get:${file.filePath}`,
-              Effect.gen(function* hunks() {
-                const reviewService = yield* ReviewService;
-                return yield* reviewService.getFileHunks(
-                  reviewId,
-                  file.filePath
-                );
-              })
-            ),
-          }))
-        );
+  // Wire todos namespace to real services
+  const todos = Object.freeze({
+    add: async (inputValue: unknown) => {
+      requireWritable();
+      const parsed = parseTodoInput(inputValue);
+      return callEffect(
+        "todos.add",
+        Effect.gen(function*  add() {
+          const todoService = yield* TodoService;
+          return yield* todoService.create(parsed);
+        })
+      );
+    },
+    clear: async (_reviewIdValue?: unknown) => {
+      requireWritable();
+      return callEffect(
+        "todos.clear",
+        Effect.gen(function*  clear() {
+          const todoService = yield* TodoService;
+          const result = yield* todoService.removeCompleted();
+          return { removed: result.deleted, success: true as const };
+        })
+      );
+    },
+    done: async (todoIdValue: unknown) => {
+      requireWritable();
+      const todoId = parseTodoId(todoIdValue);
+      return callEffect(
+        "todos.done",
+        Effect.gen(function*  done() {
+          const todoService = yield* TodoService;
+          const todo = yield* todoService.getById(todoId);
+          if (todo.completed) {return todo;}
+          return yield* todoService.toggle(todoId);
+        })
+      );
+    },
+    list: async (filter?: unknown) => {
+      const record = (
+        filter && typeof filter === "object" ? filter : {}
+      ) as Record<string, unknown>;
+      const reviewId =
+        record.reviewId === null || record.reviewId === undefined
+          ? undefined
+          : parseReviewId(record.reviewId);
+      const result = await callEffect(
+        "todos.list",
+        Effect.gen(function*  result() {
+          const todoService = yield* TodoService;
+          return yield* todoService.list({ reviewId });
+        })
+      );
+      return result.data;
+    },
+    move: async (todoIdValue: unknown, positionValue: unknown) => {
+      requireWritable();
+      const todoId = parseTodoId(todoIdValue);
+      if (
+        typeof positionValue !== "number" ||
+        !Number.isFinite(positionValue)
+      ) {
+        throw new TypeError("Invalid position: expected a number");
+      }
+      return callEffect(
+        "todos.move",
+        Effect.gen(function*  move() {
+          const todoService = yield* TodoService;
+          return yield* todoService.move(todoId, positionValue);
+        })
+      );
+    },
+    remove: async (todoIdValue: unknown) => {
+      requireWritable();
+      const todoId = parseTodoId(todoIdValue);
+      return callEffect(
+        "todos.remove",
+        Effect.gen(function*  remove() {
+          const todoService = yield* TodoService;
+          return yield* todoService.remove(todoId);
+        })
+      );
+    },
+    undone: async (todoIdValue: unknown) => {
+      requireWritable();
+      const todoId = parseTodoId(todoIdValue);
+      return callEffect(
+        "todos.undone",
+        Effect.gen(function*  undone() {
+          const todoService = yield* TodoService;
+          const todo = yield* todoService.getById(todoId);
+          if (!todo.completed) {return todo;}
+          return yield* todoService.toggle(todoId);
+        })
+      );
+    },
+  });
 
-        return { files, reviewId };
-      },
-    }),
-    export: Object.freeze({
-      review: async (reviewIdValue: unknown, formatValue?: unknown) => {
-        const reviewId = parseReviewId(reviewIdValue);
-        const format = formatValue ?? "markdown";
-        if (format !== "markdown") {
-          throw new Error(
-            `Unsupported export format: ${String(format)}. Only markdown is available`
-          );
-        }
-
-        const markdown = await call(
-          "export.review",
-          Effect.gen(function* markdown() {
-            const exportService = yield* ExportService;
-            return yield* exportService.exportReview(reviewId);
-          })
-        );
-
-        return { format, markdown, reviewId };
-      },
-    }),
-    review: Object.freeze({
-      create: (inputValue: unknown) => {
-        requireWritable();
-        const parsed = parseReviewCreateInput(inputValue);
-        return call(
-          "review.create",
-          Effect.gen(function* create() {
-            const reviewService = yield* ReviewService;
-            return yield* reviewService.create(parsed);
-          })
-        );
-      },
-      get: (reviewIdValue: unknown) => {
-        const reviewId = parseReviewId(reviewIdValue);
-        return call(
-          "review.get",
-          Effect.gen(function* get() {
-            const reviewService = yield* ReviewService;
-            return yield* reviewService.getById(reviewId);
-          })
-        );
-      },
-      list: (filters?: unknown) => {
-        if (
-          filters !== null &&
-          filters !== undefined &&
-          (typeof filters !== "object" || Array.isArray(filters))
-        ) {
-          throw new Error("Invalid filters: expected an object");
-        }
-
-        const record = (filters ?? {}) as Record<string, unknown>;
-        const page = typeof record.page === "number" ? record.page : 1;
-        const pageSize =
-          typeof record.pageSize === "number" ? record.pageSize : 20;
-        const status =
-          typeof record.status === "string" ? record.status : undefined;
-        const sourceType =
-          typeof record.sourceType === "string" ? record.sourceType : undefined;
-
-        return call(
-          "review.list",
-          Effect.gen(function* list() {
-            const reviewService = yield* ReviewService;
-            return yield* reviewService.list({
-              page,
-              pageSize,
-              repositoryPath: config.repoRoot,
-              sourceType,
-              status: status as
-                | "approved"
-                | "changes_requested"
-                | "in_progress"
-                | undefined,
-            });
-          })
-        );
-      },
-    }),
-    session: Object.freeze({
-      context: () => sessionContext(),
-      status: () => ({
-        activeSubscriptions: 0,
-        currentPhase: "phase1",
-        ok: true,
-        readonly: config.readonly,
-      }),
-    }),
-    todo: Object.freeze({
-      add: (inputValue: unknown) => {
-        requireWritable();
-        const parsed = parseTodoInput(inputValue);
-        return call(
-          "todo.add",
-          Effect.gen(function* add() {
-            const todoService = yield* TodoService;
-            return yield* todoService.create(parsed);
-          })
-        );
-      },
-      list: async (reviewIdValue?: unknown) => {
-        const reviewId =
-          reviewIdValue === null || reviewIdValue === undefined
-            ? undefined
-            : parseReviewId(reviewIdValue);
-        const result = await call(
-          "todo.list",
-          Effect.gen(function* result() {
-            const todoService = yield* TodoService;
-            return yield* todoService.list({ reviewId });
-          })
-        );
-        return result.data;
-      },
-      toggle: (todoIdValue: unknown) => {
-        requireWritable();
-        const todoId = parseTodoId(todoIdValue);
-        return call(
-          "todo.toggle",
-          Effect.gen(function* toggle() {
-            const todoService = yield* TodoService;
-            return yield* todoService.toggle(todoId);
-          })
-        );
-      },
-    }),
+  const globals = {
+    events: baseGlobals.events,
+    intelligence: baseGlobals.intelligence,
+    reviews,
+    session: baseGlobals.session,
+    sources: baseGlobals.sources,
+    todos,
   };
 
   try {
