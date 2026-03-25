@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+import { exec, fork } from "node:child_process";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+import type * as Effect from "effect/Effect";
 import * as Either from "effect/Either";
 
 import { ReviewNotFound } from "@/api/schemas/review";
@@ -9,6 +14,7 @@ import { CliFailure, ExitCode, failure, success } from "@/cli/contracts";
 import type {
   CliErrorDetail,
   CliErrorEnvelope,
+  CommandOutput,
   ErrorCategory,
   ExitCode as ExitCodeType,
   NextAction,
@@ -464,19 +470,132 @@ const installSignalHandlers = (dispose: () => Promise<void>): (() => void) => {
 };
 
 // ---------------------------------------------------------------------------
+// Serve command (long-running process, bypasses Effect runtime)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolves the built Nitro server entry point. Returns the absolute path to
+ * `.output/server/index.mjs` relative to the package root (the directory
+ * containing this CLI entry point after bundling).
+ */
+const resolveServerEntry = (): string | undefined => {
+  // Try multiple locations: cwd (development), then relative to the built CLI
+  // bundle (`dist/cli.js` → `../.output`).
+  const candidates = [resolve(process.cwd(), ".output", "server", "index.mjs")];
+
+  if (import.meta.dirname) {
+    candidates.push(
+      resolve(import.meta.dirname, "..", ".output", "server", "index.mjs")
+    );
+  }
+
+  return candidates.find((candidate) => existsSync(candidate));
+};
+
+const runServe = (command: Extract<ParsedCommand, { kind: "serve" }>): void => {
+  const serverEntry = resolveServerEntry();
+
+  if (!serverEntry) {
+    process.stderr.write(
+      "No built server found. Run 'pnpm build' first, then retry 'ringi serve'.\n"
+    );
+    process.exit(ExitCode.RuntimeFailure);
+  }
+
+  const env: Record<string, string> = {
+    ...process.env,
+    NITRO_HOST: command.host,
+    NITRO_PORT: String(command.port),
+  };
+
+  if (command.https && command.cert && command.key) {
+    env.NITRO_SSL_CERT = command.cert;
+    env.NITRO_SSL_KEY = command.key;
+  }
+
+  const protocol = command.https ? "https" : "http";
+  const url = `${protocol}://${command.host === "0.0.0.0" ? "localhost" : command.host}:${command.port}`;
+  process.stderr.write(`ringi server starting on ${url}\n`);
+
+  const child = fork(serverEntry, [], {
+    env,
+    // Clear execArgv so tsx/ts-node loaders from the parent don't interfere
+    // with the built Nitro server (plain ESM).
+    execArgv: [],
+    stdio: "inherit",
+  });
+
+  if (!command.noOpen) {
+    // Delay open slightly so the server has time to bind the port.
+    setTimeout(() => {
+      let openCmd = "xdg-open";
+      if (process.platform === "darwin") {
+        openCmd = "open";
+      } else if (process.platform === "win32") {
+        openCmd = "start";
+      }
+      exec(`${openCmd} ${url}`, () => {
+        // Browser open is best-effort; swallow errors.
+      });
+    }, 1500);
+  }
+
+  const shutdown = () => {
+    child.kill("SIGTERM");
+  };
+
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
+
+  child.on("exit", (code) => {
+    process.off("SIGINT", shutdown);
+    process.off("SIGTERM", shutdown);
+    process.exit(code ?? ExitCode.Success);
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Shared error exit (eliminates 3× duplication)
+// ---------------------------------------------------------------------------
+
+interface FailExitOptions {
+  readonly cmdStr: string;
+  readonly error: unknown;
+  readonly json: boolean;
+  readonly verbose: boolean;
+}
+
+/** Single path for all CLI error exits. */
+const failAndExit = (opts: FailExitOptions): never => {
+  const normalized = mapFailure(opts.error);
+
+  if (opts.json) {
+    writeJson(buildErrorEnvelope(opts.cmdStr, normalized));
+  }
+
+  process.stderr.write(`${normalized.message}\n`);
+  if (opts.verbose && normalized.verbose) {
+    process.stderr.write(`${normalized.verbose}\n`);
+  }
+
+  return process.exit(normalized.exitCode);
+};
+
+// ---------------------------------------------------------------------------
 // Main program
 // ---------------------------------------------------------------------------
 
 const main = async (): Promise<void> => {
-  const parseResult = parseCliArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const parseResult = parseCliArgs(argv);
 
   if (Either.isLeft(parseResult)) {
-    const normalized = mapFailure(parseResult.left);
-    if (process.argv.slice(2).includes("--json")) {
-      writeJson(buildErrorEnvelope("ringi", normalized));
-    }
-    process.stderr.write(`${normalized.message}\n`);
-    process.exit(normalized.exitCode);
+    return failAndExit({
+      cmdStr: "ringi",
+      error: parseResult.left,
+      json: argv.includes("--json"),
+      verbose: false,
+    });
   }
 
   const { command, options } = parseResult.right;
@@ -499,6 +618,13 @@ const main = async (): Promise<void> => {
     process.exit(ExitCode.Success);
   }
 
+  // Serve is a long-running process that bypasses the Effect runtime entirely.
+  // It forks the built Nitro server as a child process and proxies signals.
+  if (command.kind === "serve") {
+    runServe(command);
+    return;
+  }
+
   const runtimeResources = createCliRuntimeResources(command, {
     color: options.color,
     dbPath: options.dbPath,
@@ -514,12 +640,12 @@ const main = async (): Promise<void> => {
   const cmdStr = commandLabel(command);
 
   if (runtimeResources instanceof CliFailure) {
-    const normalized = mapFailure(runtimeResources);
-    if (options.json) {
-      writeJson(buildErrorEnvelope(cmdStr, normalized));
-    }
-    process.stderr.write(`${normalized.message}\n`);
-    process.exit(normalized.exitCode);
+    return failAndExit({
+      cmdStr,
+      error: runtimeResources,
+      json: options.json,
+      verbose: options.verbose,
+    });
   }
 
   const removeSignalHandlers = installSignalHandlers(() =>
@@ -527,9 +653,13 @@ const main = async (): Promise<void> => {
   );
 
   try {
+    // The CommandHandler type uses `unknown` for the R (requirements) channel
+    // because handlers depend on various service combinations. The managed
+    // runtime provides all required services; the cast at this boundary is the
+    // one place where we bridge the static Effect types to the dynamic runtime.
     const output = (await runtimeResources.runtime.runPromise(
-      runCommand(command) as never
-    )) as { data: unknown; human?: string; nextActions?: NextAction[] };
+      runCommand(command) as Effect.Effect<CommandOutput<unknown>>
+    )) as CommandOutput<unknown>;
 
     if (options.json) {
       writeJson(success(cmdStr, output.data, output.nextActions ?? []));
@@ -541,33 +671,24 @@ const main = async (): Promise<void> => {
     removeSignalHandlers();
     process.exit(ExitCode.Success);
   } catch (error) {
-    const normalized = mapFailure(error);
-
-    if (options.json) {
-      writeJson(buildErrorEnvelope(cmdStr, normalized));
-    }
-
-    process.stderr.write(`${normalized.message}\n`);
-    if (options.verbose && normalized.verbose) {
-      process.stderr.write(`${normalized.verbose}\n`);
-    }
-
     await runtimeResources.runtime.dispose();
     removeSignalHandlers();
-    process.exit(normalized.exitCode);
+    failAndExit({
+      cmdStr,
+      error,
+      json: options.json,
+      verbose: options.verbose,
+    });
   }
 };
 
 try {
   await main();
 } catch (error) {
-  const normalized = mapFailure(error);
-  const wantsJson = process.argv.slice(2).includes("--json");
-
-  if (wantsJson) {
-    writeJson(buildErrorEnvelope("ringi", normalized));
-  }
-
-  process.stderr.write(`${normalized.message}\n`);
-  process.exit(normalized.exitCode);
+  failAndExit({
+    cmdStr: "ringi",
+    error,
+    json: process.argv.slice(2).includes("--json"),
+    verbose: false,
+  });
 }
