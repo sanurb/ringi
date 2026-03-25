@@ -4,6 +4,7 @@ import type { DiffLineAnnotation } from "@pierre/diffs/react";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import { ChevronRightIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import type { Dispatch, ReactNode } from "react";
 
@@ -19,6 +20,8 @@ import { SplitDiffSplitter } from "@/components/review/split-diff-splitter";
 import { clientRuntime } from "@/lib/client-runtime";
 import { pierreDiffOptions } from "@/lib/pierre-diffs-theme";
 import { cn } from "@/lib/utils";
+
+const EMPTY_COMMENTS: readonly Comment[] = [];
 
 import { InlineCommentComposer } from "./inline-comment-composer";
 import type { CommentDraft } from "./inline-comment-composer";
@@ -243,7 +246,7 @@ const GutterAddButton = ({
     <button
       type="button"
       onClick={handleClick}
-      className="ringi-gutter-add-btn relative z-[4] flex items-center justify-center rounded-sm bg-accent-primary text-[11px] font-medium text-white shadow-sm shadow-accent-primary/30 transition-[transform,background-color] duration-150 ease-out hover:scale-105 hover:bg-accent-primary-hover focus-visible:scale-105 focus-visible:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/40 active:scale-95"
+      className="ringi-gutter-add-btn relative z-[4] flex items-center justify-center rounded-sm bg-accent-primary text-[11px] font-medium text-white shadow-sm shadow-accent-primary/30 transition-[transform,background-color] duration-100 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:bg-accent-primary-hover focus-visible:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/40 active:scale-[0.92]"
       aria-label="Add comment on this line"
       tabIndex={0}
     >
@@ -279,18 +282,15 @@ const LocalCommentCard = ({
 
   return (
     <article
-      className="ringi-comment-card group rounded-md border border-border-subtle bg-surface-elevated/80 px-2 py-1.5 shadow-sm shadow-black/10"
+      className="ringi-comment-card group rounded bg-surface-elevated/50 px-2 py-1.5"
       style={{ animationDelay: `${index * 40}ms` }}
     >
       <div className="flex items-start gap-2">
-        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-muted font-mono text-[10px] font-semibold text-accent-primary">
+        <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-text-tertiary/10 text-[10px] text-text-tertiary">
           ✎
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[10px] text-text-tertiary">
-            <span className="rounded-full bg-surface-overlay px-1.5 py-0.5 font-medium">
-              Note
-            </span>
             <span className="font-mono">
               {formatCompactTimestamp(comment.createdAt)}
             </span>
@@ -307,8 +307,8 @@ const LocalCommentCard = ({
             {comment.content}
           </p>
           {comment.suggestion ? (
-            <div className="mt-1.5 border-l-2 border-status-success/35 bg-surface-primary/80 pl-2">
-              <pre className="overflow-x-auto whitespace-pre-wrap break-words py-1 font-mono text-[10px] leading-4 text-text-secondary">
+            <div className="mt-1.5 rounded bg-surface-primary/60 px-2 py-1">
+              <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-[10px] leading-4 text-text-secondary">
                 {comment.suggestion}
               </pre>
             </div>
@@ -324,10 +324,12 @@ export const DiffFile = ({
   defaultExpanded = false,
   reviewId,
   diffMode = "unified",
-  comments = [],
+  comments = EMPTY_COMMENTS,
   onLocalCommentsChange,
   viewed = false,
   onToggleViewed,
+  pendingDeleteId,
+  onPendingDeleteHandled,
 }: {
   file: DiffFileType;
   defaultExpanded?: boolean;
@@ -340,6 +342,10 @@ export const DiffFile = ({
   ) => void;
   viewed?: boolean;
   onToggleViewed?: (filePath: string) => void;
+  /** ID of a local comment to delete (set externally, e.g. from annotations panel). */
+  pendingDeleteId?: string | null;
+  /** Called after the pending delete has been processed. */
+  onPendingDeleteHandled?: () => void;
 }) => {
   const [state, dispatch] = useReducer(diffFileReducer, {
     activeComment: null,
@@ -358,6 +364,16 @@ export const DiffFile = ({
   useEffect(() => {
     onLocalCommentsChange?.(file.newPath, localComments);
   }, [file.newPath, localComments, onLocalCommentsChange]);
+
+  // Process externally-requested deletes (e.g. from annotations panel)
+  useEffect(() => {
+    if (!pendingDeleteId) {
+      return;
+    }
+
+    dispatch({ id: pendingDeleteId, type: "delete_local_comment" });
+    onPendingDeleteHandled?.();
+  }, [pendingDeleteId, onPendingDeleteHandled]);
 
   const handleAddComment = useCallback(
     (lineNumber: number, side: CommentSide) => {
@@ -527,7 +543,7 @@ export const DiffFile = ({
           ) : null}
 
           {lineLocalComments.length > 0 ? (
-            <div className="border-l-2 border-accent-primary/30 pl-2">
+            <div className="pl-2">
               <div className="flex flex-col gap-1.5">
                 {lineLocalComments.map((lc, i) => (
                   <LocalCommentCard
@@ -613,7 +629,7 @@ export const DiffFile = ({
     );
   }
 
-  const viewedButtonLabel = viewed ? "Viewed ✓" : "Mark as viewed";
+  const viewedButtonLabel = viewed ? "Viewed" : "Viewed";
 
   return (
     <div
@@ -625,18 +641,17 @@ export const DiffFile = ({
         <button
           type="button"
           onClick={handleToggleExpand}
-          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] text-text-quaternary transition-[transform,color] duration-100 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:text-text-secondary active:scale-[0.9] motion-reduce:transform-none"
+          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-text-quaternary transition-[color,background-color] duration-100 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:bg-surface-overlay hover:text-text-secondary focus-visible:bg-surface-overlay focus-visible:text-text-secondary focus-visible:outline-none"
           aria-expanded={expanded}
           aria-label={expanded ? "Collapse file" : "Expand file"}
         >
-          <span
+          <ChevronRightIcon
+            size={14}
             className={cn(
-              "transition-transform duration-100 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)]",
+              "transition-transform duration-100 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
               expanded && "rotate-90"
             )}
-          >
-            ▶
-          </span>
+          />
         </button>
 
         <span
@@ -667,7 +682,7 @@ export const DiffFile = ({
             type="button"
             onClick={handleToggleViewed}
             className={cn(
-              "ml-1 shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-[background-color,border-color,color] duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:transform-none",
+              "ml-1 shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-[transform,background-color,border-color,color] duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:transform-none",
               viewed
                 ? "border-status-success/30 bg-status-success/10 text-status-success"
                 : "border-border-default text-text-tertiary hover:border-border-default hover:bg-surface-overlay hover:text-text-secondary"

@@ -6,6 +6,8 @@ import type { DiffFile as DiffFileType } from "@/api/schemas/diff";
 import { DiffFile } from "./diff-file";
 import type { LocalComment } from "./diff-file";
 
+const EMPTY_COMMENTS: readonly Comment[] = [];
+
 /**
  * Single-file diff renderer.
  *
@@ -17,10 +19,12 @@ export const DiffView = ({
   file,
   reviewId,
   diffMode = "split",
-  comments = [],
+  comments = EMPTY_COMMENTS,
   onLocalCommentsChange,
   viewed = false,
   onToggleViewed,
+  pendingDeleteId,
+  onPendingDeleteHandled,
 }: {
   file: DiffFileType;
   reviewId?: string;
@@ -32,6 +36,8 @@ export const DiffView = ({
   ) => void;
   viewed?: boolean;
   onToggleViewed?: (filePath: string) => void;
+  pendingDeleteId?: string | null;
+  onPendingDeleteHandled?: () => void;
 }) => {
   const fileComments = useMemo(
     () => comments.filter((c) => c.filePath === file.newPath),
@@ -49,6 +55,8 @@ export const DiffView = ({
       onLocalCommentsChange={onLocalCommentsChange}
       viewed={viewed}
       onToggleViewed={onToggleViewed}
+      pendingDeleteId={pendingDeleteId}
+      onPendingDeleteHandled={onPendingDeleteHandled}
     />
   );
 };
