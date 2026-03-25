@@ -19,6 +19,12 @@ import type {
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
+// Stable default references (avoid new-reference-per-render)
+// ---------------------------------------------------------------------------
+
+const EMPTY_IDS: string[] = [];
+
+// ---------------------------------------------------------------------------
 // Context
 // ---------------------------------------------------------------------------
 
@@ -77,7 +83,7 @@ export interface TreeProps {
 
 export const Tree = ({
   children,
-  defaultExpandedIds = [],
+  defaultExpandedIds = EMPTY_IDS,
   expandedIds: controlledExpanded,
   onExpandedChange,
   selectedIds: controlledSelected,

@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 const COPY_FEEDBACK_MS = 1800;
+const EMPTY_API_COMMENTS: readonly Comment[] = [];
+const EMPTY_LOCAL_COMMENTS: readonly ExportableComment[] = [];
 
 const buttonMotionClass =
   "transition-[transform,background-color,color,border-color,box-shadow,opacity] duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] motion-reduce:transform-none";
@@ -44,16 +46,9 @@ export interface ExportFeedbackModalProps {
 // ---------------------------------------------------------------------------
 
 const EmptyState = () => (
-  <div className="flex flex-col items-center justify-center gap-3 py-12">
-    <div className="flex size-10 items-center justify-center rounded-full bg-surface-overlay">
-      <ClipboardIcon className="size-4 text-text-tertiary" />
-    </div>
-    <div className="text-center">
-      <p className="text-sm font-medium text-text-secondary">No comments yet</p>
-      <p className="mt-1 text-xs text-text-tertiary">
-        Add inline comments to your review, then export them here.
-      </p>
-    </div>
+  <div className="flex flex-col items-center justify-center gap-2 py-12">
+    <ClipboardIcon className="size-4 text-text-tertiary" />
+    <p className="text-sm text-text-tertiary">No comments to export</p>
   </div>
 );
 
@@ -130,8 +125,8 @@ const DownloadButton = ({
 export const ExportFeedbackModal = ({
   open,
   onOpenChange,
-  comments = [],
-  localComments = [],
+  comments = EMPTY_API_COMMENTS,
+  localComments = EMPTY_LOCAL_COMMENTS,
   reviewId,
 }: ExportFeedbackModalProps) => {
   const [copied, setCopied] = useState(false);
