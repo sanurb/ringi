@@ -9,15 +9,19 @@ import viteTsConfigPaths from "vite-tsconfig-paths";
 const config = defineConfig({
   plugins: [
     devtools(),
+    tanstackStart(),
+    // https://tanstack.com/start/latest/docs/framework/react/guide/hosting
     nitro(),
+    viteReact(),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ["./tsconfig.json"],
     }),
     tailwindcss(),
-    tanstackStart(),
-    viteReact(),
   ],
+  server: {
+    port: 3000,
+  },
 });
 
 export default config;
