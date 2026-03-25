@@ -1,8 +1,8 @@
 import { stdin, stdout } from "node:process";
 
 import { resolveMcpConfig } from "@/mcp/config";
-import { executeCode } from "@/mcp/execute";
 import type { ExecuteInput } from "@/mcp/execute";
+import { executeCodeToPromise } from "@/mcp/execute";
 import { createMcpRuntime } from "@/mcp/runtime";
 
 const JSON_RPC_VERSION = "2.0";
@@ -292,7 +292,7 @@ class StdioJsonRpcServer {
       return;
     }
 
-    const executeResult = await executeCode(
+    const executeResult = await executeCodeToPromise(
       this.runtime,
       this.config,
       argumentsValue as ExecuteInput
