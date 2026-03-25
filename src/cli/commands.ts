@@ -622,7 +622,7 @@ const runReviewStatus = Effect.fn("CLI.reviewStatus")(function* runReviewStatus(
     );
     if (commentStats) {
       lines.push(
-        `Comments: ${commentStats.unresolved} unresolved / ${commentStats.total} total`
+        `Comments: ${commentStats.unresolved ?? 0} unresolved / ${commentStats.total} total`
       );
     }
     if (todoStats) {

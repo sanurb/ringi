@@ -54,7 +54,7 @@ const resolveDbPath = (repoRoot: string, dbPathOverride?: string): string =>
     ? resolve(dbPathOverride)
     : resolve(repoRoot, ".ringi/reviews.db");
 
-export const commandNeedsRepository = (command: ParsedCommand): boolean =>
+const commandNeedsRepository = (command: ParsedCommand): boolean =>
   command.kind !== "help" &&
   command.kind !== "version" &&
   command.kind !== "mcp" &&

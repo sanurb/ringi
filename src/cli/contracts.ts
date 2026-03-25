@@ -63,7 +63,7 @@ export interface CliErrorDetail {
   readonly type?: string;
 }
 
-export interface CliSuccessEnvelope<T> {
+interface CliSuccessEnvelope<T> {
   readonly command: string;
   readonly next_actions: readonly NextAction[];
   readonly ok: true;
@@ -78,8 +78,6 @@ export interface CliErrorEnvelope {
   readonly next_actions: readonly NextAction[];
   readonly ok: false;
 }
-
-export type CliEnvelope<T> = CliErrorEnvelope | CliSuccessEnvelope<T>;
 
 // --- Envelope factory helpers ------------------------------------------------
 
