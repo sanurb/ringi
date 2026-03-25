@@ -45,7 +45,7 @@ export const SplitDiffSplitter = ({
       <div
         {...splitterProps}
         className={cn(
-          "ringi-split-splitter",
+          "ringi-split-splitter group/splitter",
           "absolute top-0 bottom-0 z-10",
           "-translate-x-1/2",
           "flex items-center justify-center",
@@ -66,7 +66,7 @@ export const SplitDiffSplitter = ({
             "[transition-timing-function:cubic-bezier(0.23,1,0.32,1)]",
             isDragging
               ? "w-[3px] bg-accent-primary/60"
-              : "w-px bg-border-default"
+              : "w-px bg-border-default group-hover/splitter:w-[2px] group-hover/splitter:bg-accent-primary/30"
           )}
         />
 
@@ -78,7 +78,9 @@ export const SplitDiffSplitter = ({
             "flex flex-col items-center gap-[3px]",
             "transition-opacity duration-100",
             "[transition-timing-function:cubic-bezier(0.23,1,0.32,1)]",
-            isDragging ? "opacity-100" : "opacity-0"
+            isDragging
+              ? "opacity-100"
+              : "opacity-0 group-hover/splitter:opacity-70 group-focus-visible/splitter:opacity-70"
           )}
         >
           <div className="h-[3px] w-[3px] rounded-full bg-accent-primary/70" />
