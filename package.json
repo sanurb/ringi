@@ -16,9 +16,9 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @ringi/web dev",
-    "dev:cli": "pnpm --filter @ringi/cli dev",
+    "dev:cli": "pnpm --filter @sanurb/ringi dev",
     "build": "pnpm --filter @ringi/web build",
-    "build:cli": "pnpm --filter @ringi/cli build",
+    "build:cli": "pnpm --filter @sanurb/ringi build",
     "build:all": "pnpm build:cli && pnpm build",
     "preview": "pnpm --filter @ringi/web preview",
     "test": "pnpm -r test",
