@@ -1,6 +1,6 @@
 {
   "name": "@sanurb/ringi",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Local-first code review tool for AI-generated changes — CLI, Web UI, and MCP server",
   "homepage": "https://github.com/sanurb/ringi#readme",
