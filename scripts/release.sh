@@ -38,7 +38,7 @@ echo ""
 
 # ── Step 1: Environment checks ──────────────────────────────────────────
 
-VERSION=$(node -p "require('./package.json').version")
+VERSION=$(node -p "require('./apps/cli/package.json').version")
 info "Package version: ${VERSION}"
 
 # Check we're on main
@@ -90,22 +90,22 @@ pnpm build:cli || fail "CLI build failed"
 ok "CLI built"
 
 info "Smoke testing CLI..."
-CLI_VERSION=$(node dist/cli.js --version 2>&1)
+CLI_VERSION=$(node apps/cli/dist/cli.js --version 2>&1)
 if [[ "$CLI_VERSION" != *"$VERSION"* ]] && [[ "$CLI_VERSION" != "0.0.0-dev" ]]; then
   warn "CLI reports version '${CLI_VERSION}', expected '${VERSION}'"
 fi
-node dist/cli.js --help >/dev/null || fail "CLI --help failed"
+node apps/cli/dist/cli.js --help >/dev/null || fail "CLI --help failed"
 ok "CLI smoke test passed (version: ${CLI_VERSION})"
 
 # ── Step 4: Package inspection ───────────────────────────────────────────
 
 echo ""
 info "Packing dry-run..."
-npm pack --dry-run 2>&1
+cd apps/cli && npm pack --dry-run 2>&1
 echo ""
 
 # Show tarball size
-TARBALL=$(npm pack 2>/dev/null)
+TARBALL=$(cd apps/cli && npm pack 2>/dev/null)
 TARBALL_SIZE=$(du -h "$TARBALL" | cut -f1)
 info "Tarball: ${TARBALL} (${TARBALL_SIZE})"
 rm -f "$TARBALL"
@@ -124,7 +124,7 @@ if [[ "$PUBLISH" != true ]]; then
   echo "    ./scripts/release.sh --publish"
   echo ""
   echo "  Or manually:"
-  echo "    npm publish --access public"
+  echo "    cd apps/cli && npm publish --access public"
   echo ""
   echo "  Then tag:"
   echo "    git tag v${VERSION}"
@@ -148,7 +148,7 @@ fi
 
 echo ""
 info "Publishing..."
-npm publish --access public
+cd apps/cli && npm publish --access public
 ok "Published ringi@${VERSION} to npm!"
 
 echo ""

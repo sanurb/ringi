@@ -1,0 +1,51 @@
+{
+  "name": "@ringi/cli",
+  "version": "0.1.1",
+  "description": "Local-first code review tool for AI-generated changes — CLI and MCP server",
+  "homepage": "https://github.com/sanurb/ringi#readme",
+  "bugs": {
+    "url": "https://github.com/sanurb/ringi/issues"
+  },
+  "license": "MIT",
+  "author": "sanurb",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanurb/ringi.git",
+    "directory": "apps/cli"
+  },
+  "bin": {
+    "ringi": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    "./mcp": {
+      "import": "./dist/mcp.js"
+    }
+  },
+  "scripts": {
+    "dev": "npx tsx src/cli/main.ts",
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.93.8",
+    "@ringi/core": "workspace:*",
+    "effect": "^3.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

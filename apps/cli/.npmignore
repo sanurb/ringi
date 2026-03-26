@@ -1,0 +1,10 @@
+# Everything is excluded by "files" in package.json.
+# This file exists as a safety net — if "files" is accidentally removed,
+# these patterns prevent leaking source, config, and dev artifacts.
+
+src/
+node_modules/
+
+*.test.ts
+tsconfig.json
+tsup.config.ts

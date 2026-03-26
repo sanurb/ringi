@@ -49,18 +49,18 @@ jobs:
 
       - name: Smoke test
         run: |
-          node dist/cli.js --version
-          node dist/cli.js --help
-          node dist/cli.js --json | jq .version
+          node apps/cli/dist/cli.js --version
+          node apps/cli/dist/cli.js --help
+          node apps/cli/dist/cli.js --json | jq .version
 
       - name: Package dry-run
-        run: npm pack --dry-run
+        run: cd apps/cli && npm pack --dry-run
 
       - name: Verify tag matches package.json version
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          PKG_VERSION=$(node -p "require('./package.json').version")
+          PKG_VERSION=$(node -p "require('./apps/cli/package.json').version")
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
             echo "❌ Tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
             exit 1
@@ -72,16 +72,16 @@ jobs:
       # Requires NPM_TOKEN secret with publish access.
       - name: Publish to npm
         if: startsWith(github.ref, 'refs/tags/v') && inputs.dry_run != true
-        run: npm publish --access public --provenance
+        run: cd apps/cli && npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Upload tarball artifact
         if: always()
-        run: npm pack
+        run: cd apps/cli && npm pack
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ringi-npm-tarball
-          path: ringi-*.tgz
+          path: apps/cli/ringi-*.tgz
           retention-days: 30

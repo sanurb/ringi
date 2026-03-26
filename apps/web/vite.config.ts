@@ -1,0 +1,50 @@
+import tailwindcss from "@tailwindcss/vite";
+import { devtools } from "@tanstack/devtools-vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
+import { nitro } from "nitro/vite";
+import { defineConfig } from "vite";
+import viteTsConfigPaths from "vite-tsconfig-paths";
+
+const config = defineConfig({
+  resolve: {
+    // Ensure workspace-linked packages resolve to a single module instance.
+    // Without this, Vite may evaluate @ringi/core modules multiple times when
+    // reached through different dependency paths (e.g. server-runtime vs
+    // client-runtime), doubling memory usage in the SSR module runner.
+    dedupe: ["effect", "@effect/platform", "@effect/rpc", "@ringi/core"],
+  },
+  ssr: {
+    // Workspace packages with .ts source exports must NOT be externalized
+    // — Node can't import .ts files directly.
+    noExternal: ["@ringi/core"],
+  },
+  plugins: [
+    devtools(),
+    // this is the plugin that enables path aliases
+    viteTsConfigPaths({
+      projects: ["./tsconfig.json"],
+    }),
+    tanstackStart(),
+    // https://tanstack.com/start/latest/docs/framework/react/guide/hosting
+    nitro({
+      devServer: {
+        // Default "node-worker" spawns a Worker thread with limited heap.
+        // Effect + all core services exceed that limit, causing OOM.
+        // "node-process" uses fork() which inherits NODE_OPTIONS (--max-old-space-size).
+        runner: "node-process",
+      },
+    }),
+    viteReact(),
+    tailwindcss(),
+  ],
+  server: {
+    port: 3000,
+  },
+  optimizeDeps: {
+    // Pre-bundle heavy deps so Vite workers don't re-parse them each time
+    include: ["effect", "@effect/platform", "shiki", "react", "react-dom"],
+  },
+});
+
+export default config;

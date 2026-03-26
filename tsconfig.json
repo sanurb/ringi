@@ -1,50 +1,8 @@
 {
-  "include": ["**/*.ts", "**/*.tsx"],
-  "compilerOptions": {
-    "target": "ES2022",
-    "jsx": "react-jsx",
-    "module": "ESNext",
-    "lib": ["DOM", "DOM.Iterable", "ES2023"],
-    "types": ["vite/client"],
-
-    /* Bundler mode */
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": false,
-    "noEmit": true,
-
-    /* Linting */
-    "skipLibCheck": true,
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
-
-    "plugins": [
-      {
-        "name": "@effect/language-service",
-        "quickinfoEffectParameters": "always",
-        "namespaceImportPackages": ["effect", "@effect/*"],
-        "topLevelNamedReexports": "follow",
-        "diagnosticSeverity": {
-          "importFromBarrel": "error",
-          "anyUnknownInErrorContext": "warning",
-          "instanceOfSchema": "warning",
-          "deterministicKeys": "warning"
-        },
-        "importAliases": {
-          "Array": "Arr",
-          "Function": "Func",
-          "Boolean": "Bool",
-          "Number": "Num",
-          "String": "Str"
-        }
-      }
-    ]
-  }
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "apps/cli" },
+    { "path": "apps/web" }
+  ]
 }

@@ -1,0 +1,22 @@
+{
+  "name": "@ringi/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.93.8",
+    "@effect/rpc": "^0.72.2",
+    "chokidar": "^5.0.0",
+    "effect": "^3.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "typescript": "^5.9.3"
+  }
+}
