@@ -56,9 +56,8 @@ All of `pnpm check`, `pnpm fix`, and `pnpm typecheck` must pass before consideri
 - **Effect v4** everywhere: `Effect.gen`, `Schema.TaggedError`, `Schema.Class`, branded IDs, Layer composition.
 - **No mocks** — stub injection only.
 - **SQLite** via `node:sqlite` (Node built-in), WAL mode, `DatabaseSync`.
-- **oxlint** for linting (type-aware), **ultracite** for formatting.
-- **lefthook** pre-commit: auto-fix via ultracite.
-- **tsup** bundles CLI; TanStack Start/Vite bundles web.
+- **Vite+** (`vp`) unified toolchain: lint (oxlint), format (oxfmt), test (vitest), check, staged hooks.
+- **tsdown** bundles CLI; TanStack Start/Vite bundles web.
 - CLI outputs RFC 9457-inspired JSON envelopes with HATEOAS `nextActions`.
 
 ## Anti-Patterns
@@ -75,12 +74,12 @@ All of `pnpm check`, `pnpm fix`, and `pnpm typecheck` must pass before consideri
 pnpm dev          # Web dev server (port 3000)
 pnpm dev:cli      # CLI dev mode via tsx
 pnpm build        # Build web
-pnpm build:cli    # Build CLI (tsup)
+pnpm build:cli    # Build CLI (tsdown)
 pnpm build:all    # CLI then web
-pnpm test         # Tests across all workspaces
+pnpm test         # Tests (vp test run — unified vitest across workspaces)
 pnpm typecheck    # Typecheck all workspaces
-pnpm check        # Lint + format check
-pnpm fix          # Auto-fix lint + format
+pnpm check        # Lint + format check (vp check — oxlint + oxfmt)
+pnpm fix          # Auto-fix lint + format (vp check --fix)
 ```
 
 ## Core Priorities

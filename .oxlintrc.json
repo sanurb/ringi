@@ -1,16 +1,20 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "extends": [
-    "./node_modules/ultracite/config/oxlint/core/.oxlintrc.json",
-    "./node_modules/ultracite/config/oxlint/react/.oxlintrc.json"
-  ],
   "categories": {
     "correctness": "warn",
     "suspicious": "warn",
     "perf": "warn"
   },
-
-  "plugins": ["eslint", "unicorn", "typescript"],
+  "plugins": [
+    "eslint",
+    "unicorn",
+    "typescript",
+    "react",
+    "jsx-a11y",
+    "import",
+    "jsdoc",
+    "promise"
+  ],
   "jsPlugins": ["./eslint-plugins/ringi-no-vi-mock-plugin.js"],
   "rules": {
     "react-in-jsx-scope": "off",

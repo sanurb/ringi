@@ -2,9 +2,12 @@ packages:
   - "apps/*"
   - "packages/*"
 
+overrides:
+  vite: npm:@voidzero-dev/vite-plus-core@latest
+  vitest: npm:@voidzero-dev/vite-plus-test@latest
+
 onlyBuiltDependencies:
   - esbuild
-  - lefthook
   - msgpackr-extract
   - msw
   - react-grab

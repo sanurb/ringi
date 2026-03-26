@@ -285,7 +285,7 @@ Ringi's architecture prioritizes local operation and data ownership:
 
 - [TypeScript](https://typescriptlang.org) with strict type checking
 - [Vitest](https://vitest.dev) for testing (no mocking frameworks)
-- [Ultracite](https://github.com/your-org/ultracite) for linting and formatting
+- [Vite+](https://viteplus.dev) unified toolchain (lint, format, test, check)
 - [Effect Language Service](https://effect.website) for IDE support
 
 ---
@@ -317,7 +317,7 @@ ringi/
 All contributions must pass:
 
 ```bash
-pnpm check      # Ultracite linting
+pnpm check      # vp check (oxlint + oxfmt)
 pnpm fix        # Auto-fix formatting issues
 pnpm typecheck  # TypeScript validation
 pnpm test       # Test suite (no mocks allowed)
@@ -330,39 +330,6 @@ pnpm test       # Test suite (no mocks allowed)
 3. Follow the no-mocking testing policy - use dependency injection
 4. Add tests for new functionality using constructor injection patterns
 5. Submit pull request with clear description and examples
-
----
-
-## Roadmap
-
-### Phase 1: Operational Surface ✅
-
-- [x] Core review session model
-- [x] Git diff processing and storage
-- [x] Basic CLI commands and server runtime
-- [ ] Complete filesystem watcher integration
-- [ ] MCP protocol foundation
-
-### Phase 1.5: Trust Layer 🔄
-
-- [ ] Structured provenance display
-- [ ] Evidence-backed relationship visualization
-- [ ] Impact minimap and graph-diff bridging
-- [ ] Confidence scoring with inspection support
-
-### Phase 2: Deep Intelligence
-
-- [ ] Tree-sitter parsing backend
-- [ ] Cross-file symbol and import analysis
-- [ ] Rename detection and impact propagation
-- [ ] Advanced grouping algorithms
-
-### Phase 3: Agent Review Loop
-
-- [ ] Structured agent review creation
-- [ ] Deterministic self-verification APIs
-- [ ] Selective batch approval workflows
-- [ ] Review diff subscriptions
 
 ---
 

@@ -21,27 +21,27 @@
     "build:cli": "pnpm --filter @sanurb/ringi build",
     "build:all": "pnpm build:cli && pnpm build",
     "preview": "pnpm --filter @ringi/web preview",
-    "test": "pnpm -r test",
+    "test": "vp test run",
     "typecheck": "pnpm -r typecheck",
-    "lint": "oxlint --type-aware --type-check",
-    "lint:fix": "oxlint --type-aware --type-check --fix",
-    "check": "ultracite check",
-    "fix": "ultracite fix",
+    "lint": "vp lint",
+    "lint:fix": "vp lint --fix",
+    "check": "vp check",
+    "fix": "vp check --fix",
     "deps": "pnpm dlx taze@latest -Ilw",
     "deps:major": "pnpm dlx taze@latest major -Ilw",
     "tanstack": "pnpm dlx @tanstack/cli@latest",
-    "prepare": "lefthook install"
+    "prepare": "vp config hooks"
   },
   "devDependencies": {
-    "lefthook": "^2.1.4",
-    "oxfmt": "^0.41.0",
-    "oxlint": "^1.56.0",
-    "oxlint-tsgolint": "^0.17.4",
+    "@voidzero-dev/vite-plus-core": "^0.1.14",
+    "@voidzero-dev/vite-plus-test": "^0.1.14",
+    "tsdown": "^0.21.5",
     "typescript": "^5.9.3",
-    "ultracite": "7.3.2"
+    "vite-plus": "^0.1.14",
+    "vitest": "^4.1.2"
   },
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.12.0"
   },
   "packageManager": "pnpm@10.32.1"
 }

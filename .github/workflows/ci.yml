@@ -19,32 +19,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: ${{ matrix.node-version }}
-          cache: pnpm
+          cache: true
 
-      - run: pnpm install --frozen-lockfile
+      - run: vp install
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: pnpm -r typecheck
 
       - name: Lint & format
-        run: pnpm check
+        run: vp check
 
       - name: Test
-        run: pnpm test
+        run: vp test run
 
       - name: Build CLI
-        run: pnpm build:cli
+        run: pnpm --filter @sanurb/ringi build
 
       - name: Smoke test — CLI runs
-        run: node apps/cli/dist/cli.js --version
+        run: node apps/cli/dist/cli.mjs --version
 
       - name: Smoke test — CLI help
-        run: node apps/cli/dist/cli.js --help
+        run: node apps/cli/dist/cli.mjs --help
 
       - name: Package dry-run
         run: cd apps/cli && npm pack --dry-run

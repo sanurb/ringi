@@ -1,13 +1,15 @@
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import viteReact from "@vitejs/plugin-react";
+import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
-import viteTsConfigPaths from "vite-tsconfig-paths";
+import babel from "@rolldown/plugin-babel";
 
 const config = defineConfig({
   resolve: {
+    // Vite 8 built-in tsconfig paths — replaces vite-tsconfig-paths plugin.
+    tsconfigPaths: true,
     // Ensure workspace-linked packages resolve to a single module instance.
     // Without this, Vite may evaluate @ringi/core modules multiple times when
     // reached through different dependency paths (e.g. server-runtime vs
@@ -21,10 +23,6 @@ const config = defineConfig({
   },
   plugins: [
     devtools(),
-    // this is the plugin that enables path aliases
-    viteTsConfigPaths({
-      projects: ["./tsconfig.json"],
-    }),
     tanstackStart(),
     // https://tanstack.com/start/latest/docs/framework/react/guide/hosting
     nitro({
@@ -36,6 +34,9 @@ const config = defineConfig({
       },
     }),
     viteReact(),
+    babel({
+      presets: [reactCompilerPreset()],
+    }),
     tailwindcss(),
   ],
   server: {

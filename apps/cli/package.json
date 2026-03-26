@@ -14,7 +14,7 @@
     "directory": "apps/cli"
   },
   "bin": {
-    "ringi": "dist/cli.js"
+    "ringi": "dist/cli.mjs"
   },
   "files": [
     "dist",
@@ -24,28 +24,28 @@
   "type": "module",
   "exports": {
     "./mcp": {
-      "import": "./dist/mcp.js"
+      "import": "./dist/mcp.mjs"
     }
   },
   "scripts": {
     "dev": "npx tsx src/cli/main.ts",
-    "build": "tsup",
-    "test": "vitest run",
+    "build": "tsdown",
+    "test": "vp test run",
     "typecheck": "tsc --noEmit",
     "prepack": "pnpm build"
   },
   "dependencies": {
     "@effect/platform": "^0.93.8",
-    "@ringi/core": "workspace:*",
     "effect": "^3.21.0"
   },
   "devDependencies": {
+    "@ringi/core": "workspace:*",
     "@types/node": "^22.19.15",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.21.5",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.2"
   },
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.12.0"
   }
 }

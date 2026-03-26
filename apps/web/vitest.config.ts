@@ -9,7 +9,7 @@ export default defineConfig({
     },
   },
   test: {
-    name: "@sanurb/ringi",
-    include: ["src/**/*.test.ts"],
+    name: "@ringi/web",
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
   },
 });

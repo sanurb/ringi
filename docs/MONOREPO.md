@@ -57,7 +57,7 @@ The CLI and MCP server, bundled via tsup into a publishable npm package. Contain
 1. `packages/core` has **zero** internal workspace dependencies.
 2. Both `apps/web` and `apps/cli` depend on `@ringi/core` via `workspace:*`.
 3. Apps never depend on each other.
-4. Shared dev tooling (oxlint, ultracite, lefthook, typescript) lives in root `devDependencies`.
+4. Shared dev tooling (vite-plus, tsdown, typescript) lives in root `devDependencies`.
 
 ## Commands
 
@@ -66,11 +66,11 @@ The CLI and MCP server, bundled via tsup into a publishable npm package. Contain
 | `pnpm dev`       | Start web dev server (port 3000) |
 | `pnpm dev:cli`   | Run CLI in dev mode via tsx      |
 | `pnpm build`     | Build web app                    |
-| `pnpm build:cli` | Build CLI + MCP (tsup)           |
+| `pnpm build:cli` | Build CLI + MCP (tsdown)         |
 | `pnpm build:all` | Build CLI then web               |
 | `pnpm test`      | Run tests across all workspaces  |
 | `pnpm typecheck` | Typecheck all workspaces         |
-| `pnpm check`     | Lint + format check (ultracite)  |
+| `pnpm check`     | Lint + format check (vp check)   |
 | `pnpm fix`       | Auto-fix lint + format issues    |
 
 ## When to Extract a New Package
