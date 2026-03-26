@@ -1,3 +1,5 @@
+<img width="1920" height="1080" alt="ringi_screnshoot" src="https://github.com/user-attachments/assets/c9e89524-60b3-42b5-bd6d-397c1355b82f" />
+
 # Ringi
 
 **Local-first code review tool for AI-generated changes**
