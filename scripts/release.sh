@@ -62,7 +62,7 @@ NPM_USER=$(npm whoami)
 ok "Logged in to npm as: ${NPM_USER}"
 
 # Check if version already published
-if npm view ${1}"@sanurb/ringi@${VERSION}" version &>/dev/null 2>&1; then
+if npm view "@ringi/cli@${VERSION}" version &>/dev/null 2>&1; then
   fail "Version ${VERSION} already published on npm. Bump version first."
 fi
 ok "Version ${VERSION} not yet published"

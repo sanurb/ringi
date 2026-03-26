@@ -1,6 +1,6 @@
 {
   "name": "@ringi/cli",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Local-first code review tool for AI-generated changes — CLI and MCP server",
   "homepage": "https://github.com/sanurb/ringi#readme",
   "bugs": {
