@@ -81,9 +81,10 @@ jobs:
       # Requires NPM_TOKEN secret with publish access.
       - name: Publish to npm
         if: startsWith(github.ref, 'refs/tags/v') && inputs.dry_run != true
-        run: cd apps/cli && npm publish --access public --provenance
+        run: pnpm --filter @sanurb/ringi publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
 
       - name: Upload tarball artifact
         if: always()

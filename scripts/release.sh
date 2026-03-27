@@ -124,7 +124,7 @@ if [[ "$PUBLISH" != true ]]; then
   echo "    ./scripts/release.sh --publish"
   echo ""
   echo "  Or manually:"
-  echo "    cd apps/cli && npm publish --access public"
+  echo "    pnpm --filter @sanurb/ringi publish --access public --no-git-checks"
   echo ""
   echo "  Then tag:"
   echo "    git tag v${VERSION}"
@@ -148,7 +148,7 @@ fi
 
 echo ""
 info "Publishing..."
-cd apps/cli && npm publish --access public
+pnpm --filter @sanurb/ringi publish --access public --no-git-checks
 ok "Published ringi@${VERSION} to npm!"
 
 echo ""

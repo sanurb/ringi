@@ -75,7 +75,27 @@ if (pkg.bin?.ringi === "dist/cli.mjs") {
   );
 }
 
-// 6. Run npm pack --dry-run and verify critical files appear
+// 6. Check for unresolved workspace/catalog protocols
+const allDeps = {
+  ...pkg.dependencies,
+  ...pkg.peerDependencies,
+};
+const unresolvedProtocols = Object.entries(allDeps).filter(
+  ([, v]) =>
+    typeof v === "string" &&
+    (v.startsWith("catalog:") || v.startsWith("workspace:"))
+);
+if (unresolvedProtocols.length === 0) {
+  pass("No unresolved catalog:/workspace: protocols in published dependencies");
+} else {
+  for (const [name, version] of unresolvedProtocols) {
+    fail(
+      `Unresolved protocol in dependencies: "${name}": "${version}" — use 'pnpm publish' instead of 'npm publish'`
+    );
+  }
+}
+
+// 7. Run npm pack --dry-run and verify critical files appear
 try {
   const packOutput = execSync("npm pack --dry-run --json 2>/dev/null", {
     cwd: cliRoot,

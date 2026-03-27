@@ -65,14 +65,19 @@ Or manually:
 
 ```bash
 # Final dry-run
-npm publish --dry-run --access public
+cd apps/cli && npm pack --dry-run
 
-# Actual publish (will prompt for OTP if 2FA enabled)
-npm publish --access public
+# Actual publish — MUST use pnpm to resolve catalog: protocols
+pnpm --filter @sanurb/ringi publish --access public --no-git-checks
 
 # Push the tag
 git push origin main --tags
 ```
+
+> **⚠ Always use `pnpm publish`, never `npm publish`.** The workspace uses
+> `catalog:` protocol references in `package.json`. Only `pnpm publish`
+> resolves these to real version specifiers. `npm publish` copies them
+> verbatim, producing an uninstallable package.
 
 ### 4. Verify
 
@@ -81,11 +86,24 @@ npx ringi@latest --version
 npm info @sanurb/ringi
 ```
 
+## Why `pnpm publish` instead of `npm publish`?
+
+The workspace uses pnpm's `catalog:` protocol in `package.json` dependencies
+(e.g., `"effect": "catalog:"`). `pnpm publish` resolves these to real semver
+specifiers from `pnpm-workspace.yaml` before writing the tarball. `npm publish`
+copies the raw `catalog:` strings, producing a package that fails on install:
+
+```
+ERR_PNPM_SPEC_NOT_SUPPORTED_BY_ANY_RESOLVER  "effect@catalog:" isn't supported
+```
+
+The same applies to `workspace:*` references in devDependencies (though those
+are stripped by both tools since they're devDeps).
+
 ## Why `--access public`?
 
-`ringi` is an unscoped package name (not `@scope/ringi`). npm defaults unscoped
-packages to public, but `--access public` makes the intent explicit and prevents
-accidental private publishes if npm config changes.
+The package is scoped (`@sanurb/ringi`). npm defaults scoped packages to
+**private**. `--access public` is required for public visibility.
 
 ## CI Publishing (GitHub Actions)
 
