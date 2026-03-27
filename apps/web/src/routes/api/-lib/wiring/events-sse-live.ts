@@ -1,5 +1,6 @@
 import { EventService } from "@ringi/core/services/event.service";
 import * as Effect from "effect/Effect";
+import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 
@@ -9,6 +10,12 @@ const encodeSSE = (payload: string): Uint8Array =>
   encoder.encode(`data: ${payload}\n\n`);
 
 const CONNECTED_COMMENT: Uint8Array = encoder.encode(": connected\n\n");
+const HEARTBEAT_COMMENT: Uint8Array = encoder.encode(": ping\n\n");
+
+/** Emits a `: ping` SSE comment every 30 seconds to keep the connection alive. */
+const heartbeat: Stream.Stream<Uint8Array> = Stream.repeatEffect(
+  Effect.as(Effect.sleep("30 seconds"), HEARTBEAT_COMMENT)
+);
 
 /**
  * SSE endpoint: GET /api/events
@@ -31,13 +38,16 @@ export const EventsSseLive = HttpRouter.use((router) =>
       Effect.gen(function* () {
         const { stream, unsubscribe } = yield* events.subscribe();
 
-        const sseStream = stream.pipe(
-          Stream.map((event): Uint8Array => encodeSSE(JSON.stringify(event))),
-          Stream.ensuring(unsubscribe)
+        const eventStream = stream.pipe(
+          Stream.map((event): Uint8Array => encodeSSE(JSON.stringify(event)))
         );
 
+        // Merge real events with periodic heartbeat keepalives,
+        // prepend the initial `: connected` comment, and clean up
+        // the subscription when the stream terminates.
         const fullStream = Stream.make(CONNECTED_COMMENT).pipe(
-          Stream.concat(sseStream)
+          Stream.concat(Stream.merge(eventStream, heartbeat)),
+          Stream.ensuring(unsubscribe)
         );
 
         return HttpServerResponse.stream(fullStream, {
@@ -45,9 +55,10 @@ export const EventsSseLive = HttpRouter.use((router) =>
           headers: {
             "Cache-Control": "no-cache",
             Connection: "keep-alive",
+            "X-Accel-Buffering": "no",
           },
         });
-      })
+      }).pipe(Effect.withSpan("SSE.events"))
     );
   })
 );
