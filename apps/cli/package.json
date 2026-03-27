@@ -37,15 +37,14 @@
     "prepack": "pnpm build && pnpm build:server"
   },
   "dependencies": {
-    "@effect/platform": "^0.96.0",
-    "effect": "^3.21.0"
+    "effect": "catalog:"
   },
   "devDependencies": {
     "@ringi/core": "workspace:*",
-    "@types/node": "^22.19.15",
-    "tsdown": "^0.21.5",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.2"
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "engines": {
     "node": ">=22.12.0"

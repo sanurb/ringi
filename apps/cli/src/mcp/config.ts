@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-import * as Context from "effect/Context";
+import { ServiceMap } from "effect";
 import * as Layer from "effect/Layer";
 
 const DEFAULT_DB_PATH = ".ringi/reviews.db";
@@ -18,13 +18,12 @@ export interface McpConfigShape {
   readonly repoRoot: string;
 }
 
-export class McpConfig extends Context.Tag("McpConfig")<
-  McpConfig,
-  McpConfigShape
->() {}
+export class McpConfig extends ServiceMap.Service<McpConfig, McpConfigShape>()(
+  "McpConfig"
+) {}
 
 export const McpConfigLive = (config: McpConfigShape) =>
-  Layer.succeed(McpConfig, config);
+  Layer.succeed(McpConfig, McpConfig.of(config));
 
 const resolveRepositoryRoot = (repoOverride?: string): string => {
   const cwd = repoOverride ?? process.cwd();

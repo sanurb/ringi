@@ -168,7 +168,7 @@ export const InlineCommentThread = ({
           return yield* http.comments.remove({ path: { id: commentId } });
         }).pipe(
           Effect.tap(() => Effect.promise(() => router.invalidate())),
-          Effect.tapErrorCause((cause) =>
+          Effect.tapCause((cause) =>
             Effect.sync(() => {
               setErrorByCommentId((current) => ({
                 ...current,

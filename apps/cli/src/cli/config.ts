@@ -1,4 +1,4 @@
-import * as Context from "effect/Context";
+import { ServiceMap } from "effect";
 import * as Layer from "effect/Layer";
 
 export type CliOutputMode = "human" | "json";
@@ -17,13 +17,12 @@ export interface CliConfigShape {
   readonly verbose: boolean;
 }
 
-export class CliConfig extends Context.Tag("@ringi/CliConfig")<
-  CliConfig,
-  CliConfigShape
->() {}
+export class CliConfig extends ServiceMap.Service<CliConfig, CliConfigShape>()(
+  "@ringi/CliConfig"
+) {}
 
 /**
  * Wraps a concrete {@link CliConfigShape} in a layer for the Effect runtime.
  */
 export const CliConfigLive = (config: CliConfigShape) =>
-  Layer.succeed(CliConfig, config);
+  Layer.succeed(CliConfig, CliConfig.of(config));

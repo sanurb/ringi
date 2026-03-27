@@ -1,4 +1,6 @@
+import { ServiceMap } from "effect";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 
 import type { ReviewId } from "../schemas/review";
 import { CommentService } from "../services/comment.service";
@@ -9,24 +11,29 @@ import { TodoService } from "../services/todo.service";
 // Service
 // ---------------------------------------------------------------------------
 
-export class ExportService extends Effect.Service<ExportService>()(
-  "@ringi/ExportService",
+export class ExportService extends ServiceMap.Service<
+  ExportService,
   {
-    dependencies: [
-      ReviewService.Default,
-      CommentService.Default,
-      TodoService.Default,
-    ],
-    effect: Effect.sync(() => {
-      const exportReview = Effect.fn("ExportService.exportReview")(
-        function* exportReview(reviewId: ReviewId) {
-          const reviewSvc = yield* ReviewService;
-          const commentSvc = yield* CommentService;
-          const todoSvc = yield* TodoService;
+    exportReview(
+      reviewId: ReviewId
+    ): Effect.Effect<string, import("../schemas/review").ReviewNotFound>;
+  }
+>()("@ringi/ExportService") {
+  static readonly Default: Layer.Layer<
+    ExportService,
+    never,
+    ReviewService | CommentService | TodoService
+  > = Layer.effect(
+    ExportService,
+    Effect.gen(function* () {
+      const reviewSvc = yield* ReviewService;
+      const commentSvc = yield* CommentService;
+      const todoSvc = yield* TodoService;
 
+      const exportReview = (reviewId: ReviewId) =>
+        Effect.gen(function* () {
           const review = yield* reviewSvc.getById(reviewId);
 
-          // review.repository is parsed from snapshotData
           const repo = review.repository as {
             name?: string;
             branch?: string;
@@ -40,14 +47,12 @@ export class ExportService extends Effect.Service<ExportService>()(
 
           const lines: string[] = [];
 
-          // -- Header --
           lines.push(`# Code Review: ${repoName}`);
           lines.push("");
           lines.push(`**Status:** ${review.status}`);
           lines.push(`**Branch:** ${branch}`);
           lines.push(`**Created:** ${review.createdAt}`);
 
-          // -- Files Changed --
           if (review.files && review.files.length > 0) {
             lines.push("");
             lines.push("## Files Changed");
@@ -69,14 +74,12 @@ export class ExportService extends Effect.Service<ExportService>()(
             }
           }
 
-          // -- Comments --
           if (comments.length > 0) {
             lines.push("");
             lines.push(
               `## Comments (${commentStats.total} total, ${commentStats.resolved} resolved)`
             );
 
-            // Group by file
             const byFile = new Map<string, (typeof comments)[number][]>();
             for (const c of comments) {
               const key = c.filePath ?? "(general)";
@@ -104,9 +107,8 @@ export class ExportService extends Effect.Service<ExportService>()(
             }
           }
 
-          // -- Todos --
           if (todos.data.length > 0) {
-            const completed = todos.data.filter((t) => t.completed).length;
+            const completed = todos.data.filter((t: any) => t.completed).length;
             lines.push("");
             lines.push("---");
             lines.push("");
@@ -115,17 +117,16 @@ export class ExportService extends Effect.Service<ExportService>()(
             );
             lines.push("");
             for (const t of todos.data) {
-              const check = t.completed ? "x" : " ";
-              lines.push(`- [${check}] ${t.content}`);
+              const check = (t as any).completed ? "x" : " ";
+              lines.push(`- [${check}] ${(t as any).content}`);
             }
           }
 
           lines.push("");
           return lines.join("\n");
-        }
-      );
+        });
 
-      return { exportReview } as const;
-    }),
-  }
-) {}
+      return ExportService.of({ exportReview });
+    })
+  );
+}

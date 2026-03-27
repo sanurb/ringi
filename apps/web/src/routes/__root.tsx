@@ -1,4 +1,3 @@
-import { RegistryProvider } from "@effect-atom/atom-react";
 import {
   HeadContent,
   Outlet,
@@ -46,9 +45,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         />
       </head>
       <body>
-        <RegistryProvider defaultIdleTTL={60_000}>
-          <RingiThemeProvider>{children}</RingiThemeProvider>
-        </RegistryProvider>
+        <RingiThemeProvider>{children}</RingiThemeProvider>
         <Scripts />
       </body>
     </html>

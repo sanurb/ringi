@@ -35,10 +35,10 @@
   "devDependencies": {
     "@voidzero-dev/vite-plus-core": "^0.1.14",
     "@voidzero-dev/vite-plus-test": "^0.1.14",
-    "tsdown": "^0.21.5",
-    "typescript": "^5.9.3",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
     "vite-plus": "^0.1.14",
-    "vitest": "^4.1.2"
+    "vitest": "catalog:"
   },
   "engines": {
     "node": ">=22.12.0"

@@ -34,7 +34,7 @@ export function CreateTodoForm({ onCreated }: CreateTodoFormProps) {
             onCreated(todo);
           })
         ),
-        Effect.catchAllCause(() => Effect.void),
+        Effect.catchCause(() => Effect.void),
         Effect.ensuring(Effect.sync(() => setSubmitting(false)))
       )
     );

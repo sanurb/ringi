@@ -12,7 +12,13 @@ export const SuccessResponse = Schema.Struct({
 export type SuccessResponse = typeof SuccessResponse.Type;
 
 export const PaginatedParams = Schema.Struct({
-  page: Schema.optionalWith(Schema.NumberFromString, { default: () => 1 }),
-  pageSize: Schema.optionalWith(Schema.NumberFromString, { default: () => 20 }),
+  page: Schema.NumberFromString.pipe(
+    Schema.optional,
+    Schema.withDecodingDefault(() => "1")
+  ),
+  pageSize: Schema.NumberFromString.pipe(
+    Schema.optional,
+    Schema.withDecodingDefault(() => "20")
+  ),
 });
 export type PaginatedParams = typeof PaginatedParams.Type;

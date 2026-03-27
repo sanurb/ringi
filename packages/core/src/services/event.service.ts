@@ -2,9 +2,11 @@ import { platform } from "node:os";
 import { relative } from "node:path";
 
 import chokidar from "chokidar";
+import { ServiceMap } from "effect";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as Queue from "effect/Queue";
-import * as Runtime from "effect/Runtime";
+import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 
 // ---------------------------------------------------------------------------
@@ -23,30 +25,35 @@ export interface SSEEvent {
 // Service
 // ---------------------------------------------------------------------------
 
-export class EventService extends Effect.Service<EventService>()(
-  "@ringi/EventService",
+export class EventService extends ServiceMap.Service<
+  EventService,
   {
-    effect: Effect.gen(function* effect() {
-      const rt = yield* Effect.runtime<never>();
-      const runFork = Runtime.runFork(rt);
+    broadcast(type: EventType, data?: unknown): Effect.Effect<void>;
+    subscribe(): Effect.Effect<{
+      readonly stream: Stream.Stream<SSEEvent>;
+      readonly unsubscribe: Effect.Effect<void>;
+    }>;
+    startFileWatcher(
+      repoPath: string
+    ): Effect.Effect<ReturnType<typeof chokidar.watch>, never, Scope.Scope>;
+    getClientCount(): Effect.Effect<number>;
+  }
+>()("@ringi/EventService") {
+  static readonly Default: Layer.Layer<EventService> = Layer.effect(
+    EventService,
+    Effect.sync(() => {
       const subscribers = new Set<Queue.Queue<SSEEvent>>();
 
-      // -- broadcast ---------------------------------------------------------
+      const broadcast = (type: EventType, data?: unknown) =>
+        Effect.gen(function* () {
+          const event: SSEEvent = { data, timestamp: Date.now(), type };
+          for (const queue of subscribers) {
+            yield* Queue.offer(queue, event);
+          }
+        });
 
-      const broadcast = Effect.fn("EventService.broadcast")(function* broadcast(
-        type: EventType,
-        data?: unknown
-      ) {
-        const event: SSEEvent = { data, timestamp: Date.now(), type };
-        for (const queue of subscribers) {
-          yield* Queue.offer(queue, event);
-        }
-      });
-
-      // -- subscribe ---------------------------------------------------------
-
-      const subscribe = Effect.fn("EventService.subscribe")(
-        function* subscribe() {
+      const subscribe = () =>
+        Effect.gen(function* () {
           const queue = yield* Queue.sliding<SSEEvent>(100);
           subscribers.add(queue);
 
@@ -57,10 +64,7 @@ export class EventService extends Effect.Service<EventService>()(
           }).pipe(Effect.andThen(Queue.shutdown(queue)));
 
           return { stream, unsubscribe } as const;
-        }
-      );
-
-      // -- file watcher ------------------------------------------------------
+        });
 
       const startFileWatcher = (repoPath: string) =>
         Effect.acquireRelease(
@@ -87,7 +91,7 @@ export class EventService extends Effect.Service<EventService>()(
               }
               debounceTimer = setTimeout(() => {
                 const rel = relative(repoPath, filePath);
-                runFork(broadcast("files", { path: rel }));
+                Effect.runFork(broadcast("files", { path: rel }));
               }, 300);
             };
 
@@ -100,16 +104,14 @@ export class EventService extends Effect.Service<EventService>()(
           (watcher) => Effect.promise(() => watcher.close())
         );
 
-      // -- client count ------------------------------------------------------
-
       const getClientCount = () => Effect.sync(() => subscribers.size);
 
-      return {
+      return EventService.of({
         broadcast,
         getClientCount,
         startFileWatcher,
         subscribe,
-      } as const;
-    }),
-  }
-) {}
+      });
+    })
+  );
+}

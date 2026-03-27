@@ -1,4 +1,4 @@
-import * as Either from "effect/Either";
+import * as Result from "effect/Result";
 import { describe, expect, it } from "vitest";
 
 import { parseCliArgs } from "@/cli/parser";
@@ -9,10 +9,10 @@ import { parseCliArgs } from "@/cli/parser";
 
 const parse = (argv: string[]) => {
   const result = parseCliArgs(argv);
-  if (Either.isLeft(result)) {
-    return { error: result.left.message };
+  if (Result.isFailure(result)) {
+    return { error: result.failure.message };
   }
-  return result.right;
+  return result.success;
 };
 
 const parseCommand = (argv: string[]) => {
@@ -25,12 +25,12 @@ const parseCommand = (argv: string[]) => {
 
 const parseError = (argv: string[]) => {
   const result = parseCliArgs(argv);
-  if (Either.isRight(result)) {
+  if (Result.isSuccess(result)) {
     throw new Error(
-      `Expected parse failure but got: ${result.right.command.kind}`
+      `Expected parse failure but got: ${result.success.command.kind}`
     );
   }
-  return result.left;
+  return result.failure;
 };
 
 // ---------------------------------------------------------------------------

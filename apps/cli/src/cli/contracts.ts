@@ -128,11 +128,14 @@ export interface CommandOutput<T> {
  * Carries an exit code and optional operator-facing details so callers can
  * present a short message without losing the underlying reason.
  */
-export class CliFailure extends Schema.TaggedError<CliFailure>()("CliFailure", {
-  details: Schema.optional(Schema.String),
-  exitCode: Schema.Number,
-  message: Schema.String,
-}) {}
+export class CliFailure extends Schema.TaggedErrorClass<CliFailure>()(
+  "CliFailure",
+  {
+    details: Schema.String.pipe(Schema.optionalKey),
+    exitCode: Schema.Number,
+    message: Schema.String,
+  }
+) {}
 
 /**
  * Normalized CLI intent shared by the parser and executors so command handlers

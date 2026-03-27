@@ -1,7 +1,7 @@
-import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import { DomainApi } from "@ringi/core/api/domain-api";
 import { TodoService } from "@ringi/core/services/todo.service";
 import * as Effect from "effect/Effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 export const TodosApiLive = HttpApiBuilder.group(
   DomainApi,
@@ -17,7 +17,7 @@ export const TodosApiLive = HttpApiBuilder.group(
       .handle("getById", (_) =>
         Effect.gen(function* TodosApiLive() {
           const svc = yield* TodoService;
-          return yield* svc.getById(_.path.id);
+          return yield* svc.getById(_.params.id);
         })
       )
       .handle("create", (_) =>
@@ -29,19 +29,19 @@ export const TodosApiLive = HttpApiBuilder.group(
       .handle("update", (_) =>
         Effect.gen(function* TodosApiLive() {
           const svc = yield* TodoService;
-          return yield* svc.update(_.path.id, _.payload);
+          return yield* svc.update(_.params.id, _.payload);
         })
       )
       .handle("toggle", (_) =>
         Effect.gen(function* TodosApiLive() {
           const svc = yield* TodoService;
-          return yield* svc.toggle(_.path.id);
+          return yield* svc.toggle(_.params.id);
         })
       )
       .handle("remove", (_) =>
         Effect.gen(function* TodosApiLive() {
           const svc = yield* TodoService;
-          return yield* svc.remove(_.path.id);
+          return yield* svc.remove(_.params.id);
         })
       )
       .handle("removeCompleted", (_) =>
@@ -59,7 +59,7 @@ export const TodosApiLive = HttpApiBuilder.group(
       .handle("move", (_) =>
         Effect.gen(function* TodosApiLive() {
           const svc = yield* TodoService;
-          return yield* svc.move(_.path.id, _.payload.position);
+          return yield* svc.move(_.params.id, _.payload.position);
         })
       )
       .handle("stats", (_) =>

@@ -13,36 +13,34 @@ import * as Schema from "effect/Schema";
 // Shared
 // ---------------------------------------------------------------------------
 
-const NonEmptyString = Schema.String.pipe(Schema.minLength(1));
+const NonEmptyString = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
 
 // ---------------------------------------------------------------------------
 // Review inputs
 // ---------------------------------------------------------------------------
 
-/**
- * Spec shape: `{ source: { type, baseRef } }`.
- * Legacy shape: `{ sourceType, sourceRef }`.
- *
- * We use Schema.Union to accept either and normalize to the legacy shape.
- */
 const ReviewCreateFromSpec = Schema.Struct({
   source: Schema.Struct({
-    baseRef: Schema.optionalWith(Schema.NullOr(Schema.String), {
-      default: () => null,
-    }),
-    type: Schema.optionalWith(ReviewSourceType, {
-      default: () => "staged" as const,
-    }),
+    baseRef: Schema.NullOr(Schema.String).pipe(
+      Schema.optionalKey,
+      Schema.withDecodingDefaultKey(() => null)
+    ),
+    type: ReviewSourceType.pipe(
+      Schema.optionalKey,
+      Schema.withDecodingDefaultKey(() => "staged" as const)
+    ),
   }),
 });
 
 const ReviewCreateFromLegacy = Schema.Struct({
-  sourceRef: Schema.optionalWith(Schema.NullOr(Schema.String), {
-    default: () => null,
-  }),
-  sourceType: Schema.optionalWith(ReviewSourceType, {
-    default: () => "staged" as const,
-  }),
+  sourceRef: Schema.NullOr(Schema.String).pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => null)
+  ),
+  sourceType: ReviewSourceType.pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => "staged" as const)
+  ),
 });
 
 /** Normalized review creation input. */
@@ -61,14 +59,14 @@ export const decodeReviewCreateInput = (input: unknown): ReviewCreateInput => {
   ) {
     const parsed = Schema.decodeUnknownSync(ReviewCreateFromSpec)(input);
     return {
-      sourceRef: parsed.source.baseRef,
-      sourceType: parsed.source.type,
+      sourceRef: parsed.source.baseRef ?? null,
+      sourceType: parsed.source.type ?? ("staged" as const),
     };
   }
   const parsed = Schema.decodeUnknownSync(ReviewCreateFromLegacy)(input);
   return {
-    sourceRef: parsed.sourceRef,
-    sourceType: parsed.sourceType,
+    sourceRef: parsed.sourceRef ?? null,
+    sourceType: parsed.sourceType ?? ("staged" as const),
   };
 };
 
@@ -84,11 +82,20 @@ export const ReviewDiffQuery = Schema.Struct({
 export type ReviewDiffQuery = typeof ReviewDiffQuery.Type;
 
 export const ReviewListFilters = Schema.Struct({
-  limit: Schema.optionalWith(Schema.Number, { default: () => 20 }),
-  page: Schema.optionalWith(Schema.Number, { default: () => 1 }),
-  pageSize: Schema.optionalWith(Schema.Number, { default: () => 20 }),
-  sourceType: Schema.optional(Schema.String),
-  status: Schema.optional(Schema.String),
+  limit: Schema.Number.pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => 20)
+  ),
+  page: Schema.Number.pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => 1)
+  ),
+  pageSize: Schema.Number.pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => 20)
+  ),
+  sourceType: Schema.String.pipe(Schema.optionalKey),
+  status: Schema.String.pipe(Schema.optionalKey),
 });
 export type ReviewListFilters = typeof ReviewListFilters.Type;
 
@@ -96,27 +103,25 @@ export type ReviewListFilters = typeof ReviewListFilters.Type;
 // Todo inputs
 // ---------------------------------------------------------------------------
 
-/**
- * Accepts both `text` (MCP spec) and `content` (legacy) for the todo body.
- * Normalizes to `{ content, reviewId }`.
- */
 export interface CreateTodoInput {
   readonly content: string;
   readonly reviewId: typeof ReviewId.Type | null;
 }
 
 const TodoInputFromSpec = Schema.Struct({
-  reviewId: Schema.optionalWith(Schema.NullOr(ReviewId), {
-    default: () => null,
-  }),
+  reviewId: Schema.NullOr(ReviewId).pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => null)
+  ),
   text: NonEmptyString,
 });
 
 const TodoInputFromLegacy = Schema.Struct({
   content: NonEmptyString,
-  reviewId: Schema.optionalWith(Schema.NullOr(ReviewId), {
-    default: () => null,
-  }),
+  reviewId: Schema.NullOr(ReviewId).pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => null)
+  ),
 });
 
 /** Decode unknown input into a normalized CreateTodoInput. */
@@ -127,14 +132,14 @@ export const decodeCreateTodoInput = (input: unknown): CreateTodoInput => {
     "text" in (input as Record<string, unknown>)
   ) {
     const parsed = Schema.decodeUnknownSync(TodoInputFromSpec)(input);
-    return { content: parsed.text, reviewId: parsed.reviewId };
+    return { content: parsed.text, reviewId: parsed.reviewId ?? null };
   }
   const parsed = Schema.decodeUnknownSync(TodoInputFromLegacy)(input);
-  return { content: parsed.content, reviewId: parsed.reviewId };
+  return { content: parsed.content, reviewId: parsed.reviewId ?? null };
 };
 
 export const TodoListFilter = Schema.Struct({
-  reviewId: Schema.optional(ReviewId),
+  reviewId: ReviewId.pipe(Schema.optionalKey),
 });
 export type TodoListFilter = typeof TodoListFilter.Type;
 

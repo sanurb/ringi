@@ -74,7 +74,7 @@ function NewReviewPage() {
             })
           )
         ),
-        Effect.tapErrorCause((cause) =>
+        Effect.tapCause((cause) =>
           Effect.sync(() => {
             setError(Cause.pretty(cause));
             setCreating(false);

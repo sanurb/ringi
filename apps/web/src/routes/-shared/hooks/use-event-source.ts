@@ -10,15 +10,20 @@ export interface SSEEvent {
   timestamp: number;
 }
 
-const decodeSSEEvent = Schema.decodeUnknownOption(
-  Schema.parseJson(
-    Schema.Struct({
-      data: Schema.optional(Schema.Unknown),
-      timestamp: Schema.Number,
-      type: Schema.Literal("todos", "reviews", "comments", "files"),
-    })
-  )
-);
+const SSEEventSchema = Schema.Struct({
+  data: Schema.Unknown.pipe(Schema.optionalKey),
+  timestamp: Schema.Number,
+  type: Schema.Literals(["todos", "reviews", "comments", "files"]),
+});
+
+const decodeSSEEvent = (raw: unknown) => {
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return Schema.decodeUnknownOption(SSEEventSchema)(parsed);
+  } catch {
+    return Option.none();
+  }
+};
 
 interface UseEventSourceOptions {
   url?: string;

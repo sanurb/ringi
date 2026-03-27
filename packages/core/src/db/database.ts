@@ -2,9 +2,11 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
+import { ServiceMap } from "effect";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Layer from "effect/Layer";
 
 import { runMigrations } from "./migrations";
 
@@ -29,23 +31,27 @@ export const withTransaction = <A, E, R>(
       })
   );
 
-export class SqliteService extends Effect.Service<SqliteService>()(
-  "@ringi/SqliteService",
-  {
-    effect: Effect.gen(function* effect() {
-      const dbPath = yield* Config.string("DB_PATH").pipe(
-        Config.withDefault(".ringi/reviews.db")
-      );
+export class SqliteService extends ServiceMap.Service<
+  SqliteService,
+  { readonly db: DatabaseSync }
+>()("@ringi/SqliteService") {
+  static readonly Default: Layer.Layer<SqliteService, Config.ConfigError> =
+    Layer.effect(
+      SqliteService,
+      Effect.gen(function* () {
+        const dbPath = yield* Config.string("DB_PATH").pipe(
+          Config.withDefault(".ringi/reviews.db")
+        );
 
-      mkdirSync(dirname(dbPath), { recursive: true });
+        mkdirSync(dirname(dbPath), { recursive: true });
 
-      const db = new DatabaseSync(dbPath);
-      db.exec("PRAGMA journal_mode=WAL");
-      db.exec("PRAGMA foreign_keys=ON");
+        const db = new DatabaseSync(dbPath);
+        db.exec("PRAGMA journal_mode=WAL");
+        db.exec("PRAGMA foreign_keys=ON");
 
-      runMigrations(db);
+        runMigrations(db);
 
-      return { db } as const;
-    }),
-  }
-) {}
+        return SqliteService.of({ db });
+      })
+    );
+}

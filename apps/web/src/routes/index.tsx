@@ -389,7 +389,7 @@ const ChangesPage = () => {
         return yield* http.git.stage({ payload: { files: [selectedFile] } });
       }).pipe(
         Effect.tap(() => Effect.promise(() => router.invalidate())),
-        Effect.catchAllCause(() => Effect.void)
+        Effect.catchCause(() => Effect.void)
       )
     );
   }, [selectedFile, router]);

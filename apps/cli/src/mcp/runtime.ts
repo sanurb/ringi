@@ -7,13 +7,11 @@ import type { McpConfigShape } from "@/mcp/config";
 import { McpConfigLive } from "@/mcp/config";
 
 const makeConfigLayer = (config: McpConfigShape) =>
-  Layer.setConfigProvider(
-    ConfigProvider.fromMap(
-      new Map([
-        ["DB_PATH", config.dbPath],
-        ["REPOSITORY_PATH", config.repoRoot],
-      ])
-    )
+  ConfigProvider.layer(
+    ConfigProvider.fromUnknown({
+      DB_PATH: config.dbPath,
+      REPOSITORY_PATH: config.repoRoot,
+    })
   );
 
 const makeMcpLayer = (config: McpConfigShape) =>
@@ -22,9 +20,7 @@ const makeMcpLayer = (config: McpConfigShape) =>
   );
 
 /** The concrete environment provided by the MCP runtime layer. */
-export type McpRuntimeContext = Layer.Layer.Success<
-  ReturnType<typeof makeMcpLayer>
->;
+export type McpRuntimeContext = Layer.Success<ReturnType<typeof makeMcpLayer>>;
 
 /** Typed MCP managed runtime — no `any` in the environment or error channels. */
 export type McpManagedRuntime = ManagedRuntime.ManagedRuntime<

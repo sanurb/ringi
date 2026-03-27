@@ -57,7 +57,7 @@ export function CommentForm({
             setShowSuggestion(false);
           })
         ),
-        Effect.tapErrorCause((cause) =>
+        Effect.tapCause((cause) =>
           Effect.logError("Failed to create comment", Cause.pretty(cause))
         ),
         Effect.ensuring(Effect.sync(() => setSubmitting(false)))
