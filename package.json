@@ -33,6 +33,7 @@
     "prepare": "vp config hooks"
   },
   "devDependencies": {
+    "@redwoodjs/agent-ci": "^0.5.0",
     "@voidzero-dev/vite-plus-core": "^0.1.14",
     "@voidzero-dev/vite-plus-test": "^0.1.14",
     "tsdown": "catalog:",

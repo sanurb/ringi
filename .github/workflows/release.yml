@@ -25,21 +25,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: voidzero-dev/setup-vp@v1
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: true
+          cache: pnpm
 
-      - run: vp install
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: pnpm -r typecheck
+        run: pnpm typecheck
 
       - name: Lint & format
-        run: vp check
+        run: pnpm check
 
       - name: Test
-        run: vp test run
+        run: pnpm test
 
       - name: Build CLI
         run: pnpm --filter @sanurb/ringi build
