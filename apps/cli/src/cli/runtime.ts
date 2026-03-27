@@ -22,15 +22,6 @@ export interface CliRuntimeResources {
   readonly runtime: ManagedRuntime.ManagedRuntime<any, any>;
 }
 
-/**
- * Resolves the repository root up front so every later git and database path is
- * anchored to the same directory, even when the user invoked the CLI elsewhere.
- *
- * NOTE: This uses execFileSync intentionally — it runs once at CLI startup
- * before the Effect runtime is constructed, so there is no fiber to block.
- * Moving this into the Effect runtime would create a circular dependency
- * (config → git → config).
- */
 const resolveRepositoryRoot = (repoOverride?: string): CliFailure | string => {
   const cwd = repoOverride ? resolve(repoOverride) : process.cwd();
 
@@ -101,10 +92,6 @@ export const resolveCliConfig = (args: {
   };
 };
 
-/**
- * Read-only commands still depend on initialized local state because the shared
- * services use the same database-backed storage as the other clients.
- */
 export const ensureLocalStateAvailable = (
   config: CliConfigShape
 ): CliFailure | undefined => {
@@ -118,13 +105,11 @@ export const ensureLocalStateAvailable = (
 };
 
 const makeConfigLayer = (config: CliConfigShape) =>
-  Layer.setConfigProvider(
-    ConfigProvider.fromMap(
-      new Map([
-        ["DB_PATH", config.dbPath],
-        ["REPOSITORY_PATH", config.repoRoot],
-      ])
-    )
+  ConfigProvider.layer(
+    ConfigProvider.fromUnknown({
+      DB_PATH: config.dbPath,
+      REPOSITORY_PATH: config.repoRoot,
+    })
   );
 
 export const createCoreCliRuntime = (config: CliConfigShape) =>
@@ -141,10 +126,6 @@ export const createGitCliRuntime = (config: CliConfigShape) =>
     )
   );
 
-/**
- * Centralizes runtime selection. Returns either valid resources or a CliFailure.
- * Returns null for help/version commands that don't need a runtime.
- */
 export const createCliRuntimeResources = (
   command: ParsedCommand,
   args: {

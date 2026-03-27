@@ -1,10 +1,10 @@
-import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import { DomainApi } from "@ringi/core/api/domain-api";
 import type { DiffScope } from "@ringi/core/schemas/review";
 import { getDiffSummary, parseDiff } from "@ringi/core/services/diff.service";
 import { GitService } from "@ringi/core/services/git.service";
 import { ReviewService } from "@ringi/core/services/review.service";
 import * as Effect from "effect/Effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 const loadScopedDiff = (scope: DiffScope) =>
   Effect.gen(function* loadScopedDiffEffect() {
@@ -49,7 +49,7 @@ export const DiffApiLive = HttpApiBuilder.group(DomainApi, "diff", (handlers) =>
       )
     )
     .handle("scoped", (_) =>
-      loadScopedDiff(_.urlParams.scope).pipe(
+      loadScopedDiff(_.query.scope).pipe(
         Effect.catchTags({ GitError: (error) => Effect.die(error) })
       )
     )
@@ -72,10 +72,7 @@ export const ReviewFilesApiLive = HttpApiBuilder.group(
     handlers.handle("hunks", (_) =>
       Effect.gen(function* loadReviewFileHunks() {
         const svc = yield* ReviewService;
-        const hunks = yield* svc.getFileHunks(
-          _.path.reviewId,
-          _.urlParams.path
-        );
+        const hunks = yield* svc.getFileHunks(_.params.reviewId, _.query.path);
         return { hunks };
       }).pipe(Effect.catchTags({ GitError: (error) => Effect.die(error) }))
     )

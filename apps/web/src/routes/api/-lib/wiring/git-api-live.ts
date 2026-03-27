@@ -1,7 +1,7 @@
-import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import { DomainApi } from "@ringi/core/api/domain-api";
 import { GitService } from "@ringi/core/services/git.service";
 import * as Effect from "effect/Effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 export const GitApiLive = HttpApiBuilder.group(DomainApi, "git", (handlers) =>
   handlers

@@ -214,7 +214,7 @@ export const ActionBar = ({
             setTimeout(() => setCopyLabel("Copy"), 1500);
           })
         ),
-        Effect.catchAllCause(() => Effect.void)
+        Effect.catchCause(() => Effect.void)
       )
     );
   }, [onCopyFileDiff, reviewId]);

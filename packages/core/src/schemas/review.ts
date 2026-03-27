@@ -1,4 +1,3 @@
-import * as HttpApiSchema from "@effect/platform/HttpApiSchema";
 import * as Schema from "effect/Schema";
 
 export const ReviewId = Schema.String.pipe(Schema.brand("ReviewId"));
@@ -12,14 +11,18 @@ export const DIFF_SCOPES = [
 ] as const;
 export type DiffScope = (typeof DIFF_SCOPES)[number];
 
-export const ReviewStatus = Schema.Literal(
+export const ReviewStatus = Schema.Literals([
   "in_progress",
   "approved",
-  "changes_requested"
-);
+  "changes_requested",
+]);
 export type ReviewStatus = typeof ReviewStatus.Type;
 
-export const ReviewSourceType = Schema.Literal("staged", "branch", "commits");
+export const ReviewSourceType = Schema.Literals([
+  "staged",
+  "branch",
+  "commits",
+]);
 export type ReviewSourceType = typeof ReviewSourceType.Type;
 
 export const Review = Schema.Struct({
@@ -36,22 +39,23 @@ export const Review = Schema.Struct({
 export type Review = typeof Review.Type;
 
 export const CreateReviewInput = Schema.Struct({
-  sourceRef: Schema.optionalWith(Schema.NullOr(Schema.String), {
-    default: () => null,
-  }),
-  sourceType: Schema.optionalWith(ReviewSourceType, {
-    default: () => "staged" as const,
-  }),
+  sourceRef: Schema.NullOr(Schema.String).pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => null)
+  ),
+  sourceType: ReviewSourceType.pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => "staged" as const)
+  ),
 });
 export type CreateReviewInput = typeof CreateReviewInput.Type;
 
 export const UpdateReviewInput = Schema.Struct({
-  status: Schema.optionalWith(ReviewStatus, { as: "Option" }),
+  status: Schema.OptionFromNullOr(ReviewStatus).pipe(Schema.optionalKey),
 });
 export type UpdateReviewInput = typeof UpdateReviewInput.Type;
 
-export class ReviewNotFound extends Schema.TaggedError<ReviewNotFound>()(
+export class ReviewNotFound extends Schema.TaggedErrorClass<ReviewNotFound>()(
   "ReviewNotFound",
-  { id: ReviewId },
-  HttpApiSchema.annotations({ status: 404 })
+  { id: ReviewId }
 ) {}

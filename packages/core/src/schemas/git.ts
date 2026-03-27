@@ -18,11 +18,11 @@ export interface FileTreeNode {
 
 export const FileTreeNode: Schema.Schema<FileTreeNode> = Schema.suspend(() =>
   Schema.Struct({
-    children: Schema.optional(Schema.Array(FileTreeNode)),
-    isChanged: Schema.optional(Schema.Boolean),
+    children: Schema.Array(FileTreeNode).pipe(Schema.optionalKey),
+    isChanged: Schema.Boolean.pipe(Schema.optionalKey),
     name: Schema.String,
     path: Schema.String,
-    type: Schema.Literal("file", "directory"),
+    type: Schema.Literals(["file", "directory"]),
   })
 );
 

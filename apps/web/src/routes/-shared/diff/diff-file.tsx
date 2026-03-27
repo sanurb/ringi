@@ -175,7 +175,7 @@ const useLazyHunks = (
       fetchHunks(reviewId, filePath).pipe(
         Effect.matchCauseEffect({
           onFailure: (cause) =>
-            Cause.isInterruptedOnly(cause)
+            Cause.hasInterruptsOnly(cause)
               ? Effect.sync(() => {
                   fetchedRef.current = false;
                   dispatch({ type: "fetch_done" });

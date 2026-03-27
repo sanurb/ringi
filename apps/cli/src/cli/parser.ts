@@ -2,8 +2,8 @@ import type {
   ReviewSourceType,
   ReviewStatus,
 } from "@ringi/core/schemas/review";
-import * as Either from "effect/Either";
 import * as Option from "effect/Option";
+import * as Result from "effect/Result";
 
 import { CliFailure, ExitCode } from "@/cli/contracts";
 import type { GlobalOptions, ParsedCommand } from "@/cli/contracts";
@@ -34,7 +34,7 @@ interface ParseState {
   readonly tokens: readonly string[];
 }
 
-type ParseResult = Either.Either<ParsedCommand, CliFailure>;
+type ParseResult = Result.Result<ParsedCommand, CliFailure>;
 
 const usageError = (message: string): CliFailure =>
   new CliFailure({ exitCode: ExitCode.UsageError, message });
@@ -66,23 +66,23 @@ const peekValue = (state: ParseState): string =>
 const decodePositiveInt = (
   raw: string,
   flag: string
-): Either.Either<number, CliFailure> => {
+): Result.Result<number, CliFailure> => {
   const value = Number.parseInt(raw, 10);
   if (!Number.isInteger(value) || value < 0) {
-    return Either.left(usageError(`${flag} must be a non-negative integer.`));
+    return Result.fail(usageError(`${flag} must be a non-negative integer.`));
   }
-  return Either.right(value);
+  return Result.succeed(value);
 };
 
 const decodeEnum = <T extends string>(
   raw: string,
   valid: ReadonlySet<T>,
   label: string
-): Either.Either<T, CliFailure> => {
+): Result.Result<T, CliFailure> => {
   if (!valid.has(raw as T)) {
-    return Either.left(usageError(`Invalid ${label}: ${raw}.`));
+    return Result.fail(usageError(`Invalid ${label}: ${raw}.`));
   }
-  return Either.right(raw as T);
+  return Result.succeed(raw as T);
 };
 
 // ---------------------------------------------------------------------------
@@ -139,15 +139,15 @@ const positiveIntFlag =
       return error;
     }
     const decoded = decodePositiveInt(raw, flag);
-    if (Either.isLeft(decoded)) {
-      return Option.some(decoded.left);
+    if (Result.isFailure(decoded)) {
+      return Option.some(decoded.failure);
     }
-    if (opts?.min !== undefined && decoded.right <= opts.min) {
+    if (opts?.min !== undefined && decoded.success <= opts.min) {
       return Option.some(
         usageError(`${flag} must be greater than ${opts.min}.`)
       );
     }
-    (acc as Record<string, unknown>)[key] = decoded.right;
+    (acc as Record<string, unknown>)[key] = decoded.success;
     return Option.none();
   };
 
@@ -166,10 +166,10 @@ const enumFlag =
       return error;
     }
     const decoded = decodeEnum(raw, valid, label);
-    if (Either.isLeft(decoded)) {
-      return Option.some(decoded.left);
+    if (Result.isFailure(decoded)) {
+      return Option.some(decoded.failure);
     }
-    (acc as Record<string, unknown>)[key] = decoded.right;
+    (acc as Record<string, unknown>)[key] = decoded.success;
     return Option.none();
   };
 
@@ -285,9 +285,9 @@ const parseReviewList = (state: ParseState): ParseResult => {
   };
   const error = runFlagLoop(state, acc, REVIEW_LIST_FLAGS, "review list");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ kind: "review-list" as const, ...acc });
+  return Result.succeed({ kind: "review-list" as const, ...acc });
 };
 
 // -- review show ------------------------------------------------------------
@@ -306,16 +306,16 @@ const REVIEW_SHOW_FLAGS: Readonly<Record<string, FlagHandler<ReviewShowAcc>>> =
 const parseReviewShow = (state: ParseState): ParseResult => {
   const id = state.tokens[state.index];
   if (!id) {
-    return Either.left(usageError("review show requires <id|last>."));
+    return Result.fail(usageError("review show requires <id|last>."));
   }
   state.index += 1;
 
   const acc: ReviewShowAcc = { comments: false, todos: false };
   const error = runFlagLoop(state, acc, REVIEW_SHOW_FLAGS, "review show");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ id, kind: "review-show" as const, ...acc });
+  return Result.succeed({ id, kind: "review-show" as const, ...acc });
 };
 
 // -- review export ----------------------------------------------------------
@@ -339,7 +339,7 @@ const REVIEW_EXPORT_FLAGS: Readonly<
 const parseReviewExport = (state: ParseState): ParseResult => {
   const id = state.tokens[state.index];
   if (!id) {
-    return Either.left(usageError("review export requires <id|last>."));
+    return Result.fail(usageError("review export requires <id|last>."));
   }
   state.index += 1;
 
@@ -351,9 +351,9 @@ const parseReviewExport = (state: ParseState): ParseResult => {
   };
   const error = runFlagLoop(state, acc, REVIEW_EXPORT_FLAGS, "review export");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ id, kind: "review-export" as const, ...acc });
+  return Result.succeed({ id, kind: "review-export" as const, ...acc });
 };
 
 // -- review create ----------------------------------------------------------
@@ -406,13 +406,13 @@ const parseReviewCreate = (state: ParseState): ParseResult => {
   };
   const error = runFlagLoop(state, acc, REVIEW_CREATE_FLAGS, "review create");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
   const validationError = validateReviewCreate(acc);
   if (Option.isSome(validationError)) {
-    return Either.left(validationError.value);
+    return Result.fail(validationError.value);
   }
-  return Either.right({ kind: "review-create" as const, ...acc });
+  return Result.succeed({ kind: "review-create" as const, ...acc });
 };
 
 // -- source diff ------------------------------------------------------------
@@ -446,7 +446,7 @@ const validateSourceDiff = (
 const parseSourceDiff = (state: ParseState): ParseResult => {
   const source = state.tokens[state.index] as ReviewSourceType | undefined;
   if (!source || !REVIEW_SOURCES.has(source)) {
-    return Either.left(
+    return Result.fail(
       usageError("source diff requires <staged|branch|commits>.")
     );
   }
@@ -459,13 +459,13 @@ const parseSourceDiff = (state: ParseState): ParseResult => {
   };
   const error = runFlagLoop(state, acc, SOURCE_DIFF_FLAGS, "source diff");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
   const validationError = validateSourceDiff(source, acc);
   if (Option.isSome(validationError)) {
-    return Either.left(validationError.value);
+    return Result.fail(validationError.value);
   }
-  return Either.right({ kind: "source-diff" as const, source, ...acc });
+  return Result.succeed({ kind: "source-diff" as const, source, ...acc });
 };
 
 // -- todo list --------------------------------------------------------------
@@ -493,9 +493,9 @@ const parseTodoList = (state: ParseState): ParseResult => {
   };
   const error = runFlagLoop(state, acc, TODO_LIST_FLAGS, "todo list");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ kind: "todo-list" as const, ...acc });
+  return Result.succeed({ kind: "todo-list" as const, ...acc });
 };
 
 // -- positional-id-only commands (shared factory) ---------------------------
@@ -509,18 +509,18 @@ const positionalIdParser =
   (state: ParseState): ParseResult => {
     const id = state.tokens[state.index];
     if (!id) {
-      return Either.left(usageError(`${label} requires <id>.`));
+      return Result.fail(usageError(`${label} requires <id>.`));
     }
     state.index += 1;
 
     while (state.index < state.tokens.length) {
       if (!maybeParseGlobalFlag(state)) {
-        return Either.left(
+        return Result.fail(
           usageError(`Unknown flag for ${label}: ${state.tokens[state.index]}.`)
         );
       }
     }
-    return Either.right({ id, kind } as ParsedCommand);
+    return Result.succeed({ id, kind } as ParsedCommand);
   };
 
 const parseTodoDone = positionalIdParser("todo-done" as const, "todo done");
@@ -542,19 +542,19 @@ const TODO_MOVE_FLAGS: Readonly<Record<string, FlagHandler<TodoMoveAcc>>> = {
 const parseTodoMove = (state: ParseState): ParseResult => {
   const id = state.tokens[state.index];
   if (!id) {
-    return Either.left(usageError("todo move requires <id>."));
+    return Result.fail(usageError("todo move requires <id>."));
   }
   state.index += 1;
 
   const acc: TodoMoveAcc = { position: undefined };
   const error = runFlagLoop(state, acc, TODO_MOVE_FLAGS, "todo move");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
   if (acc.position === undefined) {
-    return Either.left(usageError("todo move requires --position."));
+    return Result.fail(usageError("todo move requires --position."));
   }
-  return Either.right({
+  return Result.succeed({
     id,
     kind: "todo-move" as const,
     position: acc.position,
@@ -575,16 +575,16 @@ const TODO_REMOVE_FLAGS: Readonly<Record<string, FlagHandler<TodoRemoveAcc>>> =
 const parseTodoRemove = (state: ParseState): ParseResult => {
   const id = state.tokens[state.index];
   if (!id) {
-    return Either.left(usageError("todo remove requires <id>."));
+    return Result.fail(usageError("todo remove requires <id>."));
   }
   state.index += 1;
 
   const acc: TodoRemoveAcc = { yes: false };
   const error = runFlagLoop(state, acc, TODO_REMOVE_FLAGS, "todo remove");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ id, kind: "todo-remove" as const, ...acc });
+  return Result.succeed({ id, kind: "todo-remove" as const, ...acc });
 };
 
 // -- todo clear -------------------------------------------------------------
@@ -612,9 +612,9 @@ const parseTodoClear = (state: ParseState): ParseResult => {
   };
   const error = runFlagLoop(state, acc, TODO_CLEAR_FLAGS, "todo clear");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ kind: "todo-clear" as const, ...acc });
+  return Result.succeed({ kind: "todo-clear" as const, ...acc });
 };
 
 // -- review status ----------------------------------------------------------
@@ -635,9 +635,9 @@ const parseReviewStatus = (state: ParseState): ParseResult => {
   const acc: ReviewStatusAcc = { reviewId: undefined, source: undefined };
   const error = runFlagLoop(state, acc, REVIEW_STATUS_FLAGS, "review status");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ kind: "review-status" as const, ...acc });
+  return Result.succeed({ kind: "review-status" as const, ...acc });
 };
 
 // -- review resolve ---------------------------------------------------------
@@ -657,16 +657,16 @@ const REVIEW_RESOLVE_FLAGS: Readonly<
 const parseReviewResolve = (state: ParseState): ParseResult => {
   const id = state.tokens[state.index];
   if (!id) {
-    return Either.left(usageError("review resolve requires <id|last>."));
+    return Result.fail(usageError("review resolve requires <id|last>."));
   }
   state.index += 1;
 
   const acc: ReviewResolveAcc = { allComments: true, yes: false };
   const error = runFlagLoop(state, acc, REVIEW_RESOLVE_FLAGS, "review resolve");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ id, kind: "review-resolve" as const, ...acc });
+  return Result.succeed({ id, kind: "review-resolve" as const, ...acc });
 };
 
 // -- todo add ---------------------------------------------------------------
@@ -691,12 +691,12 @@ const parseTodoAdd = (state: ParseState): ParseResult => {
   };
   const error = runFlagLoop(state, acc, TODO_ADD_FLAGS, "todo add");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
   if (!acc.text.trim()) {
-    return Either.left(usageError("todo add requires --text."));
+    return Result.fail(usageError("todo add requires --text."));
   }
-  return Either.right({ kind: "todo-add" as const, ...acc });
+  return Result.succeed({ kind: "todo-add" as const, ...acc });
 };
 
 // -- serve ------------------------------------------------------------------
@@ -739,9 +739,9 @@ const parseServe = (state: ParseState): ParseResult => {
   };
   const error = runFlagLoop(state, acc, SERVE_FLAGS, "serve");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ kind: "serve" as const, ...acc });
+  return Result.succeed({ kind: "serve" as const, ...acc });
 };
 
 // -- mcp --------------------------------------------------------------------
@@ -762,9 +762,9 @@ const parseMcp = (state: ParseState): ParseResult => {
   const acc: McpAcc = { logLevel: "error", readonly: false };
   const error = runFlagLoop(state, acc, MCP_FLAGS, "mcp");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ kind: "mcp" as const, ...acc });
+  return Result.succeed({ kind: "mcp" as const, ...acc });
 };
 
 // -- events -----------------------------------------------------------------
@@ -785,9 +785,9 @@ const parseEvents = (state: ParseState): ParseResult => {
   const acc: EventsAcc = { since: undefined, type: undefined };
   const error = runFlagLoop(state, acc, EVENTS_FLAGS, "events");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ kind: "events" as const, ...acc });
+  return Result.succeed({ kind: "events" as const, ...acc });
 };
 
 // -- data reset -------------------------------------------------------------
@@ -806,9 +806,9 @@ const parseDataReset = (state: ParseState): ParseResult => {
   const acc: DataResetAcc = { keepExports: false, yes: false };
   const error = runFlagLoop(state, acc, DATA_RESET_FLAGS, "data reset");
   if (Option.isSome(error)) {
-    return Either.left(error.value);
+    return Result.fail(error.value);
   }
-  return Either.right({ kind: "data-reset" as const, ...acc });
+  return Result.succeed({ kind: "data-reset" as const, ...acc });
 };
 
 // ---------------------------------------------------------------------------
@@ -862,9 +862,9 @@ const DATA_VERB_PARSERS: Readonly<
   migrate: (state) => {
     const error = ensureNoExtraArgs(state, "data migrate");
     if (Option.isSome(error)) {
-      return Either.left(error.value);
+      return Result.fail(error.value);
     }
-    return Either.right({ kind: "data-migrate" as const });
+    return Result.succeed({ kind: "data-migrate" as const });
   },
   reset: parseDataReset,
 };
@@ -876,7 +876,7 @@ const FAMILY_PARSERS: Readonly<
   data: (state) => {
     const verb = state.tokens[state.index];
     if (!verb) {
-      return Either.right({
+      return Result.succeed({
         kind: "help" as const,
         topic: ["data"] as const,
       });
@@ -884,16 +884,16 @@ const FAMILY_PARSERS: Readonly<
     state.index += 1;
     const parser = DATA_VERB_PARSERS[verb];
     if (!parser) {
-      return Either.left(usageError(`Unknown data command: ${verb}.`));
+      return Result.fail(usageError(`Unknown data command: ${verb}.`));
     }
     return parser(state);
   },
   doctor: (state) => {
     const error = ensureNoExtraArgs(state, "doctor");
     if (Option.isSome(error)) {
-      return Either.left(error.value);
+      return Result.fail(error.value);
     }
-    return Either.right({ kind: "doctor" as const });
+    return Result.succeed({ kind: "doctor" as const });
   },
   events: parseEvents,
   export: parseReviewExport,
@@ -901,7 +901,7 @@ const FAMILY_PARSERS: Readonly<
   review: (state) => {
     const verb = state.tokens[state.index];
     if (!verb) {
-      return Either.right({
+      return Result.succeed({
         kind: "help" as const,
         topic: ["review"] as const,
       });
@@ -909,7 +909,7 @@ const FAMILY_PARSERS: Readonly<
     state.index += 1;
     const parser = REVIEW_VERB_PARSERS[verb];
     if (!parser) {
-      return Either.left(usageError(`Unknown review command: ${verb}.`));
+      return Result.fail(usageError(`Unknown review command: ${verb}.`));
     }
     return parser(state);
   },
@@ -917,7 +917,7 @@ const FAMILY_PARSERS: Readonly<
   source: (state) => {
     const verb = state.tokens[state.index];
     if (!verb) {
-      return Either.right({
+      return Result.succeed({
         kind: "help" as const,
         topic: ["source"] as const,
       });
@@ -926,19 +926,19 @@ const FAMILY_PARSERS: Readonly<
     if (verb === "list") {
       const error = ensureNoExtraArgs(state, "source list");
       if (Option.isSome(error)) {
-        return Either.left(error.value);
+        return Result.fail(error.value);
       }
-      return Either.right({ kind: "source-list" as const });
+      return Result.succeed({ kind: "source-list" as const });
     }
     if (verb === "diff") {
       return parseSourceDiff(state);
     }
-    return Either.left(usageError(`Unknown source command: ${verb}.`));
+    return Result.fail(usageError(`Unknown source command: ${verb}.`));
   },
   todo: (state) => {
     const verb = state.tokens[state.index];
     if (!verb) {
-      return Either.right({
+      return Result.succeed({
         kind: "help" as const,
         topic: ["todo"] as const,
       });
@@ -946,7 +946,7 @@ const FAMILY_PARSERS: Readonly<
     state.index += 1;
     const parser = TODO_VERB_PARSERS[verb];
     if (!parser) {
-      return Either.left(usageError(`Unknown todo command: ${verb}.`));
+      return Result.fail(usageError(`Unknown todo command: ${verb}.`));
     }
     return parser(state);
   },
@@ -966,25 +966,25 @@ const parseWithState = (state: ParseState): ParseResult => {
   }
 
   if (state.options.version) {
-    return Either.right({ kind: "version" as const });
+    return Result.succeed({ kind: "version" as const });
   }
 
   if (state.index >= state.tokens.length) {
-    return Either.right({ kind: "help" as const, topic: [] });
+    return Result.succeed({ kind: "help" as const, topic: [] });
   }
 
   const first = state.tokens[state.index];
   if (!first) {
-    return Either.right({ kind: "help" as const, topic: [] });
+    return Result.succeed({ kind: "help" as const, topic: [] });
   }
   if (first === "help") {
     const topic = state.tokens.slice(state.index + 1);
     state.index = state.tokens.length;
-    return Either.right({ kind: "help" as const, topic });
+    return Result.succeed({ kind: "help" as const, topic });
   }
 
   if (state.options.help) {
-    return Either.right({
+    return Result.succeed({
       kind: "help" as const,
       topic: state.tokens.slice(state.index),
     });
@@ -994,22 +994,22 @@ const parseWithState = (state: ParseState): ParseResult => {
 
   const familyParser = FAMILY_PARSERS[first];
   if (!familyParser) {
-    return Either.left(usageError(`Unknown command: ${first}.`));
+    return Result.fail(usageError(`Unknown command: ${first}.`));
   }
   return familyParser(state);
 };
 
 export const parseCliArgs = (
   argv: readonly string[]
-): Either.Either<
+): Result.Result<
   { readonly command: ParsedCommand; readonly options: GlobalOptions },
   CliFailure
 > => {
   const options = createDefaultOptions();
   const state: ParseState = { index: 0, options, tokens: argv };
   const result = parseWithState(state);
-  if (Either.isLeft(result)) {
-    return Either.left(result.left);
+  if (Result.isFailure(result)) {
+    return Result.fail(result.failure);
   }
-  return Either.right({ command: result.right, options });
+  return Result.succeed({ command: result.success, options });
 };

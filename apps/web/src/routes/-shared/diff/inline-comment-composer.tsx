@@ -137,7 +137,7 @@ export const InlineCommentComposer = ({
       }).pipe(
         Effect.tap(() => Effect.sync(onSubmitted)),
         Effect.tap(() => Effect.promise(() => router.invalidate())),
-        Effect.tapErrorCause((cause) =>
+        Effect.tapCause((cause) =>
           Effect.sync(() => setError(Cause.pretty(cause)))
         ),
         Effect.ensuring(Effect.sync(() => setSubmitting(false)))

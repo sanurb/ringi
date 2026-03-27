@@ -62,7 +62,7 @@ const loadReview = createServerFn({ method: "GET" })
     return { reviewId: obj.reviewId };
   })
   .handler(async ({ data }): Promise<ReviewDetailData> => {
-    const id = ReviewId.make(data.reviewId);
+    const id = data.reviewId as ReviewId;
     const result = await serverRuntime.runPromise(
       Effect.gen(function* result() {
         const reviewSvc = yield* ReviewService;
@@ -108,7 +108,7 @@ const updateStatus = (reviewId: string, status: string) =>
   Effect.gen(function* updateReviewStatus() {
     const { http } = yield* ApiClient;
     return yield* http.reviews.update({
-      path: { id: ReviewId.make(reviewId) },
+      path: { id: reviewId as ReviewId },
       payload: { status: Option.some(status as ReviewStatus) },
     });
   });
@@ -224,7 +224,7 @@ const ReviewDetailPage = () => {
               dispatch({ status: newStatus, type: "SET_STATUS" })
             )
           ),
-          Effect.tapErrorCause((cause) =>
+          Effect.tapCause((cause) =>
             Effect.logError("Failed to update review status", cause)
           )
         )

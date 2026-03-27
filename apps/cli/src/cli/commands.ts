@@ -286,7 +286,7 @@ const requireServerMode = (label: string) =>
 // ---------------------------------------------------------------------------
 
 type DiffSourceStrategy = (
-  git: GitService,
+  git: GitService["Service"],
   command: Extract<ParsedCommand, { kind: "source-diff" }>
 ) => Effect.Effect<string, unknown>;
 

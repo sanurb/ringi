@@ -23,7 +23,8 @@ const getHandler = async () => {
   const { initApiHandler } = await import("./-lib/api-handler");
   const { handler, dispose } = await initApiHandler();
 
-  effectHandler = ({ request }: { request: Request }) => handler(request);
+  effectHandler = ({ request }: { request: Request }) =>
+    handler(request, undefined as any);
 
   // HMR cleanup
   const globalHmr = globalThis as unknown as {

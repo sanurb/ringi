@@ -1,4 +1,3 @@
-import * as HttpApiSchema from "@effect/platform/HttpApiSchema";
 import * as Schema from "effect/Schema";
 
 import { ReviewId } from "./review";
@@ -18,23 +17,23 @@ export const Todo = Schema.Struct({
 export type Todo = typeof Todo.Type;
 
 export const CreateTodoInput = Schema.Struct({
-  content: Schema.String.pipe(Schema.minLength(1)),
-  reviewId: Schema.optionalWith(Schema.NullOr(ReviewId), {
-    default: () => null,
-  }),
+  content: Schema.String.pipe(Schema.check(Schema.isMinLength(1))),
+  reviewId: Schema.NullOr(ReviewId).pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => null)
+  ),
 });
 export type CreateTodoInput = typeof CreateTodoInput.Type;
 
 export const UpdateTodoInput = Schema.Struct({
-  completed: Schema.optionalWith(Schema.Boolean, { as: "Option" }),
-  content: Schema.optionalWith(Schema.String.pipe(Schema.minLength(1)), {
-    as: "Option",
-  }),
+  completed: Schema.OptionFromNullOr(Schema.Boolean).pipe(Schema.optionalKey),
+  content: Schema.OptionFromNullOr(
+    Schema.String.pipe(Schema.check(Schema.isMinLength(1)))
+  ).pipe(Schema.optionalKey),
 });
 export type UpdateTodoInput = typeof UpdateTodoInput.Type;
 
-export class TodoNotFound extends Schema.TaggedError<TodoNotFound>()(
+export class TodoNotFound extends Schema.TaggedErrorClass<TodoNotFound>()(
   "TodoNotFound",
-  { id: TodoId },
-  HttpApiSchema.annotations({ status: 404 })
+  { id: TodoId }
 ) {}

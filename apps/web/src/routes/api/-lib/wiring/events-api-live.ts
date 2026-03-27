@@ -1,7 +1,7 @@
-import * as HttpApiBuilder from "@effect/platform/HttpApiBuilder";
 import { DomainApi } from "@ringi/core/api/domain-api";
 import { EventService } from "@ringi/core/services/event.service";
 import * as Effect from "effect/Effect";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 export const EventsApiLive = HttpApiBuilder.group(
   DomainApi,

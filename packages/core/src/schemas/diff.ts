@@ -1,14 +1,14 @@
 import * as Schema from "effect/Schema";
 
-export const DiffStatus = Schema.Literal(
+export const DiffStatus = Schema.Literals([
   "added",
   "modified",
   "deleted",
-  "renamed"
-);
+  "renamed",
+]);
 export type DiffStatus = typeof DiffStatus.Type;
 
-export const DiffLineType = Schema.Literal("added", "removed", "context");
+export const DiffLineType = Schema.Literals(["added", "removed", "context"]);
 export type DiffLineType = typeof DiffLineType.Type;
 
 export const DiffLine = Schema.Struct({

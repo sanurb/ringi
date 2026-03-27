@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { ReviewNotFound } from "@ringi/core/schemas/review";
 import { TodoNotFound } from "@ringi/core/schemas/todo";
 import type * as Effect from "effect/Effect";
-import * as Either from "effect/Either";
+import * as Result from "effect/Result";
 
 import { commandLabel, runCommand } from "@/cli/commands";
 import { CliFailure, ExitCode, failure, success } from "@/cli/contracts";
@@ -609,16 +609,16 @@ const main = async (): Promise<void> => {
   const argv = process.argv.slice(2);
   const parseResult = parseCliArgs(argv);
 
-  if (Either.isLeft(parseResult)) {
+  if (Result.isFailure(parseResult)) {
     return failAndExit({
       cmdStr: "ringi",
-      error: parseResult.left,
+      error: parseResult.failure,
       json: argv.includes("--json"),
       verbose: false,
     });
   }
 
-  const { command, options } = parseResult.right;
+  const { command, options } = parseResult.success;
 
   if (command.kind === "help") {
     if (options.json) {
