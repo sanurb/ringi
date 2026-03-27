@@ -263,4 +263,11 @@ export type ParsedCommand =
       readonly kind: "events";
       readonly since?: number;
       readonly type?: "comments" | "files" | "reviews" | "todos";
+    }
+  | {
+      readonly forceRefresh: boolean;
+      readonly kind: "review-pr";
+      readonly noOpen: boolean;
+      readonly port: number;
+      readonly prUrl: string;
     };

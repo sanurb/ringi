@@ -404,3 +404,75 @@ describe("parse: events", () => {
     expect(err.message).toContain("Invalid");
   });
 });
+
+// ---------------------------------------------------------------------------
+// review <pr-url> (PR URL shortcut)
+// ---------------------------------------------------------------------------
+
+describe("review <pr-url>", () => {
+  it("parses a GitHub PR URL as review-pr command", () => {
+    const cmd = parseCommand([
+      "review",
+      "https://github.com/owner/repo/pull/42",
+    ]);
+    expect(cmd).toMatchObject({
+      forceRefresh: false,
+      kind: "review-pr",
+      noOpen: false,
+      port: 3000,
+      prUrl: "https://github.com/owner/repo/pull/42",
+    });
+  });
+
+  it("parses PR URL with flags", () => {
+    const cmd = parseCommand([
+      "review",
+      "https://github.com/octocat/hello/pull/7",
+      "--no-open",
+      "--port",
+      "4123",
+      "--force-refresh",
+    ]);
+    expect(cmd).toMatchObject({
+      forceRefresh: true,
+      kind: "review-pr",
+      noOpen: true,
+      port: 4123,
+      prUrl: "https://github.com/octocat/hello/pull/7",
+    });
+  });
+
+  it("parses GHE PR URL", () => {
+    const cmd = parseCommand([
+      "review",
+      "https://ghe.corp.com/team/project/pull/123",
+    ]);
+    expect(cmd).toMatchObject({
+      kind: "review-pr",
+      prUrl: "https://ghe.corp.com/team/project/pull/123",
+    });
+  });
+
+  it("does not confuse review verbs with PR URLs", () => {
+    const cmd = parseCommand(["review", "list"]);
+    expect(cmd).toMatchObject({ kind: "review-list" });
+  });
+
+  it("supports global flags alongside PR URL", () => {
+    const result = parse(["review", "https://github.com/a/b/pull/1", "--json"]);
+    expect("error" in result).toBe(false);
+    if (!("error" in result)) {
+      expect(result.command).toMatchObject({ kind: "review-pr" });
+      expect(result.options.json).toBe(true);
+    }
+  });
+
+  it("rejects unknown flags after PR URL", () => {
+    const err = parseError([
+      "review",
+      "https://github.com/a/b/pull/1",
+      "--invalid",
+    ]);
+    expect(err.message).toContain("Unknown flag");
+  });
+});

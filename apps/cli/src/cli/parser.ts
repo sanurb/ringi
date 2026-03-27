@@ -2,6 +2,7 @@ import type {
   ReviewSourceType,
   ReviewStatus,
 } from "@ringi/core/schemas/review";
+import { looksLikePrUrl } from "@ringi/core/services/pr-url";
 import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 
@@ -15,6 +16,7 @@ import type { GlobalOptions, ParsedCommand } from "@/cli/contracts";
 const REVIEW_SOURCES = new Set<ReviewSourceType>([
   "branch",
   "commits",
+  "pull_request",
   "staged",
 ]);
 const REVIEW_STATUSES = new Set<ReviewStatus>([
@@ -854,6 +856,33 @@ const TODO_VERB_PARSERS: Readonly<
   undone: parseTodoUndone,
 };
 
+// -- review pr (URL shortcut) -----------------------------------------------
+
+interface ReviewPrAcc {
+  forceRefresh: boolean;
+  noOpen: boolean;
+  port: number;
+}
+
+const REVIEW_PR_FLAGS: Readonly<Record<string, FlagHandler<ReviewPrAcc>>> = {
+  "--force-refresh": boolFlag("forceRefresh"),
+  "--no-open": boolFlag("noOpen"),
+  "--port": positiveIntFlag("port", { min: 0 }),
+};
+
+const parseReviewPr = (state: ParseState, prUrl: string): ParseResult => {
+  const acc: ReviewPrAcc = { forceRefresh: false, noOpen: false, port: 3000 };
+  const error = runFlagLoop(state, acc, REVIEW_PR_FLAGS, "review <pr-url>");
+  if (Option.isSome(error)) {
+    return Result.fail(error.value);
+  }
+  return Result.succeed({
+    kind: "review-pr" as const,
+    prUrl,
+    ...acc,
+  });
+};
+
 /** Subcommand family parsers keyed by family name. */
 /** Data verb parsers keyed by verb name. */
 const DATA_VERB_PARSERS: Readonly<
@@ -905,6 +934,11 @@ const FAMILY_PARSERS: Readonly<
         kind: "help" as const,
         topic: ["review"] as const,
       });
+    }
+    // URL shortcut: `ringi review https://github.com/owner/repo/pull/42`
+    if (looksLikePrUrl(verb)) {
+      state.index += 1;
+      return parseReviewPr(state, verb);
     }
     state.index += 1;
     const parser = REVIEW_VERB_PARSERS[verb];

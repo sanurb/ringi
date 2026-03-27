@@ -43,7 +43,7 @@ const ReviewCreateFromLegacy = Schema.Struct({
   ),
 });
 
-/** Normalized review creation input. */
+/** Normalized review creation input (MCP only supports local sources). */
 export interface ReviewCreateInput {
   readonly sourceRef: string | null;
   readonly sourceType: "staged" | "branch" | "commits";
@@ -60,13 +60,15 @@ export const decodeReviewCreateInput = (input: unknown): ReviewCreateInput => {
     const parsed = Schema.decodeUnknownSync(ReviewCreateFromSpec)(input);
     return {
       sourceRef: parsed.source.baseRef ?? null,
-      sourceType: parsed.source.type ?? ("staged" as const),
+      sourceType: (parsed.source.type ??
+        "staged") as ReviewCreateInput["sourceType"],
     };
   }
   const parsed = Schema.decodeUnknownSync(ReviewCreateFromLegacy)(input);
   return {
     sourceRef: parsed.sourceRef ?? null,
-    sourceType: parsed.sourceType ?? ("staged" as const),
+    sourceType: (parsed.sourceType ??
+      "staged") as ReviewCreateInput["sourceType"],
   };
 };
 

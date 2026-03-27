@@ -9,6 +9,7 @@ import { TodoRepo } from "./repos/todo.repo";
 import { CommentService } from "./services/comment.service";
 import { EventService } from "./services/event.service";
 import { ExportService } from "./services/export.service";
+import { GhService } from "./services/gh.service";
 import { GitService } from "./services/git.service";
 import { ReviewService } from "./services/review.service";
 import { TodoService } from "./services/todo.service";
@@ -50,6 +51,7 @@ export const CoreLive = Layer.mergeAll(
   CommentServiceLive,
   TodoServiceLive,
   GitService.Default,
+  GhService.Default,
   EventService.Default,
   ExportServiceLive,
   RepoLive,

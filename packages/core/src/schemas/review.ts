@@ -22,6 +22,7 @@ export const ReviewSourceType = Schema.Literals([
   "staged",
   "branch",
   "commits",
+  "pull_request",
 ]);
 export type ReviewSourceType = typeof ReviewSourceType.Type;
 

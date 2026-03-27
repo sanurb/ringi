@@ -51,6 +51,10 @@ const commandNeedsRepository = (command: ParsedCommand): boolean =>
   command.kind !== "mcp" &&
   command.kind !== "serve";
 
+/**
+ * Commands that need the database to already exist. `review-pr` is NOT here
+ * because it auto-initializes `.ringi/` (like `serve` does).
+ */
 export const commandNeedsDatabase = (command: ParsedCommand): boolean =>
   command.kind === "review-list" ||
   command.kind === "review-show" ||
@@ -63,6 +67,7 @@ export const commandUsesCoreRuntime = (command: ParsedCommand): boolean =>
   command.kind === "review-list" ||
   command.kind === "review-show" ||
   command.kind === "review-export" ||
+  command.kind === "review-pr" ||
   command.kind === "review-status" ||
   command.kind === "todo-list" ||
   command.kind === "review-create" ||

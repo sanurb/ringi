@@ -66,6 +66,10 @@ export class ReviewRepo extends ServiceMap.Service<
       status: string;
     }): Effect.Effect<Review>;
     update(id: ReviewId, status: string | null): Effect.Effect<Review | null>;
+    updateSnapshotData(
+      id: ReviewId,
+      snapshotData: string
+    ): Effect.Effect<Review | null>;
     remove(id: ReviewId): Effect.Effect<boolean>;
     countAll(): Effect.Effect<number>;
     countByStatus(status: string): Effect.Effect<number>;
@@ -85,6 +89,9 @@ export class ReviewRepo extends ServiceMap.Service<
         );
         const stmtUpdate = db.prepare(
           `UPDATE reviews SET status = COALESCE(?, status), updated_at = datetime('now') WHERE id = ?`
+        );
+        const stmtUpdateSnapshot = db.prepare(
+          `UPDATE reviews SET snapshot_data = ?, updated_at = datetime('now') WHERE id = ?`
         );
         const stmtDelete = db.prepare("DELETE FROM reviews WHERE id = ?");
         const stmtCountAll = db.prepare(
@@ -180,6 +187,16 @@ export class ReviewRepo extends ServiceMap.Service<
             return row ? rowToReview(row) : null;
           });
 
+        const updateSnapshotData = (
+          id: ReviewId,
+          snapshotData: string
+        ): Effect.Effect<Review | null> =>
+          Effect.sync(() => {
+            stmtUpdateSnapshot.run(snapshotData, id);
+            const row = stmtFindById.get(id) as ReviewRow | undefined;
+            return row ? rowToReview(row) : null;
+          });
+
         const remove = (id: ReviewId): Effect.Effect<boolean> =>
           Effect.sync(() => {
             const result = stmtDelete.run(id);
@@ -206,6 +223,7 @@ export class ReviewRepo extends ServiceMap.Service<
           findById,
           remove,
           update,
+          updateSnapshotData,
         });
       })
     );

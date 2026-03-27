@@ -6,6 +6,13 @@ import { CommentService } from "@ringi/core/services/comment.service";
 import { getDiffSummary, parseDiff } from "@ringi/core/services/diff.service";
 import { ExportService } from "@ringi/core/services/export.service";
 import { GitService } from "@ringi/core/services/git.service";
+import { runPreflight } from "@ringi/core/services/pr-preflight";
+import {
+  createOrResumePrSession,
+  forceRefreshPrSession,
+  prSourceRef,
+} from "@ringi/core/services/pr-session";
+import { parsePrUrl } from "@ringi/core/services/pr-url";
 import { ReviewService } from "@ringi/core/services/review.service";
 import { TodoService } from "@ringi/core/services/todo.service";
 import * as Effect from "effect/Effect";
@@ -705,6 +712,177 @@ const runTodoList = Effect.fn("CLI.todoList")(function* runTodoList(
 // Command registry (replaces switch-based dispatch)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// PR review handler
+// ---------------------------------------------------------------------------
+
+const runReviewPr = Effect.fn("CLI.reviewPr")(function* runReviewPr(
+  command: Extract<ParsedCommand, { kind: "review-pr" }>
+) {
+  // Step 1: parse and validate URL
+  const target = yield* parsePrUrl(command.prUrl).pipe(
+    Effect.mapError(
+      (e) =>
+        new CliFailure({
+          exitCode: ExitCode.UsageError,
+          message: e.message,
+        })
+    )
+  );
+
+  // Step 2: run preflight (gh install, auth, repo, metadata, diff)
+  const preflight = yield* runPreflight(target).pipe(
+    Effect.mapError(
+      (e) =>
+        new CliFailure({
+          exitCode: e.exitCode as ExitCode,
+          message: e.message,
+        })
+    )
+  );
+
+  if (preflight.affinityWarning) {
+    yield* Effect.logWarning(preflight.affinityWarning);
+  }
+
+  // Step 3: check for force-refresh on existing session
+  let session: {
+    isResumed: boolean;
+    isStale: boolean;
+    reviewId: ReviewId;
+    staleWarning: string | null;
+  };
+
+  if (command.forceRefresh) {
+    // Find existing session to refresh
+    const reviewService = yield* ReviewService;
+    const sourceRef = prSourceRef(target);
+    const cliConfig = yield* CliConfig;
+    const existing = yield* reviewService.list({
+      repositoryPath: cliConfig.repoRoot,
+      sourceType: "pull_request",
+      pageSize: 100,
+    });
+
+    const resumable = existing.reviews.find(
+      (r: { sourceRef: string | null; status: string }) =>
+        r.sourceRef === sourceRef && r.status !== "approved"
+    );
+
+    if (resumable) {
+      yield* forceRefreshPrSession(resumable.id as ReviewId, target).pipe(
+        Effect.mapError(
+          (e) =>
+            new CliFailure({
+              exitCode: ExitCode.RuntimeFailure,
+              message: e.message,
+            })
+        )
+      );
+      session = {
+        isResumed: true,
+        isStale: false,
+        reviewId: resumable.id as ReviewId,
+        staleWarning: null,
+      };
+    } else {
+      // No existing session — create fresh
+      session = yield* createOrResumePrSession(preflight).pipe(
+        Effect.mapError(
+          (e) =>
+            new CliFailure({
+              exitCode: ExitCode.RuntimeFailure,
+              message: e.message,
+            })
+        )
+      );
+    }
+  } else {
+    // Normal create-or-resume
+    session = yield* createOrResumePrSession(preflight).pipe(
+      Effect.mapError(
+        (e) =>
+          new CliFailure({
+            exitCode: ExitCode.RuntimeFailure,
+            message: e.message,
+          })
+      )
+    );
+  }
+
+  if (session.staleWarning) {
+    yield* Effect.logWarning(session.staleWarning);
+  }
+
+  const serverUrl = `http://localhost:${command.port}`;
+  const reviewUrl = `${serverUrl}/review/${session.reviewId}`;
+
+  const data = {
+    isResumed: session.isResumed,
+    isStale: session.isStale,
+    prNumber: target.prNumber,
+    prUrl: target.url,
+    reviewId: session.reviewId,
+    reviewUrl,
+  };
+
+  const statusLabel = session.isResumed
+    ? command.forceRefresh
+      ? "(refreshed)"
+      : "(resumed)"
+    : "(new)";
+
+  const humanLines = [
+    `PR #${target.prNumber}: ${preflight.metadata.title}`,
+    `Review: ${session.reviewId} ${statusLabel}`,
+    `Author: ${preflight.metadata.author.login}`,
+    `Branch: ${preflight.metadata.headRefName} → ${preflight.metadata.baseRefName}`,
+    `Files: ${preflight.metadata.changedFiles} (+${preflight.metadata.additions} -${preflight.metadata.deletions})`,
+    "",
+    `Server: ${serverUrl}`,
+    `Review: ${reviewUrl}`,
+  ];
+
+  if (preflight.metadata.isDraft) {
+    humanLines.splice(1, 0, "⚠ Draft PR");
+  }
+
+  if (
+    preflight.metadata.state === "CLOSED" ||
+    preflight.metadata.state === "MERGED"
+  ) {
+    humanLines.splice(1, 0, `⚠ This PR is ${preflight.metadata.state}`);
+  }
+
+  const nextActions: NextAction[] = [
+    {
+      command: `ringi review show ${session.reviewId} --comments --todos`,
+      description: "Inspect review details",
+    },
+    {
+      command: `ringi review export ${session.reviewId}`,
+      description: "Export review as markdown",
+    },
+  ];
+
+  if (session.isStale) {
+    nextActions.unshift({
+      command: `ringi review ${command.prUrl} --force-refresh`,
+      description: "Re-fetch PR data with latest changes",
+    });
+  }
+
+  return {
+    data,
+    human: humanLines.join("\n"),
+    nextActions,
+  } satisfies CommandOutput<typeof data>;
+});
+
+// ---------------------------------------------------------------------------
+// Command registry (replaces switch-based dispatch)
+// ---------------------------------------------------------------------------
+
 type CommandHandler = (
   command: ParsedCommand
 ) => Effect.Effect<CommandOutput<unknown>, unknown, unknown>;
@@ -736,6 +914,8 @@ const COMMAND_HANDLERS: Readonly<Record<string, CommandHandler>> = {
     runReviewExport(c as Extract<ParsedCommand, { kind: "review-export" }>),
   "review-list": (c) =>
     runReviewList(c as Extract<ParsedCommand, { kind: "review-list" }>),
+  "review-pr": (c) =>
+    runReviewPr(c as Extract<ParsedCommand, { kind: "review-pr" }>),
   "review-resolve": () => requireServerMode("ringi review resolve"),
   "review-show": (c) =>
     runReviewShow(c as Extract<ParsedCommand, { kind: "review-show" }>),
@@ -772,6 +952,7 @@ const COMMAND_LABELS: Readonly<Record<string, string>> = {
   "review-create": "ringi review create",
   "review-export": "ringi review export",
   "review-list": "ringi review list",
+  "review-pr": "ringi review <pr-url>",
   "review-resolve": "ringi review resolve",
   "review-show": "ringi review show",
   "review-status": "ringi review status",
