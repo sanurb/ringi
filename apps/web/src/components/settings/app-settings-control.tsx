@@ -20,13 +20,13 @@ export const AppSettingsControl = () => {
         aria-expanded={open}
         aria-haspopup="dialog"
         className={cn(
-          "inline-flex size-8 items-center justify-center rounded-md border border-transparent text-text-secondary hover:border-border-default hover:bg-surface-elevated hover:text-text-primary active:scale-[0.96]",
+          "inline-flex size-6 items-center justify-center rounded-[5px] text-text-tertiary hover:bg-surface-elevated hover:text-text-secondary active:scale-[0.97]",
           motion
         )}
         title="Settings"
         onClick={openSettings}
       >
-        <Settings2Icon aria-hidden className="size-4" />
+        <Settings2Icon aria-hidden className="size-3.5" />
         <span className="sr-only">Open settings</span>
       </button>
       <SettingsModal onOpenChange={setOpen} open={open} />

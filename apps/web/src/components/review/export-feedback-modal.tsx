@@ -162,10 +162,6 @@ export const ExportFeedbackModal = ({
   );
 
   const commentCount = allComments.length;
-  const fileCount = useMemo(() => {
-    const files = new Set(allComments.map((c) => c.filePath));
-    return files.size;
-  }, [allComments]);
 
   const handleCopy = useCallback(async () => {
     if (!markdown) {
@@ -198,11 +194,9 @@ export const ExportFeedbackModal = ({
       <DialogContent className="flex max-h-[min(640px,calc(100dvh-2rem))] w-full max-w-[calc(100%-1.5rem)] flex-col gap-0 overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Export Feedback</DialogTitle>
-          <DialogDescription>
-            {isEmpty
-              ? "No comments to export."
-              : `${commentCount} comment${commentCount === 1 ? "" : "s"} across ${fileCount} file${fileCount === 1 ? "" : "s"}`}
-          </DialogDescription>
+          {isEmpty ? (
+            <DialogDescription>No comments to export.</DialogDescription>
+          ) : null}
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col px-5 py-4">

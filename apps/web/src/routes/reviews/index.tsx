@@ -87,17 +87,12 @@ function ReviewsListPage() {
         <div className="mx-auto max-w-3xl px-6 py-6">
           <div className="mb-5 flex items-center justify-between">
             <h1 className="text-sm font-semibold text-text-primary">Reviews</h1>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-text-tertiary">
-                {data.total} total
-              </span>
-              <Link
-                to="/reviews/new"
-                className="rounded-sm bg-accent-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-accent-primary/90"
-              >
-                New Review
-              </Link>
-            </div>
+            <Link
+              to="/reviews/new"
+              className="rounded-sm bg-accent-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-accent-primary/90"
+            >
+              New Review
+            </Link>
           </div>
 
           {data.reviews.length === 0 ? (

@@ -124,6 +124,8 @@ interface ReviewDetailState {
   exportOpen: boolean;
   selectedFile: string | null;
   viewedFiles: ReadonlySet<string>;
+  /** Tracks unresolved comment count client-side for header reactivity. */
+  unresolvedCount: number;
 }
 
 type ReviewDetailAction =
@@ -132,7 +134,11 @@ type ReviewDetailAction =
   | { type: "TOGGLE_ANNOTATIONS" }
   | { type: "SET_EXPORT_OPEN"; open: boolean }
   | { type: "SELECT_FILE"; path: string }
-  | { type: "TOGGLE_VIEWED"; filePath: string };
+  | { type: "TOGGLE_VIEWED"; filePath: string }
+  | { type: "COMMENT_RESOLVED" }
+  | { type: "COMMENT_UNRESOLVED" }
+  | { type: "COMMENT_ADDED" }
+  | { type: "COMMENT_DELETED"; wasResolved: boolean };
 
 const reviewDetailReducer = (
   state: ReviewDetailState,
@@ -165,6 +171,26 @@ const reviewDetailReducer = (
         next.add(action.filePath);
       }
       return { ...state, viewedFiles: next };
+    }
+    case "COMMENT_RESOLVED": {
+      return {
+        ...state,
+        unresolvedCount: Math.max(0, state.unresolvedCount - 1),
+      };
+    }
+    case "COMMENT_UNRESOLVED": {
+      return { ...state, unresolvedCount: state.unresolvedCount + 1 };
+    }
+    case "COMMENT_ADDED": {
+      return { ...state, unresolvedCount: state.unresolvedCount + 1 };
+    }
+    case "COMMENT_DELETED": {
+      return {
+        ...state,
+        unresolvedCount: action.wasResolved
+          ? state.unresolvedCount
+          : Math.max(0, state.unresolvedCount - 1),
+      };
     }
     default: {
       return state;
@@ -199,6 +225,7 @@ const ReviewDetailPage = () => {
     exportOpen: false,
     selectedFile: diffFiles[0]?.newPath ?? null,
     status: data.status,
+    unresolvedCount: data.commentStats.unresolved,
     viewedFiles: new Set<string>(),
   });
 
@@ -259,9 +286,16 @@ const ReviewDetailPage = () => {
         reviewId={data.id}
         status={state.status}
         onStatusChange={handleStatusChange}
+        sourceDescription={
+          data.sourceRef
+            ? `${data.sourceRef}${data.baseRef ? ` → ${data.baseRef}` : ""}`
+            : `${data.sourceType.charAt(0).toUpperCase()}${data.sourceType.slice(1)} snapshot`
+        }
         diffMode={state.diffMode}
         onToggleDiffMode={toggleDiffMode}
-        commentCount={data.commentStats.total}
+        reviewedFileCount={state.viewedFiles.size}
+        totalFileCount={diffFiles.length}
+        unresolvedCount={state.unresolvedCount}
         isAnnotationsOpen={state.annotationsOpen}
         onToggleAnnotations={toggleAnnotations}
         onExport={handleExport}

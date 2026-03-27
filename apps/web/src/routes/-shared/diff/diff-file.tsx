@@ -629,24 +629,22 @@ export const DiffFile = ({
     );
   }
 
-  const viewedButtonLabel = viewed ? "Viewed" : "Viewed";
-
   return (
     <div
       id={`diff-file-${file.newPath.replaceAll("/", "-")}`}
-      className="overflow-hidden rounded-sm border border-border-default bg-surface-elevated"
+      className="overflow-hidden rounded-sm border border-border-subtle bg-surface-elevated"
     >
-      {/* ── File header bar ─────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-3 py-1.5">
+      {/* ── File header ─────────────────────────────────────────── */}
+      <div className="flex items-center gap-1.5 px-2.5 py-1.5">
         <button
           type="button"
           onClick={handleToggleExpand}
-          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-text-quaternary transition-[color,background-color] duration-100 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:bg-surface-overlay hover:text-text-secondary focus-visible:bg-surface-overlay focus-visible:text-text-secondary focus-visible:outline-none"
+          className="inline-flex size-4 shrink-0 items-center justify-center rounded text-text-tertiary/60 transition-[color,background-color] duration-100 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:text-text-secondary focus-visible:text-text-secondary focus-visible:outline-none"
           aria-expanded={expanded}
           aria-label={expanded ? "Collapse file" : "Expand file"}
         >
           <ChevronRightIcon
-            size={14}
+            size={12}
             className={cn(
               "transition-transform duration-100 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
               expanded && "rotate-90"
@@ -654,10 +652,17 @@ export const DiffFile = ({
           />
         </button>
 
+        {/* Status letter — matches tree's status indicator language */}
         <span
           className={cn(
-            "rounded px-1 py-0.5 text-[10px] font-semibold leading-none",
-            badge.className
+            "w-3 shrink-0 text-center font-mono text-[10px] font-semibold leading-none",
+            badge.className.includes("success")
+              ? "text-diff-add-text"
+              : badge.className.includes("error")
+                ? "text-diff-remove-text"
+                : badge.className.includes("warning")
+                  ? "text-accent-primary"
+                  : "text-status-info"
           )}
         >
           {badge.label}
@@ -667,35 +672,50 @@ export const DiffFile = ({
           {file.newPath}
         </span>
 
-        <span className="flex shrink-0 items-center gap-2 text-[10px] tabular-nums text-text-quaternary">
+        <span className="flex shrink-0 items-center gap-1.5 text-[10px] tabular-nums text-text-tertiary/60">
           {file.additions > 0 ? (
-            <span className="text-diff-add-text/70">+{file.additions}</span>
+            <span className="text-diff-add-text/60">+{file.additions}</span>
           ) : null}
           {file.deletions > 0 ? (
-            <span className="text-diff-remove-text/70">-{file.deletions}</span>
+            <span className="text-diff-remove-text/60">-{file.deletions}</span>
           ) : null}
         </span>
 
-        {/* ── Review action: viewed toggle ───────────────────────── */}
+        {/* Viewed toggle */}
         {onToggleViewed ? (
           <button
             type="button"
             onClick={handleToggleViewed}
+            title={viewed ? "Unmark as viewed" : "Mark as viewed"}
             className={cn(
-              "ml-1 shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-[transform,background-color,border-color,color] duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:transform-none",
+              "ml-0.5 flex size-5 shrink-0 items-center justify-center rounded transition-[transform,background-color,color] duration-100 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] active:scale-[0.93] motion-reduce:transform-none",
               viewed
-                ? "border-status-success/30 bg-status-success/10 text-status-success"
-                : "border-border-default text-text-tertiary hover:border-border-default hover:bg-surface-overlay hover:text-text-secondary"
+                ? "bg-status-success/12 text-status-success"
+                : "text-text-tertiary/40 hover:bg-surface-overlay hover:text-text-secondary"
             )}
           >
-            {viewedButtonLabel}
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 12 12"
+              fill="none"
+              className="shrink-0"
+            >
+              <path
+                d="M2.5 6.5L5 9l4.5-6"
+                stroke="currentColor"
+                strokeWidth={viewed ? "1.75" : "1.25"}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
         ) : null}
       </div>
 
       {/* ── Diff content ────────────────────────────────────────── */}
       {expanded ? (
-        <div className="border-t border-border-default">{diffContent}</div>
+        <div className="border-t border-border-subtle">{diffContent}</div>
       ) : null}
     </div>
   );

@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { ApiClient } from "@/api/api-client";
 import { clientRuntime } from "@/lib/client-runtime";
+import { cn } from "@/lib/utils";
 
 export function CommentForm({
   reviewId,
@@ -82,9 +83,29 @@ export function CommentForm({
       <button
         type="button"
         onClick={() => setShowSuggestion(!showSuggestion)}
-        className="mt-2 text-xs text-text-secondary transition hover:text-accent-primary"
+        title={showSuggestion ? "Remove suggestion" : "Add code suggestion"}
+        className={cn(
+          "mt-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-[background-color,color] duration-100 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)]",
+          showSuggestion
+            ? "bg-accent-muted text-accent-primary"
+            : "text-text-tertiary hover:bg-surface-overlay hover:text-text-secondary"
+        )}
       >
-        {showSuggestion ? "− Remove suggestion" : "+ Add suggestion"}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 16 16"
+          fill="none"
+          className="shrink-0"
+        >
+          <path
+            d="M4 4l3 4-3 4M8 12h4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </button>
 
       {showSuggestion && (

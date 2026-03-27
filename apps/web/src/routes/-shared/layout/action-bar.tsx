@@ -1,6 +1,7 @@
 import type { ReviewId } from "@ringi/core/schemas/review";
 import * as Effect from "effect/Effect";
-import { useState, useCallback } from "react";
+import { EllipsisIcon } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiClient } from "@/api/api-client";
 import { AppSettingsControl } from "@/components/settings/app-settings-control";
@@ -8,12 +9,18 @@ import { clientRuntime } from "@/lib/client-runtime";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Easing
+// System tokens — single source of truth for the header's visual language
 // ---------------------------------------------------------------------------
 
 const EASE_OUT = "[transition-timing-function:cubic-bezier(0.23,1,0.32,1)]";
 const motionBase = `${EASE_OUT} motion-reduce:transform-none`;
 const pressScale = "active:scale-[0.97]";
+
+const CONTROL = {
+  height: "h-6",
+  radius: "rounded-[5px]",
+  text: "text-[11px]",
+} as const;
 
 // ---------------------------------------------------------------------------
 // Props
@@ -22,48 +29,38 @@ const pressScale = "active:scale-[0.97]";
 interface ActionBarProps {
   repoName?: string;
   branchName?: string;
-  status?: string;
+
+  // ── Review context ───────────────────────────────────────────────
   reviewId?: string;
+  status?: string;
   onStatusChange?: (status: string) => void;
-  onToggleDiffMode?: () => void;
+
+  // ── Scope / source ───────────────────────────────────────────────
+  scopeLabel?: string;
+  sourceDescription?: string;
+
+  // ── View mode ────────────────────────────────────────────────────
   diffMode?: "split" | "unified";
-  commentCount?: number;
+  onToggleDiffMode?: () => void;
+
+  // ── Review progress ──────────────────────────────────────────────
+  /** Files marked as reviewed by the user. */
+  reviewedFileCount?: number;
+  /** Total number of files in the diff. */
+  totalFileCount?: number;
+
+  // ── Annotations ──────────────────────────────────────────────────
+  unresolvedCount?: number;
   isAnnotationsOpen?: boolean;
   onToggleAnnotations?: () => void;
+
+  // ── Utilities ────────────────────────────────────────────────────
   onExport?: () => void;
-  /** Selected file path for file-level actions. */
-  selectedFilePath?: string | null;
-  onGitAdd?: () => void;
-  onCopyFileDiff?: () => void;
+  onCopyDiff?: () => void;
 }
 
 // ---------------------------------------------------------------------------
-// Status badge (review context)
-// ---------------------------------------------------------------------------
-
-const statusStyles: Record<string, string> = {
-  active: "bg-accent-muted text-accent-primary",
-  approved: "bg-diff-add-bg text-status-success",
-  changes_requested: "bg-diff-remove-bg text-status-error",
-  draft: "bg-surface-elevated text-text-tertiary",
-};
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const style = statusStyles[status] ?? statusStyles.draft;
-  return (
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 text-[10px] font-medium capitalize",
-        style
-      )}
-    >
-      {status.replace("_", " ")}
-    </span>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Segmented diff-mode control
+// Segmented control
 // ---------------------------------------------------------------------------
 
 const SegmentedControl = ({
@@ -73,151 +70,263 @@ const SegmentedControl = ({
   diffMode: "split" | "unified";
   onToggle?: () => void;
 }) => (
-  <div className="relative grid grid-cols-2 items-center rounded-md border border-border-default bg-surface-secondary p-0.5">
+  <div
+    role="radiogroup"
+    aria-label="Diff view mode"
+    className={cn(
+      "relative grid grid-cols-2 items-center bg-surface-inset p-0.5",
+      CONTROL.radius
+    )}
+  >
     <span
-      aria-hidden="true"
+      aria-hidden
       className={cn(
-        "pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-[5px] bg-accent-muted shadow-sm transition-transform duration-200",
+        "pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] bg-surface-elevated shadow-[0_1px_2px_rgb(0_0_0/0.06)] transition-transform duration-200",
+        CONTROL.radius,
         EASE_OUT,
-        "motion-reduce:transform-none",
+        "motion-reduce:transition-none",
         diffMode === "unified" && "translate-x-full"
       )}
     />
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={diffMode === "split"}
-      className={cn(
-        `relative z-10 rounded-[5px] px-2.5 py-1 text-xs transition-color duration-150 ${pressScale}`,
-        motionBase,
-        diffMode === "split"
-          ? "font-medium text-text-primary"
-          : "text-text-tertiary hover:text-text-secondary"
-      )}
-    >
-      Split
-    </button>
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={diffMode === "unified"}
-      className={cn(
-        `relative z-10 rounded-[5px] px-2.5 py-1 text-xs transition-color duration-150 ${pressScale}`,
-        motionBase,
-        diffMode === "unified"
-          ? "font-medium text-text-primary"
-          : "text-text-tertiary hover:text-text-secondary"
-      )}
-    >
-      Unified
-    </button>
+    {(["split", "unified"] as const).map((mode) => (
+      <button
+        key={mode}
+        type="button"
+        role="radio"
+        aria-checked={diffMode === mode}
+        onClick={onToggle}
+        className={cn(
+          "relative z-10 px-2 py-0.5 capitalize transition-colors duration-100",
+          CONTROL.radius,
+          CONTROL.text,
+          pressScale,
+          motionBase,
+          diffMode === mode
+            ? "font-medium text-text-primary"
+            : "text-text-tertiary hover:text-text-secondary"
+        )}
+      >
+        {mode}
+      </button>
+    ))}
   </div>
 );
 
 // ---------------------------------------------------------------------------
-// Icon-only ghost button (for toolbar-level actions)
+// Overflow menu — keyboard-navigable, Escape-closable
 // ---------------------------------------------------------------------------
 
-const ToolbarButton = ({
-  children,
-  onClick,
-  title,
-  pressed,
-  disabled,
+const OverflowMenu = ({
+  items,
 }: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  title?: string;
-  pressed?: boolean;
-  disabled?: boolean;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    title={title}
-    disabled={disabled}
-    aria-pressed={pressed}
-    className={cn(
-      `inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium transition-[transform,background-color,color,opacity] duration-150 ${pressScale}`,
-      motionBase,
-      disabled
-        ? "cursor-default opacity-40"
-        : "text-text-secondary hover:bg-surface-elevated hover:text-text-primary"
-    )}
+  items: readonly {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+  }[];
+}) => {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  const toggle = useCallback(() => setOpen((v) => !v), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        close();
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const buttons = menuRef.current?.querySelectorAll<HTMLButtonElement>(
+          'button[role="menuitem"]:not(:disabled)'
+        );
+        if (!buttons?.length) return;
+        const focused = document.activeElement as HTMLElement;
+        const idx = Array.from(buttons).indexOf(focused as HTMLButtonElement);
+        const next =
+          e.key === "ArrowDown"
+            ? buttons[(idx + 1) % buttons.length]
+            : buttons[(idx - 1 + buttons.length) % buttons.length];
+        next?.focus();
+      }
+    };
+    document.addEventListener("keydown", handler, true);
+    return () => document.removeEventListener("keydown", handler, true);
+  }, [open, close]);
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      menuRef.current
+        ?.querySelector<HTMLButtonElement>(
+          'button[role="menuitem"]:not(:disabled)'
+        )
+        ?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        !menuRef.current?.contains(target) &&
+        !triggerRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handler, true);
+    return () => document.removeEventListener("pointerdown", handler, true);
+  }, [open]);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={cn(
+          "inline-flex items-center justify-center transition-[transform,background-color,color] duration-100",
+          CONTROL.height,
+          "w-6",
+          CONTROL.radius,
+          pressScale,
+          motionBase,
+          open
+            ? "bg-surface-elevated text-text-secondary"
+            : "text-text-tertiary hover:bg-surface-elevated hover:text-text-secondary"
+        )}
+      >
+        <EllipsisIcon aria-hidden className="size-3.5" />
+        <span className="sr-only">More actions</span>
+      </button>
+
+      {open ? (
+        <div
+          ref={menuRef}
+          role="menu"
+          className="absolute right-0 top-full z-50 mt-1 min-w-[128px] overflow-hidden rounded-md border border-border-default bg-surface-elevated py-0.5 shadow-lg shadow-black/8"
+        >
+          {items.map((item) => (
+            <button
+              key={item.label}
+              role="menuitem"
+              type="button"
+              disabled={item.disabled}
+              onClick={() => {
+                item.onClick();
+                close();
+              }}
+              className={cn(
+                "flex w-full items-center px-2.5 py-1 text-left text-[11px] text-text-secondary transition-colors duration-75",
+                item.disabled
+                  ? "cursor-default opacity-40"
+                  : "hover:bg-surface-overlay hover:text-text-primary"
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Review state map
+// ---------------------------------------------------------------------------
+
+const REVIEW_STATE_MAP: Record<string, { label: string; className: string }> = {
+  approved: { label: "Approved", className: "text-status-success/80" },
+  changes_requested: {
+    label: "Changes requested",
+    className: "text-status-error/80",
+  },
+  in_progress: { label: "In review", className: "text-text-tertiary" },
+};
+
+// ---------------------------------------------------------------------------
+// Breadcrumb separator — a dim dot, not a slash
+// ---------------------------------------------------------------------------
+
+const Dot = () => (
+  <span
+    aria-hidden
+    className="shrink-0 text-[10px] text-text-tertiary/30 select-none"
   >
-    {children}
-  </button>
+    ·
+  </span>
 );
 
 // ---------------------------------------------------------------------------
-// Annotation icon
-// ---------------------------------------------------------------------------
-
-const AnnotationsIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 16 16"
-    fill="currentColor"
-    className={cn("h-3.5 w-3.5", className)}
-  >
-    <path d="M1 3.5A2.5 2.5 0 0 1 3.5 1h9A2.5 2.5 0 0 1 15 3.5v6a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3H3.5A2.5 2.5 0 0 1 1 9.5v-6Z" />
-  </svg>
-);
-
-// ---------------------------------------------------------------------------
-// Component
+// ActionBar
 // ---------------------------------------------------------------------------
 
 export const ActionBar = ({
   repoName,
   branchName,
-  status,
   reviewId,
+  status,
   onStatusChange,
-  onToggleDiffMode,
+  scopeLabel,
+  sourceDescription,
   diffMode = "split",
-  commentCount,
+  onToggleDiffMode,
+  reviewedFileCount,
+  totalFileCount,
+  unresolvedCount,
   isAnnotationsOpen = false,
   onToggleAnnotations,
   onExport,
-  selectedFilePath,
-  onGitAdd,
-  onCopyFileDiff,
+  onCopyDiff,
 }: ActionBarProps) => {
-  const [copyLabel, setCopyLabel] = useState("Copy");
+  // ── Copy feedback ───────────────────────────────────────────
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
-  const handleCopyDiff = useCallback(() => {
-    if (onCopyFileDiff) {
-      onCopyFileDiff();
-      setCopyLabel("Copied!");
-      setTimeout(() => setCopyLabel("Copy"), 1500);
+  const handleCopy = useCallback(() => {
+    if (onCopyDiff) {
+      onCopyDiff();
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 1400);
       return;
     }
-
-    if (!reviewId) {
-      return;
-    }
-
+    if (!reviewId) return;
     clientRuntime.runFork(
-      Effect.gen(function* handleCopyDiff() {
+      Effect.gen(function* copyReviewDiff() {
         const { http } = yield* ApiClient;
         return yield* http.export.markdown({
           path: { id: reviewId as ReviewId },
         });
       }).pipe(
-        Effect.tap((markdown) =>
-          Effect.promise(() => navigator.clipboard.writeText(markdown))
+        Effect.tap((md) =>
+          Effect.promise(() => navigator.clipboard.writeText(md))
         ),
         Effect.tap(() =>
           Effect.sync(() => {
-            setCopyLabel("Copied!");
-            setTimeout(() => setCopyLabel("Copy"), 1500);
+            setCopyFeedback(true);
+            setTimeout(() => setCopyFeedback(false), 1400);
           })
         ),
         Effect.catchCause(() => Effect.void)
       )
     );
-  }, [onCopyFileDiff, reviewId]);
+  }, [onCopyDiff, reviewId]);
 
   const isApproved = status === "approved";
 
@@ -229,117 +338,190 @@ export const ActionBar = ({
     onStatusChange?.("approved");
   }, [onStatusChange]);
 
+  // ── Overflow items ──────────────────────────────────────────
+  const overflowItems = [
+    ...(onCopyDiff || reviewId
+      ? [
+          {
+            label: copyFeedback ? "Copied" : "Copy diff",
+            onClick: handleCopy,
+            disabled: copyFeedback,
+          },
+        ]
+      : []),
+    ...(onExport ? [{ label: "Export feedback", onClick: onExport }] : []),
+  ];
+
+  // ── Derived state ──────────────────────────────────────────
+  const contextDescription = sourceDescription ?? scopeLabel;
+  const reviewState = status ? REVIEW_STATE_MAP[status] : undefined;
+  const hasUnresolved = unresolvedCount !== undefined && unresolvedCount > 0;
+
+  // Right-side progress: "4/13 reviewed" or "3 unresolved" or "Approved"
+  const hasProgress =
+    reviewedFileCount !== undefined &&
+    totalFileCount !== undefined &&
+    totalFileCount > 0;
+
+  const primaryActionLabel = isApproved
+    ? "Approved"
+    : hasUnresolved
+      ? "Complete review"
+      : "Approve";
+
   return (
-    <header className="flex h-10 items-center border-b border-border-default bg-surface-secondary">
-      {/* ── Left: identity & context ─────────────────────────────── */}
-      <div className="flex items-center gap-2.5 pl-4 pr-3">
-        <span className="text-[13px] font-semibold tracking-[-0.01em] text-text-primary">
-          ringi
+    <header
+      className="flex h-9 shrink-0 items-center border-b border-border-subtle bg-surface-secondary/50"
+      role="banner"
+    >
+      {/* ── Left: product / repo / scope ─────────────────────── */}
+      <div className="flex min-w-0 items-center gap-1.5 pl-3 pr-4">
+        <span className="shrink-0 text-[11px] font-medium text-text-tertiary/60 select-none">
+          Ringi
         </span>
-        {status ? <StatusBadge status={status} /> : null}
+
         {repoName ? (
-          <span className="font-mono text-[11px] text-text-tertiary">
-            {repoName}
-            {branchName ? (
-              <span className="text-text-quaternary">:{branchName}</span>
-            ) : null}
-          </span>
+          <>
+            <Dot />
+            <span className="shrink-0 font-mono text-[11px] font-medium text-text-secondary">
+              {repoName}
+            </span>
+          </>
+        ) : null}
+
+        {contextDescription ? (
+          <>
+            <Dot />
+            <span className="truncate text-[11px] text-text-tertiary">
+              {contextDescription}
+            </span>
+          </>
+        ) : branchName ? (
+          <>
+            <Dot />
+            <span className="truncate font-mono text-[11px] text-text-tertiary/70">
+              {branchName}
+            </span>
+          </>
         ) : null}
       </div>
 
-      {/* ── Left separator ───────────────────────────────────────── */}
-      <div className="h-4 w-px bg-border-subtle" />
-
-      {/* ── Center: diff display controls ────────────────────────── */}
-      <div className="flex flex-1 items-center justify-center gap-2">
+      {/* ── Center: view mode ────────────────────────────────── */}
+      <div className="flex flex-1 items-center justify-center">
         <SegmentedControl diffMode={diffMode} onToggle={onToggleDiffMode} />
       </div>
 
-      {/* ── Right separator ──────────────────────────────────────── */}
-      <div className="h-4 w-px bg-border-subtle" />
-
-      {/* ── Right: actions ───────────────────────────────────────── */}
-      <div className="flex items-center gap-0.5 px-2">
-        {/* Review actions group */}
-        {selectedFilePath ? (
-          <ToolbarButton onClick={handleCopyDiff} title="Copy file diff">
-            {copyLabel}
-          </ToolbarButton>
-        ) : null}
-
-        {onExport ? (
-          <ToolbarButton onClick={onExport} title="Export review feedback">
-            Export
-          </ToolbarButton>
-        ) : null}
-
-        {/* Annotations toggle (review context only) */}
-        {onToggleAnnotations ? (
-          <ToolbarButton
-            onClick={onToggleAnnotations}
-            pressed={isAnnotationsOpen}
-            title="Toggle annotations"
+      {/* ── Right: review state / progress / action ──────────── */}
+      <div className="flex shrink-0 items-center gap-1.5 pr-2.5">
+        {/* Review progress: "4/13 reviewed" */}
+        {hasProgress ? (
+          <span
+            className={cn(
+              "text-[11px] tabular-nums",
+              reviewedFileCount === totalFileCount
+                ? "text-status-success/70"
+                : "text-text-tertiary"
+            )}
           >
-            <AnnotationsIcon />
-            {commentCount !== undefined && commentCount > 0 ? (
-              <span className="tabular-nums">{commentCount}</span>
-            ) : null}
-          </ToolbarButton>
+            {reviewedFileCount}/{totalFileCount}
+          </span>
         ) : null}
 
-        {/* Review verdict actions (review context only) */}
-        {reviewId ? (
-          <>
-            <div className="mx-1 h-4 w-px bg-border-subtle" />
-            <button
-              type="button"
-              onClick={handleRequestChanges}
-              className={cn(
-                "h-7 rounded-md border border-border-default px-2.5 text-[11px] font-medium text-text-secondary transition-[transform,background-color,color,border-color] duration-150",
-                motionBase,
-                pressScale,
-                "hover:border-status-error/30 hover:text-status-error"
-              )}
+        {/* Unresolved count or review state */}
+        {hasUnresolved ? (
+          <span className="text-[11px] tabular-nums text-status-warning/80">
+            {unresolvedCount} unresolved
+          </span>
+        ) : reviewId && reviewState && !hasProgress ? (
+          <span className={cn("text-[11px]", reviewState.className)}>
+            {reviewState.label}
+          </span>
+        ) : null}
+
+        {/* Annotations toggle */}
+        {onToggleAnnotations ? (
+          <button
+            type="button"
+            onClick={onToggleAnnotations}
+            aria-pressed={isAnnotationsOpen}
+            aria-label={
+              hasUnresolved
+                ? `${unresolvedCount} unresolved annotations`
+                : "Toggle annotations"
+            }
+            className={cn(
+              "inline-flex items-center gap-1 px-1.5 transition-[transform,background-color,color] duration-100",
+              CONTROL.height,
+              CONTROL.radius,
+              CONTROL.text,
+              pressScale,
+              motionBase,
+              isAnnotationsOpen
+                ? "bg-accent-muted/50 font-medium text-accent-primary"
+                : "text-text-tertiary hover:bg-surface-elevated hover:text-text-secondary"
+            )}
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="size-3"
             >
-              Request Changes
-            </button>
+              <path
+                d="M2.5 3.5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H9l-3 2.5V10.5H3.5a1 1 0 0 1-1-1v-6Z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {hasUnresolved ? (
+              <span className="tabular-nums">{unresolvedCount}</span>
+            ) : null}
+          </button>
+        ) : null}
+
+        {/* Review verdict */}
+        {reviewId && onStatusChange ? (
+          <>
+            {!isApproved ? (
+              <button
+                type="button"
+                onClick={handleRequestChanges}
+                className={cn(
+                  "font-medium transition-[transform,color] duration-100",
+                  CONTROL.height,
+                  CONTROL.radius,
+                  CONTROL.text,
+                  pressScale,
+                  motionBase,
+                  "px-2 text-text-tertiary hover:text-status-error"
+                )}
+              >
+                Request changes
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={isApproved}
               onClick={handleApprove}
               className={cn(
-                "h-7 rounded-md px-2.5 text-[11px] font-medium transition-[transform,background-color,color,box-shadow] duration-200",
+                "font-medium transition-[transform,background-color,color] duration-150",
+                CONTROL.height,
+                CONTROL.radius,
+                CONTROL.text,
                 motionBase,
                 isApproved
-                  ? "cursor-default bg-diff-add-bg text-status-success opacity-70"
-                  : `bg-accent-primary text-white hover:bg-accent-primary-hover hover:shadow-sm hover:shadow-accent-primary/20 ${pressScale}`
+                  ? "cursor-default bg-status-success/8 px-2 text-status-success/60"
+                  : `bg-accent-primary px-2.5 text-white hover:bg-accent-primary-hover ${pressScale}`
               )}
             >
-              {isApproved ? "Approved" : "Approve"}
+              {primaryActionLabel}
             </button>
           </>
         ) : null}
 
-        {/* VCS mutation — visually separated, demoted weight */}
-        {selectedFilePath && onGitAdd ? (
-          <>
-            <div className="mx-1 h-4 w-px bg-border-subtle" />
-            <button
-              type="button"
-              onClick={onGitAdd}
-              title={`git add ${selectedFilePath}`}
-              className={cn(
-                `h-7 rounded-md border border-dashed border-border-default px-2 text-[11px] text-text-tertiary transition-[transform,background-color,color,border-color] duration-150 ${pressScale}`,
-                motionBase,
-                "hover:border-border-default hover:bg-surface-elevated hover:text-text-secondary"
-              )}
-            >
-              Stage File
-            </button>
-          </>
-        ) : null}
-
-        <div className="mx-0.5 h-4 w-px bg-border-subtle" />
+        <OverflowMenu items={overflowItems} />
         <AppSettingsControl />
       </div>
     </header>

@@ -110,11 +110,13 @@ export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border-default px-4 py-3">
-          <div>
+          <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-text-primary">Todos</h2>
-            <p className="text-xs text-text-tertiary">
-              {stats.completed} completed / {stats.total} total
-            </p>
+            {stats.total > 0 ? (
+              <span className="rounded-full bg-surface-overlay px-1.5 py-px text-[10px] font-medium tabular-nums text-text-secondary">
+                {stats.completed}/{stats.total}
+              </span>
+            ) : null}
           </div>
           <button
             type="button"
@@ -172,7 +174,7 @@ export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
               onClick={handleClearCompleted}
               className="w-full rounded-md bg-red-500/10 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/20"
             >
-              Clear completed ({stats.completed})
+              Clear done
             </button>
           </div>
         )}

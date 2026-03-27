@@ -194,22 +194,22 @@ const AnnotationCard = ({
 
       {/* Suggestion indicator */}
       {entry.suggestion ? (
-        <div className="mt-1 flex items-center gap-1 text-[10px] text-accent-primary/70">
+        <div className="mt-1 flex items-center text-[10px] text-accent-primary/70">
           <svg
             width="10"
             height="10"
-            viewBox="0 0 12 12"
+            viewBox="0 0 14 14"
             fill="none"
             className="shrink-0"
           >
             <path
-              d="M2 6h8M6 2v8"
+              d="M3 5l2.5 2.5L11 2M3 9h8"
               stroke="currentColor"
               strokeWidth="1.25"
               strokeLinecap="round"
+              strokeLinejoin="round"
             />
           </svg>
-          <span>Has suggestion</span>
         </div>
       ) : null}
     </button>
@@ -288,11 +288,6 @@ const EmptyState = () => (
     >
       <path d="M1 3.5A2.5 2.5 0 0 1 3.5 1h9A2.5 2.5 0 0 1 15 3.5v6a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3H3.5A2.5 2.5 0 0 1 1 9.5v-6Z" />
     </svg>
-    <p className="mt-2.5 text-[11px] text-text-tertiary">No annotations yet</p>
-    <p className="mt-1 text-[10px] leading-relaxed text-text-quaternary">
-      Click the <span className="font-medium text-accent-primary">+</span>{" "}
-      button on any diff line to add a note.
-    </p>
   </div>
 );
 
@@ -459,17 +454,7 @@ export const AnnotationsPanel = ({
       )}
     >
       {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="flex h-10 shrink-0 items-center justify-between border-b border-border-default px-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold text-text-primary">
-            Annotations
-          </span>
-          {totalCount > 0 ? (
-            <span className="rounded-full bg-accent-muted px-1.5 py-px text-[10px] font-medium tabular-nums text-accent-primary">
-              {totalCount}
-            </span>
-          ) : null}
-        </div>
+      <div className="flex h-10 shrink-0 items-center justify-end border-b border-border-default px-3">
         <button
           type="button"
           onClick={onClose}
@@ -517,22 +502,14 @@ export const AnnotationsPanel = ({
       </div>
 
       {/* ── Footer ──────────────────────────────────────────────── */}
-      <div className="flex items-center border-t border-border-subtle px-3 py-1.5">
-        {/* Copy feedback button — only shown when there are annotations */}
-        {totalCount > 0 ? (
+      {totalCount > 0 ? (
+        <div className="flex items-center border-t border-border-subtle px-3 py-1.5">
           <CopyFeedbackButton
             copyStatus={copyStatus}
             onCopyFeedback={onCopyFeedback}
           />
-        ) : null}
-
-        <span className="ml-auto text-[10px] text-text-quaternary">
-          <kbd className="rounded border border-border-subtle bg-surface-primary px-1 py-px font-mono text-[9px]">
-            Esc
-          </kbd>{" "}
-          close
-        </span>
-      </div>
+        </div>
+      ) : null}
     </aside>
   );
 };

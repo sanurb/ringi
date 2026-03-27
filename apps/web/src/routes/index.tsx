@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiClient } from "@/api/api-client";
 import {
   DIFF_SCOPE_EMPTY_MESSAGES,
+  DIFF_SCOPE_LABELS,
   DiffScopeSelector,
 } from "@/components/review/diff-scope-selector";
 import { DraftRecoveryModal } from "@/components/review/draft-recovery-modal";
@@ -378,21 +379,23 @@ const ChangesPage = () => {
 
   // ── File-level actions ───────────────────────────────────────────────
 
-  const handleGitAdd = useCallback(() => {
-    if (!selectedFile) {
-      return;
-    }
+  const showStageAction =
+    data.scope === "unstaged" || data.scope === "uncommitted";
 
-    clientRuntime.runFork(
-      Effect.gen(function* gitAddFile() {
-        const { http } = yield* ApiClient;
-        return yield* http.git.stage({ payload: { files: [selectedFile] } });
-      }).pipe(
-        Effect.tap(() => Effect.promise(() => router.invalidate())),
-        Effect.catchCause(() => Effect.void)
-      )
-    );
-  }, [selectedFile, router]);
+  const handleStageFile = useCallback(
+    (filePath: string) => {
+      clientRuntime.runFork(
+        Effect.gen(function* stageFile() {
+          const { http } = yield* ApiClient;
+          return yield* http.git.stage({ payload: { files: [filePath] } });
+        }).pipe(
+          Effect.tap(() => Effect.promise(() => router.invalidate())),
+          Effect.catchCause(() => Effect.void)
+        )
+      );
+    },
+    [router]
+  );
 
   const handleCopyFileDiff = useCallback(async () => {
     if (!selectedFileData) {
@@ -433,20 +436,19 @@ const ChangesPage = () => {
   const displayedScope = pendingScope ?? data.scope;
   const isScopePending = pendingScope !== null && pendingScope !== data.scope;
   const emptyStateMessage = DIFF_SCOPE_EMPTY_MESSAGES[data.scope];
-  const showGitAdd = data.scope === "unstaged" || data.scope === "uncommitted";
-
   return (
     <div className="flex h-full flex-col">
       <ActionBar
         repoName={data.repository.name}
         branchName={data.repository.branch}
+        scopeLabel={`${DIFF_SCOPE_LABELS[data.scope]} changes`}
         diffMode={diffMode}
         onToggleDiffMode={toggleDiffMode}
         onExport={handleExport}
-        selectedFilePath={selectedFile}
-        onGitAdd={showGitAdd ? handleGitAdd : undefined}
-        onCopyFileDiff={handleCopyFileDiff}
-        commentCount={annotationsPanel.totalCount}
+        onCopyDiff={handleCopyFileDiff}
+        reviewedFileCount={viewedFiles.size}
+        totalFileCount={data.files.length}
+        unresolvedCount={annotationsPanel.totalCount}
         isAnnotationsOpen={annotationsPanel.isOpen}
         onToggleAnnotations={annotationsPanel.handleToggle}
       />
@@ -468,6 +470,7 @@ const ChangesPage = () => {
           selectedFile={selectedFile}
           reviewedFiles={viewedFiles}
           onToggleViewed={handleToggleViewed}
+          onStageFile={showStageAction ? handleStageFile : undefined}
         />
 
         <div className="flex-1 overflow-y-auto bg-surface-primary p-4">

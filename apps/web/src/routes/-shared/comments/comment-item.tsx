@@ -50,9 +50,6 @@ export function CommentItem({
           {/* Suggestion */}
           {comment.suggestion && (
             <div className="mt-3 rounded border border-accent-primary/20 bg-surface-primary p-3">
-              <span className="mb-1 block text-xs font-medium text-accent-primary">
-                Suggestion
-              </span>
               <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs text-text-primary">
                 {comment.suggestion}
               </pre>
