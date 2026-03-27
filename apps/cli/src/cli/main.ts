@@ -474,20 +474,37 @@ const installSignalHandlers = (dispose: () => Promise<void>): (() => void) => {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolves the built Nitro server entry point. Returns the absolute path to
- * `.output/server/index.mjs` relative to the package root (the directory
- * containing this CLI entry point after bundling).
+ * Resolves the built Nitro server entry point.
+ *
+ * Lookup order (first match wins):
+ * 1. **Packaged location** — `<pkg-root>/server/server/index.mjs`
+ *    The published npm package includes `server/` at the package root, which
+ *    contains `server/index.mjs` (the Nitro entry) and `public/` (static
+ *    assets). From the bundled CLI at `dist/cli.mjs`, the package root is
+ *    `import.meta.dirname/..`.
+ * 2. **Monorepo development** — `apps/web/.output/server/index.mjs`
+ *    During local development the web build output lives inside the web
+ *    workspace. We resolve it relative to the CLI package root.
+ * 3. **CWD fallback** — `.output/server/index.mjs` relative to the current
+ *    working directory, for running the server in a standalone checkout.
  */
 const resolveServerEntry = (): string | undefined => {
-  // Try multiple locations: cwd (development), then relative to the built CLI
-  // bundle (`dist/cli.js` → `../.output`).
-  const candidates = [resolve(process.cwd(), ".output", "server", "index.mjs")];
+  const candidates: string[] = [];
 
   if (import.meta.dirname) {
+    const pkgRoot = resolve(import.meta.dirname, "..");
+
+    // 1. Published package: <pkg>/server/server/index.mjs
+    candidates.push(resolve(pkgRoot, "server", "server", "index.mjs"));
+
+    // 2. Monorepo dev: <cli-root>/../../apps/web/.output/server/index.mjs
     candidates.push(
-      resolve(import.meta.dirname, "..", ".output", "server", "index.mjs")
+      resolve(pkgRoot, "..", "web", ".output", "server", "index.mjs")
     );
   }
+
+  // 3. CWD fallback (legacy / standalone)
+  candidates.push(resolve(process.cwd(), ".output", "server", "index.mjs"));
 
   return candidates.find((candidate) => existsSync(candidate));
 };
@@ -496,9 +513,12 @@ const runServe = (command: Extract<ParsedCommand, { kind: "serve" }>): void => {
   const serverEntry = resolveServerEntry();
 
   if (!serverEntry) {
-    process.stderr.write(
-      "No built server found. Run 'pnpm build' first, then retry 'ringi serve'.\n"
-    );
+    const isInstalledGlobally =
+      import.meta.dirname && !import.meta.dirname.includes("apps/cli/");
+    const hint = isInstalledGlobally
+      ? "The installed package is missing its server assets. Try reinstalling: npm install -g @sanurb/ringi"
+      : "Run 'pnpm build' at the monorepo root, then 'pnpm --filter @sanurb/ringi build:server' to copy the server assets.";
+    process.stderr.write(`No built server found.\n${hint}\n`);
     process.exit(ExitCode.RuntimeFailure);
   }
 

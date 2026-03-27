@@ -38,11 +38,20 @@ jobs:
       - name: Build CLI
         run: pnpm --filter @sanurb/ringi build
 
+      - name: Build Web
+        run: pnpm build
+
+      - name: Copy server assets to CLI
+        run: pnpm --filter @sanurb/ringi build:server
+
       - name: Smoke test — CLI runs
         run: node apps/cli/dist/cli.mjs --version
 
       - name: Smoke test — CLI help
         run: node apps/cli/dist/cli.mjs --help
+
+      - name: Smoke test — verify packed artifact
+        run: node apps/cli/scripts/verify-package.mjs
 
       - name: Package dry-run
         run: cd apps/cli && npm pack --dry-run

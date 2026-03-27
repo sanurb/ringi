@@ -94,3 +94,13 @@ pnpm fix          # Auto-fix lint + format (vp check --fix)
 - CI: Node 22+24 matrix, typecheck → check → test → build:cli → smoke test.
 - Review model: `created → analyzing → ready → in_review → approved/changes_requested → exported`.
 - Three operational modes: standalone CLI (read-only), server-connected (full), MCP stdio (agent).
+
+## Learning more about the "effect" & "@effect/\*" packages
+
+`~/.local/share/ai-references/v4/LLMS.md` is an authoritative source of information about the
+"effect" and "@effect/\*" packages. Read this before looking elsewhere for
+information about these packages. It contains the best practices for using
+effect.
+
+Use this for learning more about the library, rather than browsing the code in
+`node_modules/`.

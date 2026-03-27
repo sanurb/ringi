@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@effect/platform": "^0.93.8",
-    "@effect/rpc": "^0.72.2",
+    "@effect/platform": "^0.96.0",
+    "@effect/rpc": "^0.75.0",
     "chokidar": "^5.0.0",
     "effect": "^3.21.0"
   },

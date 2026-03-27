@@ -14,6 +14,7 @@ count.txt
 .tanstack
 .wrangler
 .output
+apps/cli/server/
 .vinxi
 todos.json
 

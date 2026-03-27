@@ -19,7 +19,7 @@
     "dev:cli": "pnpm --filter @sanurb/ringi dev",
     "build": "pnpm --filter @ringi/web build",
     "build:cli": "pnpm --filter @sanurb/ringi build",
-    "build:all": "pnpm build:cli && pnpm build",
+    "build:all": "pnpm build:cli && pnpm build && pnpm --filter @sanurb/ringi build:server",
     "preview": "pnpm --filter @ringi/web preview",
     "test": "vp test run",
     "typecheck": "pnpm -r typecheck",
