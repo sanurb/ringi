@@ -1,6 +1,5 @@
 import { EventService } from "@ringi/core/services/event.service";
 import * as Effect from "effect/Effect";
-import * as Schedule from "effect/Schedule";
 import * as Stream from "effect/Stream";
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 
@@ -13,8 +12,8 @@ const CONNECTED_COMMENT: Uint8Array = encoder.encode(": connected\n\n");
 const HEARTBEAT_COMMENT: Uint8Array = encoder.encode(": ping\n\n");
 
 /** Emits a `: ping` SSE comment every 30 seconds to keep the connection alive. */
-const heartbeat: Stream.Stream<Uint8Array> = Stream.repeatEffect(
-  Effect.as(Effect.sleep("30 seconds"), HEARTBEAT_COMMENT)
+const heartbeat: Stream.Stream<Uint8Array> = Stream.tick("30 seconds").pipe(
+  Stream.map((): Uint8Array => HEARTBEAT_COMMENT)
 );
 
 /**
