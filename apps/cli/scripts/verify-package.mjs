@@ -9,12 +9,15 @@
  * 2. server/server/index.mjs exists (Nitro server entry)
  * 3. server/public/ exists (static assets)
  * 4. package.json `files` includes both `dist` and `server`
- * 5. `npm pack --dry-run` output includes critical files
+ * 5. package.json `bin.ringi` points to dist/cli.mjs
+ * 6. npm pack includes critical files
+ * 7. Packed package.json has no unresolved catalog:/workspace: protocols
  */
 
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { existsSync, readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -28,6 +31,8 @@ const fail = (msg) => {
 };
 
 console.log("Verifying @sanurb/ringi package integrity...\n");
+
+// ── Source tree checks ──────────────────────────────────────────
 
 // 1. Check dist/cli.mjs
 const cliEntry = resolve(cliRoot, "dist", "cli.mjs");
@@ -75,57 +80,104 @@ if (pkg.bin?.ringi === "dist/cli.mjs") {
   );
 }
 
-// 6. Check for unresolved workspace/catalog protocols
-const allDeps = {
-  ...pkg.dependencies,
-  ...pkg.peerDependencies,
-};
-const unresolvedProtocols = Object.entries(allDeps).filter(
-  ([, v]) =>
-    typeof v === "string" &&
-    (v.startsWith("catalog:") || v.startsWith("workspace:"))
-);
-if (unresolvedProtocols.length === 0) {
-  pass("No unresolved catalog:/workspace: protocols in published dependencies");
-} else {
-  for (const [name, version] of unresolvedProtocols) {
-    fail(
-      `Unresolved protocol in dependencies: "${name}": "${version}" — use 'pnpm publish' instead of 'npm publish'`
-    );
-  }
-}
+// ── Packed tarball checks ───────────────────────────────────────
 
-// 7. Run npm pack --dry-run and verify critical files appear
+// 6–7. Pack with pnpm (resolves catalog:/workspace:), then verify contents
+let tmpDir;
 try {
-  const packOutput = execSync("npm pack --dry-run --json 2>/dev/null", {
+  tmpDir = mkdtempSync(join(tmpdir(), "ringi-verify-"));
+
+  // Use pnpm pack so catalog:/workspace: protocols are resolved,
+  // matching what pnpm publish actually uploads.
+  // pnpm pack outputs build logs + the tarball path on the last line.
+  execSync(`pnpm pack --pack-destination "${tmpDir}"`, {
     cwd: cliRoot,
     encoding: "utf8",
-    timeout: 30_000,
+    timeout: 120_000,
+    stdio: ["ignore", "pipe", "pipe"],
   });
-  const packData = JSON.parse(packOutput);
-  const packedFiles = packData[0]?.files?.map((f) => f.path) ?? [];
 
-  const criticalFiles = [
-    "dist/cli.mjs",
-    "server/server/index.mjs",
-    "package.json",
-  ];
+  // Find the .tgz in the temp directory
+  const tgzFiles = execSync(`ls "${tmpDir}"/*.tgz`, {
+    encoding: "utf8",
+  })
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+  if (tgzFiles.length === 0) {
+    throw new Error("pnpm pack produced no .tgz file");
+  }
+  const tarball = tgzFiles[0];
 
-  for (const f of criticalFiles) {
-    if (packedFiles.some((p) => p === f || p.startsWith(f))) {
-      pass(`npm pack includes ${f}`);
+  // Extract the tarball
+  execSync(`tar xzf "${tarball}" -C "${tmpDir}"`, {
+    encoding: "utf8",
+    timeout: 10_000,
+  });
+
+  const packedPkgPath = join(tmpDir, "package", "package.json");
+
+  if (!existsSync(packedPkgPath)) {
+    fail("Packed tarball missing package.json");
+  } else {
+    const packedPkg = JSON.parse(readFileSync(packedPkgPath, "utf8"));
+
+    // 6. Check critical files exist in tarball
+    const criticalFiles = ["dist/cli.mjs", "server/server/index.mjs"];
+    for (const f of criticalFiles) {
+      const packedPath = join(tmpDir, "package", f);
+      if (existsSync(packedPath)) {
+        pass(`tarball includes ${f}`);
+      } else {
+        fail(`tarball missing ${f}`);
+      }
+    }
+
+    // 7. Check for unresolved catalog:/workspace: in published dependencies
+    const publishedDeps = {
+      ...packedPkg.dependencies,
+      ...packedPkg.peerDependencies,
+    };
+    const unresolvedProtocols = Object.entries(publishedDeps).filter(
+      ([, v]) =>
+        typeof v === "string" &&
+        (v.startsWith("catalog:") || v.startsWith("workspace:"))
+    );
+
+    if (unresolvedProtocols.length === 0) {
+      pass(
+        "No unresolved catalog:/workspace: protocols in packed dependencies"
+      );
     } else {
-      fail(`npm pack missing ${f}`);
+      for (const [name, version] of unresolvedProtocols) {
+        fail(
+          `Packed dependency "${name}": "${version}" has unresolved protocol — pnpm pack should have resolved this`
+        );
+      }
+    }
+
+    // Report package size (du -sk is portable across macOS and Linux)
+    try {
+      const duOutput = execSync(`du -sk "${join(tmpDir, "package")}"`, {
+        encoding: "utf8",
+      });
+      const kb = parseInt(duOutput.split("\t")[0], 10);
+      if (!isNaN(kb)) {
+        const sizeMB = (kb / 1024).toFixed(1);
+        console.log(`\n  📦 Unpacked size: ~${sizeMB} MB`);
+      }
+    } catch {
+      // Non-critical — skip size reporting
     }
   }
-
-  // Report package size
-  const totalBytes = packData[0]?.unpackedSize ?? 0;
-  const sizeMB = (totalBytes / 1024 / 1024).toFixed(1);
-  console.log(`\n  📦 Unpacked size: ${sizeMB} MB`);
-} catch (_) {
-  // npm pack --json may not be available in all environments
-  console.log("  ⚠ Skipped npm pack verification (non-critical)");
+} catch (err) {
+  console.log(`  ⚠ Tarball verification error: ${err.message}`);
+} finally {
+  if (tmpDir) {
+    try {
+      rmSync(tmpDir, { recursive: true, force: true });
+    } catch {}
+  }
 }
 
 console.log("");

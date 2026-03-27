@@ -65,4 +65,4 @@ jobs:
         run: node apps/cli/scripts/verify-package.mjs
 
       - name: Package dry-run
-        run: cd apps/cli && npm pack --dry-run
+        run: pnpm --filter @sanurb/ringi pack --pack-destination /tmp

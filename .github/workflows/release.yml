@@ -63,7 +63,7 @@ jobs:
         run: node apps/cli/scripts/verify-package.mjs
 
       - name: Package dry-run
-        run: cd apps/cli && npm pack --dry-run
+        run: pnpm --filter @sanurb/ringi pack --pack-destination /tmp
 
       - name: Verify tag matches package.json version
         if: startsWith(github.ref, 'refs/tags/v')
@@ -88,10 +88,10 @@ jobs:
 
       - name: Upload tarball artifact
         if: always()
-        run: cd apps/cli && npm pack
+        run: pnpm --filter @sanurb/ringi pack --pack-destination /tmp/ringi-artifact
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ringi-npm-tarball
-          path: apps/cli/ringi-*.tgz
+          path: /tmp/ringi-artifact/sanurb-ringi-*.tgz
           retention-days: 30
