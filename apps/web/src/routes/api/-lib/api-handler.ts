@@ -11,6 +11,7 @@ import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
 import { CommentsApiLive } from "./wiring/comments-api-live";
 import { DiffApiLive, ReviewFilesApiLive } from "./wiring/diff-api-live";
 import { EventsApiLive } from "./wiring/events-api-live";
+import { EventsSseLive } from "./wiring/events-sse-live";
 import { ExportApiLive } from "./wiring/export-api-live";
 import { GitApiLive } from "./wiring/git-api-live";
 import { ReviewsApiLive } from "./wiring/reviews-api-live";
@@ -42,7 +43,7 @@ const HttpApiRoutes = HttpApiBuilder.layer(DomainApi).pipe(
   Layer.provide(HttpServer.layerServices)
 );
 
-const AllRoutes = Layer.mergeAll(RpcRouter, HttpApiRoutes).pipe(
+const AllRoutes = Layer.mergeAll(RpcRouter, HttpApiRoutes, EventsSseLive).pipe(
   Layer.provide(ServiceLayers),
   Layer.provide(Logger.layer([Logger.consolePretty()]))
 );
