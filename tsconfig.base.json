@@ -1,21 +1,45 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
+    "target": "ES2024",
     "module": "ESNext",
-    "lib": ["DOM", "DOM.Iterable", "ES2023"],
+    "lib": ["ES2024"],
 
-    /* Bundler mode */
+    /* Bundler mode — all packages are bundled by Vite/tsdown */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": false,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
     "noEmit": true,
 
-    /* Linting */
+    /* Strictness */
     "skipLibCheck": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    /* Effect language service (picked up by IDE for all packages) */
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "quickinfoEffectParameters": "always",
+        "namespaceImportPackages": ["effect", "@effect/*"],
+        "topLevelNamedReexports": "follow",
+        "diagnosticSeverity": {
+          "importFromBarrel": "error",
+          "anyUnknownInErrorContext": "warning",
+          "instanceOfSchema": "warning",
+          "deterministicKeys": "warning"
+        },
+        "importAliases": {
+          "Array": "Arr",
+          "Function": "Func",
+          "Boolean": "Bool",
+          "Number": "Num",
+          "String": "Str"
+        }
+      }
+    ]
   }
 }

@@ -8,6 +8,22 @@ import * as Effect from "effect/Effect";
 import { serverRuntime } from "../api/-lib/server-runtime";
 
 // ---------------------------------------------------------------------------
+// Error type used by consumers to handle known failure modes
+// ---------------------------------------------------------------------------
+
+export interface ScopedDiffError {
+  error: {
+    code: "NOT_GIT_REPOSITORY" | "GIT_COMMAND_FAILED";
+    message: string;
+    details?: string;
+  };
+  scope: DiffScope;
+  files?: undefined;
+  repository?: undefined;
+  summary?: undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

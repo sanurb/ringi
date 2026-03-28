@@ -1,8 +1,8 @@
 {
+  "extends": "./tsconfig.base.json",
   "files": [],
-  "references": [
-    { "path": "packages/core" },
-    { "path": "apps/cli" },
-    { "path": "apps/web" }
-  ]
+  "include": [],
+  "compilerOptions": {
+    "types": []
+  }
 }

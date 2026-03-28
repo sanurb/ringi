@@ -1,28 +1,29 @@
+import { Command } from "effect/unstable/cli";
 import { describe, expect, it } from "vitest";
 
-import { commandLabel } from "@/cli/commands";
-import type { ParsedCommand } from "@/cli/contracts";
+import { ringiCommand } from "@/cli/commands";
 
-describe("commandLabel", () => {
-  const cases: [ParsedCommand["kind"], string][] = [
-    ["todo-done", "ringi todo done"],
-    ["todo-undone", "ringi todo undone"],
-    ["todo-move", "ringi todo move"],
-    ["todo-remove", "ringi todo remove"],
-    ["todo-clear", "ringi todo clear"],
-    ["review-status", "ringi review status"],
-    ["review-resolve", "ringi review resolve"],
-    ["serve", "ringi serve"],
-    ["mcp", "ringi mcp"],
-    ["doctor", "ringi doctor"],
-    ["events", "ringi events"],
-    ["data-migrate", "ringi data migrate"],
-    ["data-reset", "ringi data reset"],
-  ];
+describe("ringiCommand", () => {
+  it("is a valid Command", () => {
+    expect(Command.isCommand(ringiCommand)).toBe(true);
+  });
 
-  for (const [kind, expected] of cases) {
-    it(`maps ${kind} to "${expected}"`, () => {
-      expect(commandLabel({ kind } as ParsedCommand)).toBe(expected);
-    });
-  }
+  it("has the name 'ringi'", () => {
+    expect(ringiCommand.name).toBe("ringi");
+  });
+
+  it("has subcommands registered", () => {
+    expect(ringiCommand.subcommands.length).toBeGreaterThan(0);
+    const names = ringiCommand.subcommands.flatMap((g) =>
+      g.commands.map((c: any) => c.name)
+    );
+    expect(names).toContain("review");
+    expect(names).toContain("source");
+    expect(names).toContain("todo");
+    expect(names).toContain("serve");
+    expect(names).toContain("mcp");
+    expect(names).toContain("doctor");
+    expect(names).toContain("events");
+    expect(names).toContain("data");
+  });
 });

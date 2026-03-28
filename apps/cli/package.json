@@ -37,6 +37,7 @@
     "prepack": "pnpm build && pnpm build:server"
   },
   "dependencies": {
+    "@effect/platform-node": "catalog:",
     "effect": "catalog:"
   },
   "devDependencies": {

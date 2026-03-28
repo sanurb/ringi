@@ -14,7 +14,7 @@ const config = defineConfig({
     // Without this, Vite may evaluate @ringi/core modules multiple times when
     // reached through different dependency paths (e.g. server-runtime vs
     // client-runtime), doubling memory usage in the SSR module runner.
-    dedupe: ["effect", "@effect/platform", "@effect/rpc", "@ringi/core"],
+    dedupe: ["effect", "@ringi/core"],
   },
   ssr: {
     // Workspace packages with .ts source exports must NOT be externalized
@@ -44,7 +44,7 @@ const config = defineConfig({
   },
   optimizeDeps: {
     // Pre-bundle heavy deps so Vite workers don't re-parse them each time
-    include: ["effect", "@effect/platform", "shiki", "react", "react-dom"],
+    include: ["effect", "shiki", "react", "react-dom"],
   },
 });
 
