@@ -1,10 +1,8 @@
-<img width="3661" height="1024" alt="Ringi" src="https://github.com/user-attachments/assets/010f2654-0caf-40a9-a5e6-cb296604c24a" />
+<img width="1831" height="512" alt="Ringi" src="https://github.com/user-attachments/assets/15dc1c53-6d40-47b1-87b9-2213cc0bb542" />
 
 **Local-first code review tool for AI-generated changes**
 
 Ringi provides structured code review workflows that work locally. Create review sessions from git diffs, inspect changes with machine-generated provenance and evidence, understand first-order impact, and access the same review state through Web UI, CLI, and MCP integration.
-
----
 
 ## Overview
 
