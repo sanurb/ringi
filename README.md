@@ -1,6 +1,4 @@
-<img width="1920" height="1080" alt="ringi_screnshoot" src="https://github.com/user-attachments/assets/c9e89524-60b3-42b5-bd6d-397c1355b82f" />
-
-# Ringi
+<img width="3661" height="1024" alt="Ringi" src="https://github.com/user-attachments/assets/010f2654-0caf-40a9-a5e6-cb296604c24a" />
 
 **Local-first code review tool for AI-generated changes**
 
