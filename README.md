@@ -1,343 +1,225 @@
 <img width="1831" height="512" alt="Ringi" src="https://github.com/user-attachments/assets/15dc1c53-6d40-47b1-87b9-2213cc0bb542" />
 
-**Local-first code review tool for AI-generated changes**
+# Ringi
 
-Ringi provides structured code review workflows that work locally. Create review sessions from git diffs, inspect changes with machine-generated provenance and evidence, understand first-order impact, and access the same review state through Web UI, CLI, and MCP integration.
+**Local-first human review workbench for AI-generated code**
 
-## Overview
+[![npm](https://img.shields.io/npm/v/@sanurb/ringi)](https://www.npmjs.com/package/@sanurb/ringi)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.12-brightgreen)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Browser-based review tools disconnect you from your local development environment and lack structured intelligence for AI-generated changes. AI agents produce diffs faster than humans can review them, but existing tools don't systematically show what changed, why it changed, or what else might be affected.
+Ringi is a local-first code review tool that gives developers structured workflows for reviewing AI-generated changes. Create review sessions from real git diffs, inspect changes with machine-generated provenance and evidence, understand first-order impact without leaving the review, and drive the same review state through **Web UI**, **CLI**, or **MCP agent integration** — all backed by one shared core.
 
-Ringi anchors review work in immutable review sessions stored locally. Each session captures a snapshot of staged changes, branch divergence, or commit range, then adds:
+> **Early WIP** — Ringi is under active development. APIs and commands may change.
 
-- **Structured provenance** explaining why each file changed
-- **Review-scoped impact analysis** showing first-order effects without repository-wide exploration
-- **Evidence-backed confidence scoring** to prioritize reviewer attention
-- **Grouped file navigation** organizing changes by logical relationship
-- **Persistent annotations** including comments, suggestions, and operational todos
-- **Export artifacts** for downstream workflows and audit trails
+## Why Ringi?
 
-Review state lives locally in SQLite with no network dependency for core workflows. The same review session model works across three surfaces: web interface, CLI, and MCP protocol.
+AI coding assistants produce more code than ever, but reviewing that code still happens in ad-hoc, unstructured ways. Ringi fills the gap:
 
----
+- **Review-scoped intelligence** — Provenance, evidence, grouped file trees, and confidence scores help you understand *why* a change exists, not just *what* changed.
+- **Local-first by design** — All data lives in a local SQLite database (`.ringi/reviews.db`). No cloud dependency, no network required for read operations.
+- **Three surfaces, one core** — Web UI for visual review, CLI for automation, and MCP stdio for AI agent integration — all sharing the same business logic and review state.
+- **Agent-native from day one** — Agents create review sessions, inspect state, and react to reviewer feedback through the same domain model humans use.
 
-## Key Features
+## Architecture
 
-### **Review Sessions**
-
-Create bounded review contexts from `staged` changes, `branch` divergence, or explicit `commit` ranges. Each session captures an immutable diff snapshot that stays consistent for analysis, annotation, and export.
-
-### **Review-Scoped Intelligence**
-
-- **Provenance tracking**: Structured explanations of why files changed
-- **Impact analysis**: First-order effects and uncovered dependents
-- **Confidence scoring**: Evidence-backed priority guidance for reviewer attention
-- **Grouped file tree**: Logical organization by directory and import relationships
-
-### **Review Interface**
-
-- **Syntax-highlighted diffs** with lazy loading for large reviews
-- **Inline comments and suggestions** with resolution tracking
-- **Todo management** linked to review sessions
-- **Live filesystem watching** with SSE updates across all surfaces
-
-### **Agent Integration**
-
-- **MCP protocol** exposes review operations through structured namespaces
-- **Codemode execution** allows complex multi-step workflows in one call
-- **Read-only and mutation modes** for safe inspection vs. active collaboration
-- **Self-verification APIs** for deterministic review validation
-
-### **Local-First Architecture**
-
-- **SQLite storage** in `.ringi/reviews.db` - no cloud dependencies
-- **Offline operation** for all read-heavy workflows
-- **Predictable performance** bounded to review scope, not repository size
-- **Crash-safe persistence** with WAL mode and foreign key constraints
-
----
-
-## Installation
-
-```bash
-# Install via pnpm (recommended)
-pnpm install -g ringi
-
-# Or via npm
-npm install -g ringi
-
-# Or via bun
-bun install -g ringi
+```
+┌──────────────────────────────────────────────────────┐
+│                     Clients                          │
+│   Web UI (TanStack Start)  ·  CLI  ·  MCP stdio     │
+└──────────────┬──────────────┬──────────────┬─────────┘
+               │              │              │
+┌──────────────▼──────────────▼──────────────▼─────────┐
+│               Transport Adapters                     │
+│      HTTP/SSE  ·  CLI adapter  ·  MCP adapter        │
+└──────────────────────────┬───────────────────────────┘
+                           │
+┌──────────────────────────▼───────────────────────────┐
+│             Core Service Layer (Effect v4)            │
+│  Review · Comment · Todo · Diff · Export · Event     │
+│  Git · Source · Intelligence                         │
+└──────────────────────────┬───────────────────────────┘
+                           │
+┌──────────────────────────▼───────────────────────────┐
+│              Local Runtime                           │
+│  SQLite (WAL mode)  ·  File Watcher  ·  Git tree    │
+└──────────────────────────────────────────────────────┘
 ```
 
-### Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/sanurb/ringi.git
-cd ringi
-
-# Install dependencies
-pnpm install
-
-# Initialize local development database
-pnpm dev  # Starts TanStack dev server with hot reload
-
-# Or start production server
-pnpm build
-ringi serve --port 3000
-```
-
----
-
-## Quick Start
-
-### 1. Create Your First Review Session
-
-```bash
-# Review staged changes (most common)
-ringi review create
-
-# Review branch divergence
-ringi review create --source branch --branch feature/ai-review-pipeline
-
-# Review specific commits
-ringi review create --source commits --commits abc123f,def456a --title "Agent refactor batch"
-```
-
-### 2. Inspect and Navigate
-
-```bash
-# List all reviews
-ringi review list
-
-# Show detailed review with files and stats
-ringi review show last --comments --todos
-
-# Preview available sources before creating
-ringi source list
-ringi source diff staged --stat
-```
-
-### 3. Add Annotations and Track Work
-
-```bash
-# Add operational todos
-ringi todo add --text "Verify confidence scores on grouped file tree" --review rvw_01JY6Z4Y9B
-
-# Mark todos complete
-ringi todo done todo_01JY702YJ0D3
-
-# Export review session as markdown
-ringi review export last --output review-summary.md
-```
-
-### 4. Launch Web Interface
-
-```bash
-# Start local server with web UI
-ringi serve
-
-# With HTTPS and basic auth for network access
-ringi serve --https --cert ./certs/dev.crt --key ./certs/dev.key --auth --username reviewer --password secure
-```
-
----
-
-## Core Workflows
-
-### Web Interface Overview
-
-The web interface provides structured diff review:
-
-- **Review dashboard** with session management and status tracking
-- **Grouped file navigation** showing logical change clusters
-- **Diff viewer** with syntax highlighting and context controls
-- **Impact visualization** showing dependencies and coverage gaps
-- **Comment threads** with suggestion extraction and resolution tracking
-- **Todo panel** for operational follow-up items
-- **Export generation** with markdown and structured output formats
-
-_Screenshots coming in Phase 1.5_
-
-### CLI Workflow
-
-Complete review workflows from the terminal:
-
-```bash
-# Complete review workflow from terminal
-ringi review create --source staged
-ringi review show last --comments
-ringi todo add --text "Check impact on auth service" --review last
-ringi review export last | pbcopy  # macOS clipboard
-ringi review resolve last --yes
-```
-
-**Command families:**
-
-- `ringi review` - Create, list, show, export, resolve review sessions
-- `ringi todo` - Manage operational tasks linked to reviews
-- `ringi source` - Preview and discover available diff sources
-- `ringi data` - Migrate, reset, and maintain local state
-- `ringi serve` - Start web server and runtime coordination
-- `ringi events` - Tail live filesystem and review events
-- `ringi mcp` - Launch agent integration server
-
-### Agent Integration via MCP
-
-Agents connect through `ringi mcp` stdio protocol:
-
-```javascript
-// Agent workflow example
-await execute({
-  code: `
-    const ctx = await session.context();
-    const review = await reviews.get(ctx.activeReviewId);
-    const files = await reviews.getFiles(review.id);
-    
-    // Inspect high-risk changes
-    const riskyFiles = files.filter(file => 
-      file.confidence?.score < 0.6
-    );
-    
-    if (riskyFiles.length > 0) {
-      await todos.add({
-        reviewId: review.id,
-        text: \`Review \${riskyFiles.length} low-confidence files before approval\`
-      });
-    }
-    
-    return {
-      reviewId: review.id,
-      totalFiles: files.length,
-      riskyFiles: riskyFiles.map(f => f.path)
-    };
-  `,
-  timeout: 30000,
-});
-```
-
-**Available MCP namespaces:**
-
-- `reviews` - Session lifecycle, diff access, comment management
-- `intelligence` - Relationships, impact analysis, confidence scoring
-- `todos` - Task management and workflow coordination
-- `sources` - Repository state and diff preview
-- `events` - Real-time change notifications
-- `session` - Context and adapter status
-
----
-
-## Local-First Data Model
-
-Ringi's architecture prioritizes local operation and data ownership:
-
-### Storage Architecture
-
-- **SQLite database** at `.ringi/reviews.db` stores all review state
-- **WAL mode** enables concurrent reads with serialized writes
-- **Schema migrations** handle evolution without data loss
-- **Foreign key constraints** ensure referential integrity
-
-### Operational Modes
-
-| Mode                 | Description                                 | Use Cases                                      |
-| -------------------- | ------------------------------------------- | ---------------------------------------------- |
-| **Standalone**       | Direct SQLite access, no server required    | CLI inspection, export generation, diagnostics |
-| **Server-connected** | Coordinated mutations via local HTTP server | Web UI, live updates, complex workflows        |
-| **MCP stdio**        | Agent integration over process boundaries   | AI review automation, validation pipelines     |
-
-### Data Portability
-
-- Review snapshots remain immutable and reproducible
-- Export artifacts can recreate review state from structured data
-- Migration tools support repository changes and schema evolution
-- Diagnostic commands validate state integrity and recover from corruption
-
----
-
-## Technology Stack
-
-**Runtime & Framework**
-
-- [TanStack Start](https://tanstack.com/start) for route-driven application composition
-- [Effect](https://effect.website) for service construction and dependency injection
-- [React 19](https://react.dev) for UI components
-
-**Storage & Persistence**
-
-- [SQLite](https://sqlite.org) with WAL mode for local-first data
-- [Chokidar](https://github.com/paulmillr/chokidar) for filesystem watching
-- Typed schema migrations with foreign key enforcement
-
-**UI & Styling**
-
-- [Tailwind CSS 4](https://tailwindcss.com) with cascade layers
-- [Radix UI](https://radix-ui.com) for accessible components
-- [Shiki](https://shiki.style) for syntax highlighting
-- [Lucide Icons](https://lucide.dev) for iconography
-
-**Development & Quality**
-
-- [TypeScript](https://typescriptlang.org) with strict type checking
-- [Vitest](https://vitest.dev) for testing (no mocking frameworks)
-- [Vite+](https://viteplus.dev) unified toolchain (lint, format, test, check)
-- [Effect Language Service](https://effect.website) for IDE support
-
----
-
-## Development
-
-### Requirements
-
-- **Node.js** 18+ or **Bun** 1.0+
-- **pnpm** 8+ (recommended) or npm/bun
-- **Git** for repository operations
-- **SQLite** 3.38+ (bundled with Node.js)
-
-### Project Structure
+## Project Structure
 
 ```
 ringi/
-├── src/
-│   ├── routes/           # TanStack Start routes & API handlers
-│   ├── cli/              # CLI implementation and commands
-│   └── components/       # React UI components
-├── docs/                 # Architecture and API documentation
-├── .ringi/               # Local review database (created on first run)
-└── package.json          # Dependencies and scripts
+├── packages/core/     # @ringi/core — schemas, services, repos, database, API definitions
+├── apps/web/          # @ringi/web — TanStack Start web app (routes, components, UI)
+├── apps/cli/          # @sanurb/ringi — CLI + MCP stdio server (published to npm)
+└── docs/              # Architecture, CLI reference, MCP guide, specs
 ```
 
-### Quality Gates
-
-All contributions must pass:
-
-```bash
-pnpm check      # vp check (oxlint + oxfmt)
-pnpm fix        # Auto-fix formatting issues
-pnpm typecheck  # TypeScript validation
-pnpm test       # Test suite (no mocks allowed)
-```
-
-### Contributing
-
-1. Fork the repository and create a feature branch
-2. Run `pnpm install` and ensure quality gates pass
-3. Follow the no-mocking testing policy - use dependency injection
-4. Add tests for new functionality using constructor injection patterns
-5. Submit pull request with clear description and examples
-
----
-
-## License
-
-[MIT](./LICENSE)
-
----
+| Package | Description |
+|---------|-------------|
+| `@ringi/core` | Shared business logic — Effect services, SQLite repos, schemas, API definitions |
+| `@ringi/web` | TanStack Start web app with React, Tailwind CSS, Radix UI, and Shiki syntax highlighting |
+| `@sanurb/ringi` | CLI binary and MCP server — the `ringi` command |
 
 ## Getting Started
 
+### Prerequisites
+
+- **Node.js** ≥ 22.12
+- **Git** (for repository operations)
+
+### Install
+
 ```bash
-pnpm install -g ringi
-ringi review create
+# npm
+npm install -g @sanurb/ringi
+
+# pnpm
+pnpm add -g @sanurb/ringi
+
+# or run without installing
+npx @sanurb/ringi --help
 ```
+
+### Quick Start
+
+```bash
+# Start the local server + web UI
+ringi serve
+
+# Create a review from staged changes
+ringi review create
+
+# Create a review from a branch diff
+ringi review create --source branch --branch main
+
+# List review sessions
+ringi review list
+
+# Show review details
+ringi review show last --comments --todos
+
+# Export a review as markdown
+ringi export last --output review.md
+
+# Check local state health
+ringi doctor
+```
+
+The CLI operates in three modes:
+
+| Mode | Description |
+|------|-------------|
+| **Standalone** | Read-only access to `.ringi/reviews.db` — no server needed |
+| **Server-connected** | Full mutations via running `ringi serve` |
+| **MCP stdio** | Agent integration via `ringi mcp` |
+
+All commands support `--json` for machine-readable output with HATEOAS `next_actions`.
+
+See [docs/CLI.md](docs/CLI.md) for the full command reference.
+
+### MCP Agent Integration
+
+Ringi exposes a single `execute` MCP tool with a constrained JavaScript sandbox:
+
+```json
+{
+  "mcpServers": {
+    "ringi": {
+      "command": "ringi",
+      "args": ["mcp", "--readonly"]
+    }
+  }
+}
+```
+
+Agents can compose multi-step review workflows in a single call:
+
+```js
+await execute({
+  code: `
+    const review = await reviews.get("rev_123");
+    const files = await reviews.getFiles(review.id);
+    const comments = await reviews.getComments(review.id);
+    return {
+      status: review.status,
+      fileCount: files.length,
+      unresolvedComments: comments.filter(c => c.status === "open").length,
+    };
+  `
+});
+```
+
+Available sandbox namespaces: `reviews`, `todos`, `sources`, `intelligence`, `events`, `session`.
+
+See [docs/MCP.md](docs/MCP.md) for the full agent guide.
+
+## Review Lifecycle
+
+```
+created → analyzing → ready → in_review → approved / changes_requested → exported
+```
+
+Reviews are anchored to immutable git snapshots with three source types:
+
+- **Staged** — current staged index vs `HEAD`
+- **Branch** — named branch compared against current branch
+- **Commits** — explicit commit range or set
+
+## Tech Stack
+
+- **[Effect v4](https://effect.website)** — Service construction, dependency injection, typed errors, resource management
+- **[TanStack Start](https://tanstack.com/start)** — Full-stack React framework with file-based routing
+- **[SQLite](https://www.sqlite.org/)** — Local persistence via Node's built-in `node:sqlite` (WAL mode)
+- **[Tailwind CSS](https://tailwindcss.com/) + [Radix UI](https://www.radix-ui.com/)** — UI styling and accessible components
+- **[Shiki](https://shiki.style/)** — Syntax highlighting for diff rendering
+- **[tsdown](https://tsdown.dev/)** — CLI bundling
+
+## Development
+
+For contributors working on Ringi itself:
+
+```bash
+# Clone and install
+git clone https://github.com/sanurb/ringi.git
+cd ringi
+pnpm install
+
+# Development
+pnpm dev           # Web dev server (port 3000)
+pnpm dev:cli       # CLI dev mode via tsx
+
+# Build
+pnpm build         # Build web app
+pnpm build:cli     # Build CLI (tsdown)
+pnpm build:all     # Build CLI + web + server assets
+
+# Quality
+pnpm test          # Run tests (vitest across workspaces)
+pnpm typecheck     # Typecheck all workspaces
+pnpm check         # Lint + format check (oxlint + oxfmt)
+pnpm fix           # Auto-fix lint + format issues
+```
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture, design principles, domain boundaries |
+| [docs/CLI.md](docs/CLI.md) | Full CLI command reference with examples |
+| [docs/MCP.md](docs/MCP.md) | MCP agent guide — sandbox API, usage patterns, best practices |
+| [docs/MONOREPO.md](docs/MONOREPO.md) | Monorepo structure and dependency rules |
+| [docs/RELEASING.md](docs/RELEASING.md) | Release process |
+
+## Contributing
+
+Contributions are welcome! A few things to know:
+
+- **No mocking frameworks** — Tests use stub/constructor dependency injection. `vi.mock()`, `vi.spyOn()` are banned.
+- **Effect v4 patterns** — Services use `Effect.gen`, `Schema.Class`, branded IDs, and Layer composition.
+- **Check before submitting** — Run `pnpm check && pnpm typecheck && pnpm test` to validate your changes.
+
+## License
+
+[MIT](LICENSE) © David Urbano
