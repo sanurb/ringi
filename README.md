@@ -16,7 +16,7 @@ Ringi is a local-first code review tool that gives developers structured workflo
 
 AI coding assistants produce more code than ever, but reviewing that code still happens in ad-hoc, unstructured ways. Ringi fills the gap:
 
-- **Review-scoped intelligence** — Provenance, evidence, grouped file trees, and confidence scores help you understand *why* a change exists, not just *what* changed.
+- **Review-scoped intelligence** — Provenance, evidence, grouped file trees, and confidence scores help you understand _why_ a change exists, not just _what_ changed.
 - **Local-first by design** — All data lives in a local SQLite database (`.ringi/reviews.db`). No cloud dependency, no network required for read operations.
 - **Three surfaces, one core** — Web UI for visual review, CLI for automation, and MCP stdio for AI agent integration — all sharing the same business logic and review state.
 - **Agent-native from day one** — Agents create review sessions, inspect state, and react to reviewer feedback through the same domain model humans use.
@@ -56,11 +56,11 @@ ringi/
 └── docs/              # Architecture, CLI reference, MCP guide, specs
 ```
 
-| Package | Description |
-|---------|-------------|
-| `@ringi/core` | Shared business logic — Effect services, SQLite repos, schemas, API definitions |
-| `@ringi/web` | TanStack Start web app with React, Tailwind CSS, Radix UI, and Shiki syntax highlighting |
-| `@sanurb/ringi` | CLI binary and MCP server — the `ringi` command |
+| Package         | Description                                                                              |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| `@ringi/core`   | Shared business logic — Effect services, SQLite repos, schemas, API definitions          |
+| `@ringi/web`    | TanStack Start web app with React, Tailwind CSS, Radix UI, and Shiki syntax highlighting |
+| `@sanurb/ringi` | CLI binary and MCP server — the `ringi` command                                          |
 
 ## Getting Started
 
@@ -109,11 +109,11 @@ ringi doctor
 
 The CLI operates in three modes:
 
-| Mode | Description |
-|------|-------------|
-| **Standalone** | Read-only access to `.ringi/reviews.db` — no server needed |
-| **Server-connected** | Full mutations via running `ringi serve` |
-| **MCP stdio** | Agent integration via `ringi mcp` |
+| Mode                 | Description                                                |
+| -------------------- | ---------------------------------------------------------- |
+| **Standalone**       | Read-only access to `.ringi/reviews.db` — no server needed |
+| **Server-connected** | Full mutations via running `ringi serve`                   |
+| **MCP stdio**        | Agent integration via `ringi mcp`                          |
 
 All commands support `--json` for machine-readable output with HATEOAS `next_actions`.
 
@@ -147,7 +147,7 @@ await execute({
       fileCount: files.length,
       unresolvedComments: comments.filter(c => c.status === "open").length,
     };
-  `
+  `,
 });
 ```
 
@@ -204,13 +204,13 @@ pnpm fix           # Auto-fix lint + format issues
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture, design principles, domain boundaries |
-| [docs/CLI.md](docs/CLI.md) | Full CLI command reference with examples |
-| [docs/MCP.md](docs/MCP.md) | MCP agent guide — sandbox API, usage patterns, best practices |
-| [docs/MONOREPO.md](docs/MONOREPO.md) | Monorepo structure and dependency rules |
-| [docs/RELEASING.md](docs/RELEASING.md) | Release process |
+| Document                                     | Description                                                   |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture, design principles, domain boundaries     |
+| [docs/CLI.md](docs/CLI.md)                   | Full CLI command reference with examples                      |
+| [docs/MCP.md](docs/MCP.md)                   | MCP agent guide — sandbox API, usage patterns, best practices |
+| [docs/MONOREPO.md](docs/MONOREPO.md)         | Monorepo structure and dependency rules                       |
+| [docs/RELEASING.md](docs/RELEASING.md)       | Release process                                               |
 
 ## Contributing
 
