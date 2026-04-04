@@ -20,6 +20,7 @@ import {
 } from "@/components/review/diff-scope-selector";
 import { DraftRecoveryModal } from "@/components/review/draft-recovery-modal";
 import { ExportFeedbackModal } from "@/components/review/export-feedback-modal";
+import { ChangesPageSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { clientRuntime } from "@/lib/client-runtime";
 import type { ExportableComment } from "@/lib/format-review-feedback";
@@ -525,6 +526,9 @@ const ChangesPage = () => {
 export const Route = createFileRoute("/")({
   component: ChangesPage,
   errorComponent: IndexError,
+  pendingComponent: ChangesPageSkeleton,
+  pendingMs: 150,
+  pendingMinMs: 200,
   loader: ({ deps }) => {
     const scope = getDiffScope((deps as { scope?: unknown }).scope);
     return loadScopedDiff({ data: { scope } });

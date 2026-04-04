@@ -23,6 +23,34 @@ ringi review resolve last --yes
 ringi export last --output review.md
 ```
 
+## Pi integration (via /ringi-review command)
+
+If you're running inside Pi, the `/ringi-review` command automates the full cycle:
+
+```
+/ringi-review                         # staged changes (default)
+/ringi-review --branch main           # branch comparison
+/ringi-review --commits a1b,c2d       # specific commits
+/ringi-review --pr <github-pr-url>    # GitHub PR
+/ringi-review --port 4123             # custom server port
+/ringi-review --send                  # auto-send feedback to agent
+```
+
+What happens:
+
+1. Pi ensures `ringi serve` is running (auto-starts if needed)
+2. Creates a review session via the Ringi HTTP API
+3. Opens the Ringi web UI in the system browser
+4. Shows a "Waiting for review" widget in the Pi TUI
+5. Polls until you approve or request changes in the Ringi UI
+6. Fetches the structured feedback (comments + suggestions)
+7. Hands off feedback to the agent:
+   - **Default:** inserts into the Pi editor — you can edit before pressing Enter
+   - **`--send`:** auto-submits as a user message, triggering the next agent turn immediately
+8. If changes were requested, injects context so the agent knows it's in post-review mode
+
+This closes the loop: AI writes code → you review in Ringi → feedback flows back to the AI.
+
 ## Basic workflow
 
 ### 1. AI Makes Changes

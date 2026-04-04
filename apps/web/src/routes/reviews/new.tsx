@@ -7,6 +7,7 @@ import * as Effect from "effect/Effect";
 import { useState } from "react";
 
 import { ApiClient } from "@/api/api-client";
+import { NewReviewSkeleton } from "@/components/skeletons";
 import { clientRuntime } from "@/lib/client-runtime";
 
 import { ActionBar } from "../-shared/layout/action-bar";
@@ -46,6 +47,9 @@ const loadNewReviewData = createServerFn({ method: "GET" }).handler(
 
 export const Route = createFileRoute("/reviews/new")({
   component: NewReviewPage,
+  pendingComponent: NewReviewSkeleton,
+  pendingMs: 150,
+  pendingMinMs: 200,
   loader: () => loadNewReviewData(),
 });
 

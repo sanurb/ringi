@@ -15,6 +15,7 @@ import { useReducer, useCallback, useMemo } from "react";
 
 import { ApiClient } from "@/api/api-client";
 import { ExportFeedbackModal } from "@/components/review/export-feedback-modal";
+import { ReviewDetailSkeleton } from "@/components/skeletons";
 import { clientRuntime } from "@/lib/client-runtime";
 
 import { DiffSummary } from "../-shared/diff/diff-summary";
@@ -361,5 +362,8 @@ const ReviewDetailPage = () => {
 export const Route = createFileRoute("/reviews/$reviewId")({
   component: ReviewDetailPage,
   errorComponent: ReviewError,
+  pendingComponent: ReviewDetailSkeleton,
+  pendingMs: 150,
+  pendingMinMs: 200,
   loader: ({ params }) => loadReview({ data: { reviewId: params.reviewId } }),
 });

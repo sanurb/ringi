@@ -88,7 +88,7 @@ export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
       {/* Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 transition-opacity"
+          className="fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)]"
           onClick={onClose}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
@@ -104,7 +104,7 @@ export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
       {/* Panel */}
       <div
         ref={panelRef}
-        className={`fixed inset-y-0 right-0 z-50 w-80 transform border-l border-border-default bg-surface-secondary shadow-xl transition-transform duration-200 ${
+        className={`fixed inset-y-0 right-0 z-50 w-80 border-l border-border-default bg-surface-secondary shadow-xl transition-transform duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >

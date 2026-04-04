@@ -14,6 +14,7 @@ import {
   UpdateCommentInput,
 } from "../schemas/comment";
 import { DiffFile, DiffHunk, DiffSummary } from "../schemas/diff";
+import { ReviewFeedback } from "../schemas/feedback";
 import { BranchInfo, CommitInfo, RepositoryInfo } from "../schemas/git";
 import {
   CreateReviewInput,
@@ -281,6 +282,18 @@ export class ExportApiGroup extends HttpApiGroup.make("export").add(
     params: { id: ReviewId },
     success: Schema.String,
     error: HttpApiSchema.status(404)(ReviewNotFound),
+  }),
+  HttpApiEndpoint.get("feedback", "/reviews/:id/feedback", {
+    params: { id: ReviewId },
+    success: ReviewFeedback,
+    error: HttpApiSchema.status(404)(ReviewNotFound),
+  })
+) {}
+
+// ── Health ──────────────────────────────────────────────────
+export class HealthApiGroup extends HttpApiGroup.make("health").add(
+  HttpApiEndpoint.get("check", "/health", {
+    success: Schema.Struct({ ok: Schema.Literal(true) }),
   })
 ) {}
 
@@ -294,4 +307,5 @@ export class DomainApi extends HttpApi.make("api")
   .add(GitApiGroup)
   .add(EventsApiGroup)
   .add(ExportApiGroup)
+  .add(HealthApiGroup)
   .prefix("/api") {}

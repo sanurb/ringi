@@ -353,6 +353,44 @@ pierrediffs-diff,
   opacity: 1 !important;
 }
 
+/* ─── Skeleton loading animation ──────────────────────────────────────────── */
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-skeleton-pulse {
+  animation: skeleton-pulse 1.8s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-skeleton-pulse {
+    animation: skeleton-pulse 3s ease infinite;
+  }
+}
+
+/* ─── Skeleton page transitions ──────────────────────────────────────────── */
+
+.ringi-skeleton-enter {
+  opacity: 1;
+  transition: opacity 200ms cubic-bezier(0.23, 1, 0.32, 1);
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+.ringi-skeleton-exit {
+  opacity: 0;
+  transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ringi-pierre-diff,
   [data-diff],

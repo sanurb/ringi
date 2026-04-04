@@ -20,6 +20,7 @@ import { createServerFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
 import { useMemo } from "react";
 
+import { ReviewsListSkeleton } from "@/components/skeletons";
 import { cn } from "@/lib/utils";
 
 import { useKeyboardShortcuts } from "../-shared/hooks/use-keyboard-shortcuts";
@@ -41,6 +42,9 @@ const listReviews = createServerFn({ method: "GET" }).handler(
 
 export const Route = createFileRoute("/reviews/")({
   component: ReviewsListPage,
+  pendingComponent: ReviewsListSkeleton,
+  pendingMs: 150,
+  pendingMinMs: 200,
   loader: () => listReviews(),
 });
 

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ringi/core": "workspace:*",
+    "boneyard-js": "^1.6.0",
     "chokidar": "^5.0.0",
     "effect": "catalog:"
   },

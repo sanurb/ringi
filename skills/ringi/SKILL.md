@@ -9,11 +9,12 @@ Use this skill whenever you are working with Ringi to review AI-generated code c
 
 Also use this skill when the user mentions:
 
-- `review`, `ringi`, or `before commit`
+- `review`, `ringi`, `/ringi-review`, or `before commit`
 - creating review sessions
 - managing comments/suggestions/todos
 - exporting reviews for documentation/audit
-- “what should I do next” after an AI agent made changes
+- "what should I do next" after an AI agent made changes
+- Pi integration, prompt handoff, or feedback loop
 
 ## Workflow
 
@@ -29,10 +30,23 @@ Also use this skill when the user mentions:
 6. Export for audit/documentation: `ringi export last --output review.md`
 7. Commit normally with git
 
+### Pi integration (fastest path)
+
+When running inside Pi, use the `/ringi-review` command instead of manual CLI steps:
+
+```
+/ringi-review                     # reviews staged changes, auto-starts server
+/ringi-review --branch main       # branch comparison
+/ringi-review --pr <url>          # GitHub PR review
+```
+
+The extension auto-starts `ringi serve`, creates the review, opens the browser, waits for your decision, and inserts feedback into the Pi editor as a prompt.
+
 ### Decision points (so you pick the right command)
 
+- **Inside Pi?** Use `/ringi-review` — it handles the full lifecycle automatically.
 - If the server is already running, you can usually stay in the UI. For standalone reads (listing/showing/exporting), you do not need the server.
-- Mutations like creating reviews and adding comments/todos require the server; “read-only” commands can run without it.
+- Mutations like creating reviews and adding comments/todos require the server; "read-only" commands can run without it.
 - Reviews are snapshot-based: once created, the diff is anchored even if your branch moves later.
 
 ### Review sources (choose once at creation time)
@@ -59,5 +73,5 @@ Read the individual rule files below when you need specifics or examples:
 ## Output expectations (when acting as the agent)
 
 - Prefer copy/pasteable command blocks over prose.
-- When suggesting a workflow, always include the “safe default” staged source (`git add -A` → `ringi review create`) unless the user explicitly wants branch/commit sources.
-- If the user asks “can I commit?”, ensure there’s either (a) an approved review decision, or (b) a clear reason why they’re skipping review.
+- When suggesting a workflow, always include the "safe default" staged source (`git add -A` → `ringi review create`) unless the user explicitly wants branch/commit sources.
+- If the user asks "can I commit?", ensure there's either (a) an approved review decision, or (b) a clear reason why they're skipping review.

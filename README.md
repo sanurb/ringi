@@ -119,6 +119,33 @@ All commands support `--json` for machine-readable output with HATEOAS `next_act
 
 See [docs/CLI.md](docs/CLI.md) for the full command reference.
 
+### Pi Integration
+
+Ringi ships a Pi extension that adds a `/ringi-review` command for reviewing code changes without leaving Pi.
+
+```bash
+# Review staged changes (default)
+/ringi-review
+
+# Review a branch diff
+/ringi-review --branch main
+
+# Review specific commits
+/ringi-review --commits a1b,c2d
+
+# Review a GitHub PR
+/ringi-review --pr https://github.com/owner/repo/pull/42
+
+# Auto-send feedback to agent (no manual Enter)
+/ringi-review --send
+```
+
+The extension auto-starts the Ringi server if needed, creates a review session via the HTTP API, opens the web UI, and waits for your decision. When you approve or request changes, feedback is handed off to the agent — either inserted into the editor (default) or auto-submitted as a user message (`--send`).
+
+After a "changes requested" decision, the extension injects context into the next agent turn so it knows to address your feedback. Review state persists across Pi session restarts.
+
+The extension lives at `.pi/extensions/ringi-review/` and requires no additional dependencies beyond the `ringi` CLI.
+
 ### MCP Agent Integration
 
 Ringi exposes a single `execute` MCP tool with a constrained JavaScript sandbox:

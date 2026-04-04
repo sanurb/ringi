@@ -14,6 +14,7 @@ import { EventsApiLive } from "./wiring/events-api-live";
 import { EventsSseLive } from "./wiring/events-sse-live";
 import { ExportApiLive } from "./wiring/export-api-live";
 import { GitApiLive } from "./wiring/git-api-live";
+import { HealthApiLive } from "./wiring/health-api-live";
 import { ReviewsApiLive } from "./wiring/reviews-api-live";
 import { ReviewsRpcLive } from "./wiring/reviews-rpc-live";
 import { TodosApiLive } from "./wiring/todos-api-live";
@@ -40,6 +41,7 @@ const HttpApiRoutes = HttpApiBuilder.layer(DomainApi).pipe(
   Layer.provide(GitApiLive),
   Layer.provide(EventsApiLive),
   Layer.provide(ExportApiLive),
+  Layer.provide(HealthApiLive),
   Layer.provide(HttpServer.layerServices)
 );
 
