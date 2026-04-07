@@ -57,6 +57,9 @@ interface ActionBarProps {
   // ── Utilities ────────────────────────────────────────────────────
   onExport?: () => void;
   onCopyDiff?: () => void;
+
+  /** e.g. "12/18 hunks reviewed" */
+  coverageLabel?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -295,6 +298,7 @@ export const ActionBar = ({
   onToggleAnnotations,
   onExport,
   onCopyDiff,
+  coverageLabel,
 }: ActionBarProps) => {
   // ── Copy feedback ───────────────────────────────────────────
   const [copyFeedback, setCopyFeedback] = useState(false);
@@ -413,6 +417,13 @@ export const ActionBar = ({
 
       {/* ── Right: review state / progress / action ──────────── */}
       <div className="flex shrink-0 items-center gap-1.5 pr-2.5">
+        {/* Coverage summary */}
+        {coverageLabel ? (
+          <span className="text-[11px] tabular-nums text-text-tertiary">
+            {coverageLabel}
+          </span>
+        ) : null}
+
         {/* Review progress: "4/13 reviewed" */}
         {hasProgress ? (
           <span
