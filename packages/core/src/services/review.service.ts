@@ -11,7 +11,9 @@ import {
   parseHunks,
   serializeHunks,
 } from "../repos/review-file.repo";
+import { ReviewHunkRepo } from "../repos/review-hunk.repo";
 import { ReviewRepo } from "../repos/review.repo";
+import { deriveHunkId } from "../schemas/diff";
 import type { DiffFile, DiffHunk } from "../schemas/diff";
 import type {
   CreateReviewInput,
@@ -94,7 +96,7 @@ export class ReviewService extends ServiceMap.Service<
       reviewId: ReviewId,
       filePath: string
     ): Effect.Effect<
-      readonly DiffHunk[],
+      readonly (DiffHunk & { readonly stableId: string })[],
       ReviewNotFound | import("./git.service").GitError
     >;
     update(
@@ -113,13 +115,14 @@ export class ReviewService extends ServiceMap.Service<
   static readonly Default: Layer.Layer<
     ReviewService,
     never,
-    ReviewRepo | ReviewFileRepo | GitService
+    ReviewRepo | ReviewFileRepo | ReviewHunkRepo | GitService
   > = Layer.effect(
     ReviewService,
     Effect.gen(function* () {
       const git = yield* GitService;
       const repo = yield* ReviewRepo;
       const fileRepo = yield* ReviewFileRepo;
+      const hunkRepo = yield* ReviewHunkRepo;
 
       const create = (input: CreateReviewInput) =>
         Effect.gen(function* () {
@@ -229,6 +232,34 @@ export class ReviewService extends ServiceMap.Service<
 
           yield* fileRepo.createBulk(fileInputs);
 
+          // Persist stable hunk identities
+          const fileRows = yield* fileRepo.findByReview(reviewId);
+          const fileIdByPath = new Map(
+            fileRows.map((r) => [r.file_path, r.id])
+          );
+
+          const hunkInputs = files.flatMap((f) =>
+            (f.hunks as DiffHunk[]).map((h, idx) => ({
+              hunkIndex: idx,
+              newLines: h.newLines,
+              newStart: h.newStart,
+              oldLines: h.oldLines,
+              oldStart: h.oldStart,
+              reviewFileId: fileIdByPath.get(f.newPath)!,
+              stableId: deriveHunkId(
+                f.newPath,
+                h.oldStart,
+                h.oldLines,
+                h.newStart,
+                h.newLines
+              ),
+            }))
+          );
+
+          if (hunkInputs.length > 0) {
+            yield* hunkRepo.createBulk(hunkInputs);
+          }
+
           return review;
         });
 
@@ -315,19 +346,66 @@ export class ReviewService extends ServiceMap.Service<
             return yield* new ReviewNotFound({ id: reviewId });
           }
 
+          // Helper: enrich hunks with stable IDs
+          const enrichWithStableIds = (
+            hunks: readonly DiffHunk[],
+            fp: string
+          ) =>
+            hunks.map((h) => ({
+              ...h,
+              stableId: deriveHunkId(
+                fp,
+                h.oldStart,
+                h.oldLines,
+                h.newStart,
+                h.newLines
+              ),
+            }));
+
           const fileRecord = yield* fileRepo.findByReviewAndPath(
             reviewId,
             filePath
           );
-          if (fileRecord?.hunks_data) {
-            return yield* parseHunks(fileRecord.hunks_data);
+
+          // Try persisted hunk rows first (post-v7 reviews)
+          if (fileRecord) {
+            const storedHunks = yield* hunkRepo.findByReviewFile(fileRecord.id);
+            if (storedHunks.length > 0) {
+              // Merge persisted hunk metadata with DiffHunk lines
+              const parsedHunks = yield* parseHunks(fileRecord.hunks_data);
+              const stableIdByIndex = new Map(
+                storedHunks.map((h) => [h.hunkIndex, h.stableId])
+              );
+              return parsedHunks.map((h, idx) => ({
+                ...h,
+                stableId:
+                  stableIdByIndex.get(idx) ??
+                  deriveHunkId(
+                    filePath,
+                    h.oldStart,
+                    h.oldLines,
+                    h.newStart,
+                    h.newLines
+                  ),
+              }));
+            }
+
+            // Fallback: persisted hunks_data without review_hunks rows (pre-v7)
+            if (fileRecord.hunks_data) {
+              const parsed = yield* parseHunks(fileRecord.hunks_data);
+              return enrichWithStableIds(parsed, filePath);
+            }
           }
 
+          // Regenerate from git for non-staged sources
           if (review.sourceType === "branch" && review.sourceRef) {
             const diff = yield* git.getBranchDiff(review.sourceRef);
             const diffFiles = parseDiff(diff);
             const file = diffFiles.find((f) => f.newPath === filePath);
-            return (file?.hunks ?? []) as DiffHunk[];
+            return enrichWithStableIds(
+              (file?.hunks ?? []) as DiffHunk[],
+              filePath
+            );
           }
 
           if (review.sourceType === "commits" && review.sourceRef) {
@@ -335,7 +413,10 @@ export class ReviewService extends ServiceMap.Service<
             const diff = yield* git.getCommitDiff(shas);
             const diffFiles = parseDiff(diff);
             const file = diffFiles.find((f) => f.newPath === filePath);
-            return (file?.hunks ?? []) as DiffHunk[];
+            return enrichWithStableIds(
+              (file?.hunks ?? []) as DiffHunk[],
+              filePath
+            );
           }
 
           const snapshot = yield* parseSnapshotData(review.snapshotData);
@@ -343,10 +424,13 @@ export class ReviewService extends ServiceMap.Service<
             const legacyFile = snapshot.files.find(
               (f) => f.newPath === filePath
             );
-            return (legacyFile?.hunks ?? []) as DiffHunk[];
+            return enrichWithStableIds(
+              (legacyFile?.hunks ?? []) as DiffHunk[],
+              filePath
+            );
           }
 
-          return [] as DiffHunk[];
+          return [] as (DiffHunk & { readonly stableId: string })[];
         });
 
       const update = (id: ReviewId, input: UpdateReviewInput) =>

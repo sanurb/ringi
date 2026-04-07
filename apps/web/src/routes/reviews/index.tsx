@@ -52,6 +52,8 @@ const statusStyles: Record<string, string> = {
   approved: "bg-status-success/15 text-status-success",
   changes_requested: "bg-status-error/15 text-status-error",
   in_progress: "bg-status-warning/15 text-status-warning",
+  moved: "bg-diff-move-bg text-diff-move-text",
+  "moved-modified": "bg-diff-move-modified-bg text-diff-move-modified-text",
 };
 
 const sourceLabels: Record<string, string> = {

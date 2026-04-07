@@ -1,7 +1,12 @@
 import type { DiffFile } from "@ringi/core/schemas/diff";
 import { describe, expect, it } from "vitest";
 
-import { toPatchString, toPierreFileContents } from "./pierre-adapter";
+import {
+  buildMoveUnsafeCSS,
+  getMovedLines,
+  toPatchString,
+  toPierreFileContents,
+} from "./pierre-adapter";
 
 function makeDiffFile(overrides: Partial<DiffFile> = {}): DiffFile {
   return {
@@ -109,5 +114,108 @@ describe("toPierreFileContents", () => {
       contents: "one\ntwo",
       name: "src/example.ts",
     });
+  });
+});
+
+describe("move detection helpers", () => {
+  it("getMovedLines extracts moved line numbers by side", () => {
+    const file = makeDiffFile({
+      hunks: [
+        {
+          lines: [
+            {
+              content: "moved line",
+              newLineNumber: null,
+              oldLineNumber: 5,
+              type: "moved",
+            },
+            {
+              content: "moved line",
+              newLineNumber: 10,
+              oldLineNumber: null,
+              type: "moved",
+            },
+            {
+              content: "  reformatted",
+              newLineNumber: 11,
+              oldLineNumber: null,
+              type: "moved-modified",
+            },
+            {
+              content: "reformatted",
+              newLineNumber: null,
+              oldLineNumber: 6,
+              type: "moved-modified",
+            },
+            {
+              content: "normal",
+              newLineNumber: 12,
+              oldLineNumber: 7,
+              type: "context",
+            },
+          ],
+          newLines: 3,
+          newStart: 10,
+          oldLines: 3,
+          oldStart: 5,
+        },
+      ],
+    });
+
+    const info = getMovedLines(file);
+
+    expect(info.movedAdditions).toEqual([10]);
+    expect(info.movedDeletions).toEqual([5]);
+    expect(info.movedModifiedAdditions).toEqual([11]);
+    expect(info.movedModifiedDeletions).toEqual([6]);
+  });
+
+  it("buildMoveUnsafeCSS generates line-number targeted CSS rules", () => {
+    const css = buildMoveUnsafeCSS({
+      movedAdditions: [10],
+      movedDeletions: [5],
+      movedModifiedAdditions: [11],
+      movedModifiedDeletions: [],
+    });
+
+    expect(css).toContain('[data-column-number="10"]');
+    expect(css).toContain('[data-column-number="5"]');
+    expect(css).toContain('[data-column-number="11"]');
+    expect(css).toContain("addition");
+    expect(css).toContain("deletion");
+  });
+
+  it("toPatchString handles moved lines as +/- correctly", () => {
+    const file = makeDiffFile({
+      hunks: [
+        {
+          lines: [
+            {
+              content: "moved from here",
+              newLineNumber: null,
+              oldLineNumber: 1,
+              type: "moved",
+            },
+            {
+              content: "moved from here",
+              newLineNumber: 5,
+              oldLineNumber: null,
+              type: "moved",
+            },
+          ],
+          newLines: 1,
+          newStart: 5,
+          oldLines: 1,
+          oldStart: 1,
+        },
+      ],
+    });
+
+    const patch = toPatchString(file);
+
+    // The removed-side moved line should be "-"
+    expect(patch).toContain("-moved from here");
+    // The added-side moved line should be "+"
+    expect(patch).toContain("+moved from here");
   });
 });

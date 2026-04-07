@@ -8,7 +8,9 @@ import { HttpRouter, HttpServer } from "effect/unstable/http";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
 
+import { AnnotationsApiLive } from "./wiring/annotations-api-live";
 import { CommentsApiLive } from "./wiring/comments-api-live";
+import { CoverageApiLive } from "./wiring/coverage-api-live";
 import { DiffApiLive, ReviewFilesApiLive } from "./wiring/diff-api-live";
 import { EventsApiLive } from "./wiring/events-api-live";
 import { EventsSseLive } from "./wiring/events-sse-live";
@@ -36,6 +38,8 @@ const HttpApiRoutes = HttpApiBuilder.layer(DomainApi).pipe(
   Layer.provide(ReviewsApiLive),
   Layer.provide(CommentsApiLive),
   Layer.provide(TodosApiLive),
+  Layer.provide(AnnotationsApiLive),
+  Layer.provide(CoverageApiLive),
   Layer.provide(DiffApiLive),
   Layer.provide(ReviewFilesApiLive),
   Layer.provide(GitApiLive),

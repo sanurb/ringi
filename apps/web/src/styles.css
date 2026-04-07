@@ -46,9 +46,25 @@
   --color-code-line-active: var(--ringi-code-line-active);
   --color-code-selection: var(--ringi-code-selection);
 
+  /* Diff — move (pure relocation, no content change) */
+  --color-diff-move-bg: var(--ringi-diff-move-bg);
+  --color-diff-move-border: var(--ringi-diff-move-border);
+  --color-diff-move-text: var(--ringi-diff-move-text);
+  --color-diff-move-line-bg: var(--ringi-diff-move-line-bg);
+
+  /* Diff — move-modified (relocated + reformatted) */
+  --color-diff-move-modified-bg: var(--ringi-diff-move-modified-bg);
+  --color-diff-move-modified-border: var(--ringi-diff-move-modified-border);
+  --color-diff-move-modified-text: var(--ringi-diff-move-modified-text);
+  --color-diff-move-modified-line-bg: var(--ringi-diff-move-modified-line-bg);
+
   /* Diff — text emphasis */
   --color-diff-add-text-emphasis: var(--ringi-diff-add-text-emphasis);
   --color-diff-remove-text-emphasis: var(--ringi-diff-remove-text-emphasis);
+  --color-diff-move-text-emphasis: var(--ringi-diff-move-text-emphasis);
+  --color-diff-move-modified-text-emphasis: var(
+    --ringi-diff-move-modified-text-emphasis
+  );
 
   /* Diff — line highlight */
   --color-diff-add-line-bg: var(--ringi-diff-add-line-bg);
@@ -93,6 +109,8 @@ code {
   --diffs-added-dark: var(--color-diff-add-text);
   --diffs-deleted-dark: var(--color-diff-remove-text);
   --diffs-modified-dark: var(--color-status-info);
+  --diffs-moved-dark: var(--color-diff-move-text);
+  --diffs-moved-modified-dark: var(--color-diff-move-modified-text);
   --diffs-tab-size: 2;
   --diffs-bg-buffer-override: var(--color-surface-secondary);
   --diffs-bg-hover-override: var(--color-code-line-hover);
@@ -260,6 +278,47 @@ pierrediffs-diff,
   --diffs-bg-buffer-override: var(--color-surface-inset);
   --diffs-bg-context-override: var(--color-code-bg);
   --diffs-gap-style: 1px solid var(--color-border-subtle);
+}
+
+/* ─── Move-detected line highlighting ─────────────────────────────────────────── */
+/*
+ * These classes are applied via the pierre-adapter when lines have type
+ * "moved" or "moved-modified". They override the default green/red
+ * backgrounds with yellow tones — like Phabricator / Graphite.
+ *
+ * • Light yellow = pure move (code relocated, no content change)
+ * • Dark yellow  = move + formatting/content modification
+ */
+
+.ringi-diff-line-moved {
+  background-color: var(--color-diff-move-line-bg) !important;
+}
+
+.ringi-diff-line-moved-modified {
+  background-color: var(--color-diff-move-modified-line-bg) !important;
+}
+
+/* Move indicator badge shown in the gutter */
+.ringi-move-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2em;
+  height: 1.2em;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ringi-move-indicator--pure {
+  color: var(--color-diff-move-text);
+  background-color: var(--color-diff-move-bg);
+}
+
+.ringi-move-indicator--modified {
+  color: var(--color-diff-move-modified-text);
+  background-color: var(--color-diff-move-modified-bg);
 }
 
 .ringi-annotations-panel {

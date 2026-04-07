@@ -26,7 +26,11 @@ const EMPTY_COMMENTS: readonly Comment[] = [];
 import { InlineCommentComposer } from "./inline-comment-composer";
 import type { CommentDraft } from "./inline-comment-composer";
 import { InlineCommentThread } from "./inline-comment-thread";
-import { toPatchString } from "./pierre-adapter";
+import {
+  buildMoveUnsafeCSS,
+  getMovedLines,
+  toPatchString,
+} from "./pierre-adapter";
 
 const statusBadge: Record<DiffStatus, { label: string; className: string }> = {
   added: { className: "bg-status-success/15 text-status-success", label: "A" },
@@ -34,6 +38,14 @@ const statusBadge: Record<DiffStatus, { label: string; className: string }> = {
   modified: {
     className: "bg-status-warning/15 text-status-warning",
     label: "M",
+  },
+  moved: {
+    className: "bg-diff-move-bg text-diff-move-text",
+    label: "↷",
+  },
+  "moved-modified": {
+    className: "bg-diff-move-modified-bg text-diff-move-modified-text",
+    label: "↷̃",
   },
   renamed: { className: "bg-status-info/15 text-status-info", label: "R" },
 };
@@ -510,12 +522,23 @@ export const DiffFile = ({
     return toPatchString({ ...file, hunks: hunks as DiffFileType["hunks"] });
   }, [file, hunks]);
 
+  // Build CSS to highlight moved lines with yellow tones inside the shadow DOM
+  const moveCSS = useMemo(() => {
+    if (hunks.length === 0) return "";
+    const info = getMovedLines({
+      ...file,
+      hunks: hunks as DiffFileType["hunks"],
+    });
+    return buildMoveUnsafeCSS(info);
+  }, [file, hunks]);
+
   const diffOptions: FileDiffOptions<LineAnnotationMeta> = {
     ...(pierreDiffOptions as FileDiffOptions<LineAnnotationMeta>),
     diffStyle: diffMode,
     disableFileHeader: true,
     enableGutterUtility: true,
     lineHoverHighlight: "both",
+    ...(moveCSS ? { unsafeCSS: moveCSS } : {}),
   };
 
   const renderAnnotation = useCallback(
@@ -656,13 +679,17 @@ export const DiffFile = ({
         <span
           className={cn(
             "w-3 shrink-0 text-center font-mono text-[10px] font-semibold leading-none",
-            badge.className.includes("success")
+            file.status === "added"
               ? "text-diff-add-text"
-              : badge.className.includes("error")
+              : file.status === "deleted"
                 ? "text-diff-remove-text"
-                : badge.className.includes("warning")
-                  ? "text-accent-primary"
-                  : "text-status-info"
+                : file.status === "moved"
+                  ? "text-diff-move-text"
+                  : file.status === "moved-modified"
+                    ? "text-diff-move-modified-text"
+                    : file.status === "modified"
+                      ? "text-accent-primary"
+                      : "text-status-info"
           )}
         >
           {badge.label}
