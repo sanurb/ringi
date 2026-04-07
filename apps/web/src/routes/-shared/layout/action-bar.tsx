@@ -60,6 +60,9 @@ interface ActionBarProps {
 
   /** e.g. "12/18 hunks reviewed" */
   coverageLabel?: string;
+
+  /** e.g. "12 annotations (3 sources)" */
+  annotationLabel?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -299,6 +302,7 @@ export const ActionBar = ({
   onExport,
   onCopyDiff,
   coverageLabel,
+  annotationLabel,
 }: ActionBarProps) => {
   // ── Copy feedback ───────────────────────────────────────────
   const [copyFeedback, setCopyFeedback] = useState(false);
@@ -421,6 +425,13 @@ export const ActionBar = ({
         {coverageLabel ? (
           <span className="text-[11px] tabular-nums text-text-tertiary">
             {coverageLabel}
+          </span>
+        ) : null}
+
+        {/* External annotation count */}
+        {annotationLabel ? (
+          <span className="text-[11px] tabular-nums text-status-info/70">
+            {annotationLabel}
           </span>
         ) : null}
 
