@@ -69,6 +69,18 @@ const migrations: readonly string[] = [
     created_at TEXT DEFAULT (datetime('now'))
   ) STRICT;
   CREATE UNIQUE INDEX idx_review_hunks_stable ON review_hunks(review_file_id, stable_id)`,
+
+  // v8: review_coverage table — tracks which hunks/ranges have been inspected
+  `CREATE TABLE IF NOT EXISTS review_coverage (
+    id TEXT PRIMARY KEY,
+    review_id TEXT NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+    hunk_stable_id TEXT NOT NULL,
+    start_line INTEGER,
+    end_line INTEGER,
+    created_at TEXT DEFAULT (datetime('now'))
+  ) STRICT;
+  CREATE INDEX idx_coverage_review ON review_coverage(review_id);
+  CREATE INDEX idx_coverage_hunk ON review_coverage(review_id, hunk_stable_id)`,
 ];
 
 /** Apply pending migrations using PRAGMA user_version as the version tracker. */

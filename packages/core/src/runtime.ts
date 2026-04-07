@@ -3,11 +3,13 @@ import * as ManagedRuntime from "effect/ManagedRuntime";
 
 import { SqliteService } from "./db/database";
 import { CommentRepo } from "./repos/comment.repo";
+import { CoverageRepo } from "./repos/coverage.repo";
 import { ReviewFileRepo } from "./repos/review-file.repo";
 import { ReviewHunkRepo } from "./repos/review-hunk.repo";
 import { ReviewRepo } from "./repos/review.repo";
 import { TodoRepo } from "./repos/todo.repo";
 import { CommentService } from "./services/comment.service";
+import { CoverageService } from "./services/coverage.service";
 import { EventService } from "./services/event.service";
 import { ExportService } from "./services/export.service";
 import { GhService } from "./services/gh.service";
@@ -21,6 +23,7 @@ const RepoLive = Layer.mergeAll(
   ReviewFileRepo.Default,
   ReviewHunkRepo.Default,
   CommentRepo.Default,
+  CoverageRepo.Default,
   TodoRepo.Default
 ).pipe(Layer.provide(SqliteService.Default));
 
@@ -43,6 +46,13 @@ const ReviewServiceLive = ReviewService.Default.pipe(
   Layer.provide(SqliteService.Default)
 );
 
+const CoverageServiceLive = CoverageService.Default.pipe(
+  Layer.provide(CoverageRepo.Default),
+  Layer.provide(ReviewHunkRepo.Default),
+  Layer.provide(ReviewFileRepo.Default),
+  Layer.provide(SqliteService.Default)
+);
+
 const ExportServiceLive = ExportService.Default.pipe(
   Layer.provide(ReviewServiceLive),
   Layer.provide(CommentServiceLive),
@@ -52,6 +62,7 @@ const ExportServiceLive = ExportService.Default.pipe(
 export const CoreLive = Layer.mergeAll(
   ReviewServiceLive,
   CommentServiceLive,
+  CoverageServiceLive,
   TodoServiceLive,
   GitService.Default,
   GhService.Default,
