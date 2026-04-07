@@ -1,3 +1,4 @@
+export * from "./annotation";
 export * from "./review";
 export * from "./comment";
 export * from "./coverage";
