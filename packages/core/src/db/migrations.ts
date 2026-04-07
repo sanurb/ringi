@@ -55,6 +55,20 @@ const migrations: readonly string[] = [
     hunks_data TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   ) STRICT`,
+
+  // v7: review_hunks table — stable hunk identity for coverage, annotations, etc.
+  `CREATE TABLE IF NOT EXISTS review_hunks (
+    id TEXT PRIMARY KEY,
+    review_file_id TEXT NOT NULL REFERENCES review_files(id) ON DELETE CASCADE,
+    hunk_index INTEGER NOT NULL,
+    old_start INTEGER NOT NULL,
+    old_lines INTEGER NOT NULL,
+    new_start INTEGER NOT NULL,
+    new_lines INTEGER NOT NULL,
+    stable_id TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  ) STRICT;
+  CREATE UNIQUE INDEX idx_review_hunks_stable ON review_hunks(review_file_id, stable_id)`,
 ];
 
 /** Apply pending migrations using PRAGMA user_version as the version tracker. */

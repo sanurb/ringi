@@ -86,18 +86,17 @@ export const deriveHunkId = (
   oldStart: number,
   oldLines: number,
   newStart: number,
-  newLines: number,
+  newLines: number
 ): string => `${filePath}:@-${oldStart},${oldLines}+${newStart},${newLines}`;
 
-const HUNK_ID_PATTERN =
-  /^(.+):@-(\d+),(\d+)\+(\d+),(\d+)$/;
+const HUNK_ID_PATTERN = /^(.+):@-(\d+),(\d+)\+(\d+),(\d+)$/;
 
 /**
  * Parse a stable hunk ID back into its components.
  * Returns `null` if the string does not match the expected format.
  */
 export const parseHunkId = (
-  stableId: string,
+  stableId: string
 ): {
   filePath: string;
   oldStart: number;

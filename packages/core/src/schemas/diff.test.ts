@@ -1,6 +1,5 @@
-import { describe, expect, it } from "vitest";
-
 import { deriveHunkId, parseHunkId } from "@ringi/core/schemas/diff";
+import { describe, expect, it } from "vitest";
 
 // ---------------------------------------------------------------------------
 // deriveHunkId — determinism and format
@@ -9,7 +8,7 @@ import { deriveHunkId, parseHunkId } from "@ringi/core/schemas/diff";
 describe("deriveHunkId", () => {
   it("produces the canonical format", () => {
     expect(deriveHunkId("src/auth.ts", 10, 5, 12, 7)).toBe(
-      "src/auth.ts:@-10,5+12,7",
+      "src/auth.ts:@-10,5+12,7"
     );
   });
 

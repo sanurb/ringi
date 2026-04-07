@@ -4,6 +4,7 @@ import * as ManagedRuntime from "effect/ManagedRuntime";
 import { SqliteService } from "./db/database";
 import { CommentRepo } from "./repos/comment.repo";
 import { ReviewFileRepo } from "./repos/review-file.repo";
+import { ReviewHunkRepo } from "./repos/review-hunk.repo";
 import { ReviewRepo } from "./repos/review.repo";
 import { TodoRepo } from "./repos/todo.repo";
 import { CommentService } from "./services/comment.service";
@@ -18,6 +19,7 @@ import { TodoService } from "./services/todo.service";
 const RepoLive = Layer.mergeAll(
   ReviewRepo.Default,
   ReviewFileRepo.Default,
+  ReviewHunkRepo.Default,
   CommentRepo.Default,
   TodoRepo.Default
 ).pipe(Layer.provide(SqliteService.Default));
@@ -36,6 +38,7 @@ const TodoServiceLive = TodoService.Default.pipe(
 const ReviewServiceLive = ReviewService.Default.pipe(
   Layer.provide(ReviewRepo.Default),
   Layer.provide(ReviewFileRepo.Default),
+  Layer.provide(ReviewHunkRepo.Default),
   Layer.provide(GitService.Default),
   Layer.provide(SqliteService.Default)
 );
