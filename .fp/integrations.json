@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "integrations": {
+    "agents": {
+      "installedByCli": "0.19.0",
+      "bundleVersion": "n/a",
+      "scope": "project",
+      "resources": [],
+      "installedAt": "2026-04-07T17:17:02.494Z",
+      "lastReconciledAt": "2026-04-07T17:17:02.494Z"
+    }
+  }
+}

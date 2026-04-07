@@ -132,6 +132,8 @@ const statusColor: Record<DiffStatus, string> = {
   added: "text-diff-add-text",
   deleted: "text-diff-remove-text",
   modified: "text-accent-primary",
+  moved: "text-diff-move-text",
+  "moved-modified": "text-diff-move-modified-text",
   renamed: "text-status-info",
 };
 
@@ -139,6 +141,8 @@ const statusLetter: Record<DiffStatus, string> = {
   added: "A",
   deleted: "D",
   modified: "M",
+  moved: "↷",
+  "moved-modified": "↷̃",
   renamed: "R",
 };
 

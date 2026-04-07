@@ -27,14 +27,31 @@ function hunkToPatch(hunk: DiffHunk): string {
   return [header, ...lines].join("\n");
 }
 
-const LINE_PREFIX: Record<DiffLine["type"], string> = {
-  added: "+",
-  context: " ",
-  removed: "-",
-};
+/**
+ * Map line types to unified diff prefixes.
+ * Moved/moved-modified lines retain their original +/- semantics
+ * (they're still additions/deletions in the patch) but get visual
+ * distinction via CSS.
+ */
+function lineToPatchPrefix(line: DiffLine): string {
+  switch (line.type) {
+    case "added":
+    case "moved":
+    case "moved-modified":
+      // Moved lines that were matched from "added" side keep +
+      // Moved lines matched from "removed" side: check oldLineNumber
+      return line.oldLineNumber !== null && line.newLineNumber === null
+        ? "-"
+        : "+";
+    case "removed":
+      return "-";
+    case "context":
+      return " ";
+  }
+}
 
 function lineToPatch(line: DiffLine): string {
-  return `${LINE_PREFIX[line.type]}${line.content}`;
+  return `${lineToPatchPrefix(line)}${line.content}`;
 }
 
 /** Build a full multi-file patch string for multiple DiffFiles. */
@@ -47,4 +64,91 @@ export function toPierreFileContents(
   lines: string[]
 ): FileContents {
   return { contents: lines.join("\n"), name: path };
+}
+
+// ---------------------------------------------------------------------------
+// Move-detection CSS injection
+// ---------------------------------------------------------------------------
+
+interface MovedLineInfo {
+  /** Line numbers on the additions side that are pure moves */
+  movedAdditions: readonly number[];
+  /** Line numbers on the deletions side that are pure moves */
+  movedDeletions: readonly number[];
+  /** Line numbers on the additions side that are moves with formatting changes */
+  movedModifiedAdditions: readonly number[];
+  /** Line numbers on the deletions side that are moves with formatting changes */
+  movedModifiedDeletions: readonly number[];
+}
+
+/**
+ * Extract moved line numbers from a DiffFile for CSS injection.
+ */
+export function getMovedLines(file: DiffFile): MovedLineInfo {
+  const movedAdditions: number[] = [];
+  const movedDeletions: number[] = [];
+  const movedModifiedAdditions: number[] = [];
+  const movedModifiedDeletions: number[] = [];
+
+  for (const hunk of file.hunks) {
+    for (const line of hunk.lines) {
+      if (line.type === "moved") {
+        if (line.newLineNumber !== null)
+          movedAdditions.push(line.newLineNumber);
+        if (line.oldLineNumber !== null)
+          movedDeletions.push(line.oldLineNumber);
+      } else if (line.type === "moved-modified") {
+        if (line.newLineNumber !== null)
+          movedModifiedAdditions.push(line.newLineNumber);
+        if (line.oldLineNumber !== null)
+          movedModifiedDeletions.push(line.oldLineNumber);
+      }
+    }
+  }
+
+  return {
+    movedAdditions,
+    movedDeletions,
+    movedModifiedAdditions,
+    movedModifiedDeletions,
+  };
+}
+
+/**
+ * Build a CSS string to inject into @pierre/diffs shadow DOM that overrides
+ * the default green/red backgrounds for moved lines with yellow tones.
+ *
+ * Uses :nth-of-type selectors targeting specific line-number rows.
+ * Light yellow = pure move, dark yellow = moved + reformatted.
+ */
+export function buildMoveUnsafeCSS(info: MovedLineInfo): string {
+  const rules: string[] = [];
+
+  const moveColor = "var(--color-diff-move-line-bg, rgba(210, 153, 34, 0.08))";
+  const moveModColor =
+    "var(--color-diff-move-modified-line-bg, rgba(182, 120, 14, 0.1))";
+
+  // Build selectors for each line number on each side
+  for (const ln of info.movedAdditions) {
+    rules.push(
+      `[data-column-number="${ln}"][data-column-type="addition"] { background-color: ${moveColor} !important; }`
+    );
+  }
+  for (const ln of info.movedDeletions) {
+    rules.push(
+      `[data-column-number="${ln}"][data-column-type="deletion"] { background-color: ${moveColor} !important; }`
+    );
+  }
+  for (const ln of info.movedModifiedAdditions) {
+    rules.push(
+      `[data-column-number="${ln}"][data-column-type="addition"] { background-color: ${moveModColor} !important; }`
+    );
+  }
+  for (const ln of info.movedModifiedDeletions) {
+    rules.push(
+      `[data-column-number="${ln}"][data-column-type="deletion"] { background-color: ${moveModColor} !important; }`
+    );
+  }
+
+  return rules.join("\n");
 }

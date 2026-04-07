@@ -140,6 +140,83 @@ const parseFileDiff = (fileDiff: string): DiffFile | null => {
 };
 
 // ---------------------------------------------------------------------------
+// Move detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize a line for move comparison:
+ * strip leading/trailing whitespace so pure-formatting moves still match.
+ */
+const normalizeLine = (content: string): string => content.trim();
+
+/**
+ * Detect moved lines across all files in a diff.
+ *
+ * Algorithm:
+ * 1. Collect all removed lines (keyed by normalized content).
+ * 2. For each added line, check if a removed line with the same normalized
+ *    content exists.
+ * 3. If the raw content is identical → "moved" (pure move).
+ *    If only the normalized content matches → "moved-modified" (moved + reformatted).
+ * 4. Mark both the removed and added line.
+ *
+ * This is the same approach Phabricator uses: yellow for pure moves,
+ * dark yellow for moves with formatting changes.
+ */
+const detectMoves = (files: DiffFile[]): void => {
+  // Build index: normalized content → list of removed line references
+  const removedIndex = new Map<
+    string,
+    { line: DiffLine; matched: boolean }[]
+  >();
+
+  for (const file of files) {
+    for (const hunk of file.hunks) {
+      for (const line of hunk.lines) {
+        if (line.type !== "removed") continue;
+        const key = normalizeLine(line.content);
+        if (!key) continue; // skip empty lines
+        let bucket = removedIndex.get(key);
+        if (!bucket) {
+          bucket = [];
+          removedIndex.set(key, bucket);
+        }
+        bucket.push({ line, matched: false });
+      }
+    }
+  }
+
+  // Match added lines against removed lines
+  for (const file of files) {
+    for (const hunk of file.hunks) {
+      for (const line of hunk.lines) {
+        if (line.type !== "added") continue;
+        const key = normalizeLine(line.content);
+        if (!key) continue;
+        const bucket = removedIndex.get(key);
+        if (!bucket) continue;
+
+        // Find first unmatched removed line
+        const entry = bucket.find((e) => !e.matched);
+        if (!entry) continue;
+
+        entry.matched = true;
+
+        // Exact raw content → pure move; otherwise move + formatting change
+        const isPureMove = entry.line.content === line.content;
+        const moveType: DiffLine["type"] = isPureMove
+          ? "moved"
+          : "moved-modified";
+
+        // Mutate both lines in-place (they're already in the file structs)
+        (entry.line as { type: DiffLine["type"] }).type = moveType;
+        (line as { type: DiffLine["type"] }).type = moveType;
+      }
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -156,6 +233,7 @@ export const parseDiff = (diffText: string): readonly DiffFile[] => {
       files.push(parsed);
     }
   }
+  detectMoves(files);
   return files;
 };
 
@@ -177,6 +255,9 @@ export const getDiffSummary = (files: readonly DiffFile[]): DiffSummary => {
     filesAdded: files.filter((f) => f.status === "added").length,
     filesDeleted: files.filter((f) => f.status === "deleted").length,
     filesModified: files.filter((f) => f.status === "modified").length,
+    filesMoved: files.filter((f) => f.status === "moved").length,
+    filesMovedModified: files.filter((f) => f.status === "moved-modified")
+      .length,
     filesRenamed: files.filter((f) => f.status === "renamed").length,
     totalAdditions,
     totalDeletions,

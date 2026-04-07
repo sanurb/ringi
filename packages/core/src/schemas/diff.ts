@@ -5,10 +5,18 @@ export const DiffStatus = Schema.Literals([
   "modified",
   "deleted",
   "renamed",
+  "moved",
+  "moved-modified",
 ]);
 export type DiffStatus = typeof DiffStatus.Type;
 
-export const DiffLineType = Schema.Literals(["added", "removed", "context"]);
+export const DiffLineType = Schema.Literals([
+  "added",
+  "removed",
+  "context",
+  "moved",
+  "moved-modified",
+]);
 export type DiffLineType = typeof DiffLineType.Type;
 
 export const DiffLine = Schema.Struct({
@@ -52,6 +60,8 @@ export const DiffSummary = Schema.Struct({
   filesDeleted: Schema.Number,
   filesModified: Schema.Number,
   filesRenamed: Schema.Number,
+  filesMoved: Schema.Number,
+  filesMovedModified: Schema.Number,
   totalAdditions: Schema.Number,
   totalDeletions: Schema.Number,
   totalFiles: Schema.Number,
