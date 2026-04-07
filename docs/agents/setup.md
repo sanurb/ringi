@@ -13,17 +13,17 @@ pnpm install
 
 ## Commands
 
-| Command          | Description                              |
-| ---------------- | ---------------------------------------- |
-| `pnpm dev`       | Web dev server (port 3000)               |
-| `pnpm dev:cli`   | CLI dev mode via tsx                     |
-| `pnpm build`     | Build web app                            |
-| `pnpm build:cli` | Build CLI (tsdown)                       |
-| `pnpm build:all` | CLI then web                             |
-| `pnpm test`      | Tests (vp test run — vitest, all workspaces) |
-| `pnpm typecheck` | Typecheck all workspaces                 |
+| Command          | Description                                     |
+| ---------------- | ----------------------------------------------- |
+| `pnpm dev`       | Web dev server (port 3000)                      |
+| `pnpm dev:cli`   | CLI dev mode via tsx                            |
+| `pnpm build`     | Build web app                                   |
+| `pnpm build:cli` | Build CLI (tsdown)                              |
+| `pnpm build:all` | CLI then web                                    |
+| `pnpm test`      | Tests (vp test run — vitest, all workspaces)    |
+| `pnpm typecheck` | Typecheck all workspaces                        |
 | `pnpm check`     | Lint + format check (vp check — oxlint + oxfmt) |
-| `pnpm fix`       | Auto-fix lint + format (vp check --fix)  |
+| `pnpm fix`       | Auto-fix lint + format (vp check --fix)         |
 
 ## Task Completion Gate
 

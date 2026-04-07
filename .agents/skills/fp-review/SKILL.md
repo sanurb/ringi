@@ -17,7 +17,9 @@ fp --version
 ```
 
 **If fp is not installed**, tell the user:
+
 > The `fp` CLI is not installed. Install it with:
+>
 > ```bash
 > curl -fsSL https://setup.fp.dev/install.sh | sh -s
 > ```
@@ -28,9 +30,11 @@ fp tree
 ```
 
 **If project is not initialized**, ask the user if they want to initialize:
+
 > This project hasn't been initialized with fp. Would you like to initialize it?
 
 If yes:
+
 ```bash
 fp init
 ```
@@ -73,6 +77,7 @@ git show <hash> --stat   # Git
 ### Match Commits to Issues
 
 Compare:
+
 - Files changed in commit vs issue description
 - Commit message content vs issue title
 - Code changes vs issue requirements
@@ -82,7 +87,9 @@ Compare:
 **Before assigning commits, confirm with the user.** Some users prefer to work without committing until they're done, or may not want commits linked to issues.
 
 Use `AskUserTool` to ask:
+
 > I found these commits that appear related to `<PREFIX>-X`:
+>
 > - `abc123` - Add user model
 > - `def456` - Implement auth middleware
 >
@@ -173,6 +180,7 @@ fp review <PREFIX>-X
 ```
 
 **Note:** For issue-based review to work, the issue must have commits assigned. If no commits are assigned, either:
+
 1. Assign commits first with `fp issue assign`, OR
 2. Use `fp review` to review the working copy instead
 
@@ -230,6 +238,7 @@ fp comment <PREFIX>-X "**file.ts:line**: feedback"
 Stories are narrative documents that walk a reviewer through code changes. They combine markdown prose with embedded diffs, file excerpts, and chat transcripts.
 
 **Requires the `experimental_story` feature flag:**
+
 ```bash
 fp feature enable experimental_story
 ```

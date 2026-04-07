@@ -17,7 +17,9 @@ fp --version
 ```
 
 **If fp is not installed**, tell the user:
+
 > The `fp` CLI is not installed. Install it with:
+>
 > ```bash
 > curl -fsSL https://setup.fp.dev/install.sh | sh -s
 > ```
@@ -28,9 +30,11 @@ fp tree
 ```
 
 **If project is not initialized**, ask the user if they want to initialize:
+
 > This project hasn't been initialized with fp. Would you like to initialize it?
 
 If yes:
+
 ```bash
 fp init
 ```
@@ -83,6 +87,7 @@ fp issue list                        # All issues
 ### Pick the Right Task
 
 Look for tasks that:
+
 - Have status `todo`
 - Have no dependencies, OR all dependencies are `done`
 - Match your current focus/expertise
@@ -130,6 +135,7 @@ fp comment <PREFIX>-2 "Resolved: using custom refresh logic. Proceeding with imp
 ```
 
 **When to comment:**
+
 - When you start a task
 - When you complete a significant milestone
 - When you discover important information

@@ -2,7 +2,7 @@
 
 | Task                      | Location                               | Notes                            |
 | ------------------------- | -------------------------------------- | -------------------------------- |
-| Add/change business logic | `packages/core/src/services/`          | Effect services, yield* pattern  |
+| Add/change business logic | `packages/core/src/services/`          | Effect services, yield\* pattern |
 | Add/change schemas        | `packages/core/src/schemas/`           | Effect Schema, branded types     |
 | Add/change DB queries     | `packages/core/src/repos/`             | Raw SQLite via `node:sqlite`     |
 | Add HTTP endpoint         | `packages/core/src/api/domain-api.ts`  | HttpApi definition               |

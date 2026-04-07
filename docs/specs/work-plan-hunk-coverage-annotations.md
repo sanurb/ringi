@@ -34,12 +34,14 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Give every hunk in a review a deterministic, position-based identity that survives review reloads and is stable across CLI/Web/MCP surfaces. This is the foundation for both coverage tracking and external annotations — neither can anchor to specific code locations without stable hunk IDs.
 
 **Scope:**
+
 - Add a `hunk_id` derivation function to `packages/core`
 - Persist hunk identities in `review_files` (or a new `review_hunks` table)
 - Expose hunk IDs in `ReviewService.getFileHunks` responses
 - No UI changes in this issue
 
 **Acceptance criteria:**
+
 - [ ] A pure function `deriveHunkId(filePath, oldStart, oldLines, newStart, newLines) → string` exists in `packages/core/src/schemas/diff.ts`
 - [ ] Format: `{filePath}:@-{oldStart},{oldLines}+{newStart},{newLines}`
 - [ ] `review_hunks` table created in migration v7 with columns: `id TEXT PK`, `review_file_id TEXT FK`, `hunk_index INTEGER`, `old_start INTEGER`, `old_lines INTEGER`, `new_start INTEGER`, `new_lines INTEGER`, `stable_id TEXT UNIQUE NOT NULL`, `created_at TEXT`
@@ -50,6 +52,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 - [ ] Persistence tests: hunks survive write→read roundtrip, FK cascade works on review delete
 
 **Non-goals:**
+
 - No coverage tracking yet
 - No API endpoint changes (hunks are already returned by getFileHunks, just adding the stableId field)
 - No Web UI changes
@@ -65,6 +68,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Define the stable ID derivation and the Effect Schema types.
 
 **Acceptance criteria:**
+
 - [ ] `deriveHunkId()` in `packages/core/src/schemas/diff.ts`
 - [ ] `ReviewHunkId` branded type
 - [ ] `ReviewHunk` Effect Schema struct with all fields
@@ -80,6 +84,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Persist hunks and wire them into the review creation flow.
 
 **Acceptance criteria:**
+
 - [ ] Migration v7 creates `review_hunks` table
 - [ ] `ReviewHunkRepo` with `findByReviewFile`, `findByStableId`, `createBulk`, `deleteByReview`
 - [ ] `ReviewHunkRepo` added to `RepoLive` layer in `runtime.ts`
@@ -101,12 +106,14 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Track which hunks (and which line ranges within hunks) have been inspected by a human reviewer. Coverage is evidence of inspection, not evidence of understanding or approval. It is independent from comments, suggestions, and review status.
 
 **Scope:**
+
 - New `review_coverage` table
 - `CoverageService` in `packages/core`
 - Core use cases: mark hunk as reviewed, mark line range as reviewed, unmark, get coverage summary per review
 - No UI or CLI in this issue
 
 **Acceptance criteria:**
+
 - [ ] `review_coverage` table in migration v8: `id TEXT PK`, `review_id TEXT FK`, `hunk_stable_id TEXT NOT NULL`, `start_line INTEGER` (0-based, nullable for full-hunk), `end_line INTEGER` (0-based, nullable for full-hunk), `created_at TEXT`
 - [ ] `CoverageRepo` with `markRange`, `unmarkRange`, `findByReview`, `findByHunk`, `deleteByReview`
 - [ ] `CoverageService` with `markHunkReviewed(reviewId, hunkStableId)`, `markRangeReviewed(reviewId, hunkStableId, startLine, endLine)`, `unmark(reviewId, hunkStableId)`, `getSummary(reviewId) → { totalHunks, reviewedHunks, partialHunks, unreviewedHunks }`
@@ -115,6 +122,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 - [ ] Domain tests: mark/unmark lifecycle, range merging, summary computation, independence from comments
 
 **Non-goals:**
+
 - No automatic coverage from comments (coverage is explicit action)
 - No "review quality" scoring — coverage tracks inspection, not quality
 - No coverage from AI/external annotations
@@ -131,6 +139,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Define the domain model and service layer.
 
 **Acceptance criteria:**
+
 - [ ] `packages/core/src/schemas/coverage.ts` with `CoverageEntry` schema, `CoverageSummary` schema
 - [ ] `packages/core/src/repos/coverage.repo.ts` with `CoverageRepo` service
 - [ ] `packages/core/src/services/coverage.service.ts` with `CoverageService`
@@ -146,6 +155,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Wire persistence and ensure roundtrip correctness.
 
 **Acceptance criteria:**
+
 - [ ] Migration v8 creates `review_coverage` table
 - [ ] `CoverageRepo` added to `RepoLive` in `runtime.ts`
 - [ ] `CoverageService` added to `CoreLive` in `runtime.ts`
@@ -165,12 +175,14 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Expose the ReviewCoverage domain model in the CLI and Web UI so reviewers can see which hunks they've inspected and which they haven't. Keep it minimal — this is information display, not a full UX overhaul.
 
 **Scope:**
+
 - CLI: `ringi coverage <reviewId>` command
 - Web UI: reviewed/unreviewed indicator per file in file tree, summary counts
 - API: coverage endpoints in domain-api.ts
 - MCP: `reviews.getCoverage(reviewId)` in sandbox
 
 **Acceptance criteria:**
+
 - [ ] `GET /api/reviews/:id/coverage` returns `CoverageSummary`
 - [ ] `POST /api/reviews/:id/coverage/mark` accepts `{ hunkStableId, startLine?, endLine? }`
 - [ ] `DELETE /api/reviews/:id/coverage/:hunkStableId` unmarks
@@ -181,6 +193,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 - [ ] MCP sandbox: `reviews.getCoverage(id)`, `reviews.markReviewed(id, hunkStableId)`
 
 **Non-goals:**
+
 - No inline hunk-level review buttons in the diff viewer (defer to later)
 - No automatic marking when a user scrolls past a hunk
 - No coverage-based review blocking or gating
@@ -196,6 +209,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** CLI surface for coverage inspection.
 
 **Acceptance criteria:**
+
 - [ ] `ringi coverage <reviewId>` works in standalone mode (direct SQLite read)
 - [ ] `--files` flag for per-file breakdown
 - [ ] `--json` flag for structured output
@@ -212,6 +226,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Minimal Web UI coverage visibility.
 
 **Acceptance criteria:**
+
 - [ ] File tree shows per-file coverage dot (green = all hunks reviewed, yellow = partial, gray = none)
 - [ ] Review header shows summary count
 - [ ] Data fetched from `/api/reviews/:id/coverage` endpoint
@@ -230,6 +245,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Accept structured annotations from external sources (AI agents, CI tools, linters) without mixing them with human comments. External annotations have richer metadata (source, severity, reasoning) and different lifecycle semantics (source-scoped clear, no draft/resolved state).
 
 **Scope:**
+
 - New `review_annotations` table
 - `AnnotationService` in `packages/core`
 - HTTP ingestion endpoint
@@ -237,6 +253,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 - Minimal rendering in Web UI
 
 **Acceptance criteria:**
+
 - [ ] `review_annotations` table in migration v9: `id TEXT PK`, `review_id TEXT FK`, `source TEXT NOT NULL`, `file_path TEXT NOT NULL`, `hunk_stable_id TEXT`, `line_start INTEGER NOT NULL`, `line_end INTEGER NOT NULL`, `side TEXT DEFAULT 'new'`, `type TEXT DEFAULT 'comment'`, `severity TEXT`, `reasoning TEXT`, `content TEXT NOT NULL`, `suggested_code TEXT`, `author TEXT`, `created_at TEXT`
 - [ ] `AnnotationRepo` with `add(batch)`, `removeById`, `clearBySource(reviewId, source)`, `findByReview`, `findByFile`, `countByReview`
 - [ ] `AnnotationService` with typed Effect service methods
@@ -248,6 +265,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 - [ ] Domain tests: add, batch add, clear by source, source isolation, FK cascade
 
 **Non-goals:**
+
 - No annotation editing (external annotations are write-once from source, removable only)
 - No annotation draft/resolved state
 - No inline rendering in diff viewer (defer — just show count badges for now)
@@ -264,6 +282,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Define the separate domain model.
 
 **Acceptance criteria:**
+
 - [ ] `packages/core/src/schemas/annotation.ts` with `ReviewAnnotation`, `CreateAnnotationInput`, `AnnotationSource`, `AnnotationSeverity`, `AnnotationType`
 - [ ] `packages/core/src/repos/annotation.repo.ts` with `AnnotationRepo`
 - [ ] `packages/core/src/services/annotation.service.ts` with `AnnotationService`
@@ -279,6 +298,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** HTTP path for external sources to submit annotations.
 
 **Acceptance criteria:**
+
 - [ ] Migration v9 creates `review_annotations` table
 - [ ] `AnnotationRepo` and `AnnotationService` in `CoreLive`
 - [ ] `POST /api/reviews/:id/annotations` in `domain-api.ts`
@@ -298,6 +318,7 @@ COV depends on HUNK. ANN depends on HUNK but not on COV.
 **Purpose:** Minimal rendering so reviewers know external annotations exist.
 
 **Acceptance criteria:**
+
 - [ ] File tree shows annotation count badge per file (separate from comment count)
 - [ ] Review header shows total external annotation count
 - [ ] Badge refreshes on SSE annotation events

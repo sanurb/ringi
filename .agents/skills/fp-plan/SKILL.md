@@ -17,7 +17,9 @@ fp --version
 ```
 
 **If fp is not installed**, tell the user:
+
 > The `fp` CLI is not installed. Install it with:
+>
 > ```bash
 > curl -fsSL https://setup.fp.dev/install.sh | sh -s
 > ```
@@ -28,9 +30,11 @@ fp tree
 ```
 
 **If project is not initialized**, ask the user if they want to initialize:
+
 > This project hasn't been initialized with fp. Would you like to initialize it?
 
 If yes:
+
 ```bash
 fp init
 ```
@@ -52,6 +56,7 @@ fp init
 When user pastes a URL, detect the source and fetch content:
 
 **GitHub Issues** (`github.com/owner/repo/issues/123`):
+
 ```bash
 gh issue view <url> --json title,body,labels,state
 ```
@@ -65,6 +70,7 @@ Use the `notion-fetch` MCP tool from the Notion server with the full URL or page
 ### After Fetching
 
 Create an FP issue from the extracted content:
+
 ```bash
 fp issue create \
   --title "<extracted title>" \
@@ -80,12 +86,15 @@ Then offer to break it down into subtasks (see Planning Workflow below).
 When user runs `/plan` with no additional text:
 
 1. **Check for existing plans**:
+
    ```bash
    ls -la ~/.claude/plans/*.md 2>/dev/null
    ```
 
 2. **If plans exist**, use `AskUserTool` to prompt:
+
    > Found plans in ~/.claude/plans/:
+   >
    > 1. moonlit-brewing-lynx.md
    > 2. swift-falcon-auth.md
    > 3. [Create new plan instead]
@@ -108,6 +117,7 @@ When user runs `/plan` with no additional text:
 ### Core Concept: Plans are Issues
 
 In FP, a plan is just an issue that:
+
 - Has a comprehensive description (the plan document)
 - Has child issues (the tasks/subtasks)
 - May have dependencies between children
@@ -268,6 +278,7 @@ fp tree
 ```
 
 Shows full hierarchy. Expected output:
+
 ```
 <PREFIX>-1 [todo] Add user authentication system
 ├── <PREFIX>-2 [todo] Design and implement data models
@@ -282,11 +293,13 @@ Shows full hierarchy. Expected output:
 ```
 
 To focus on just the plan you created:
+
 ```bash
 fp tree <PREFIX>-1
 ```
 
 To see only remaining work:
+
 ```bash
 fp tree --status todo
 ```
@@ -319,6 +332,7 @@ fp comment <PREFIX>-3 "Broke down into sub-tasks: <PREFIX>-10, <PREFIX>-11"
 ### Make Tasks Atomic
 
 Each task should:
+
 - Be completable in one work session (1-3 hours)
 - Have a clear definition of "done"
 - Touch a small, focused set of files
@@ -326,6 +340,7 @@ Each task should:
 ### Write Clear Descriptions
 
 Include:
+
 - **What**: Brief summary of the task
 - **Why**: Context or rationale
 - **How**: Technical approach or key steps
@@ -396,6 +411,7 @@ fp comment <PREFIX>-3 "Broke down into sub-tasks: <PREFIX>-10, <PREFIX>-11, <PRE
 
 ```markdown
 # BAD: Checkboxes in description
+
 - [ ] Create directory
 - [ ] Set up package.json
 - [ ] Configure build

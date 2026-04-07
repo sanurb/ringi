@@ -163,12 +163,12 @@ find apps packages -regex '.*\.test\.ts$'
 
 `fd` (installed at `/opt/homebrew/bin/fd`) is better when:
 
-| Scenario | Why `fd` wins |
-|----------|---------------|
-| Quick interactive lookups | Respects `.gitignore` by default — no prune boilerplate |
-| Fuzzy/regex name search | `fd review` finds all files with "review" in the path |
-| Colored terminal output | Easier to scan visually |
-| Default sane behavior | Ignores hidden dirs, `node_modules`, build output automatically |
+| Scenario                  | Why `fd` wins                                                   |
+| ------------------------- | --------------------------------------------------------------- |
+| Quick interactive lookups | Respects `.gitignore` by default — no prune boilerplate         |
+| Fuzzy/regex name search   | `fd review` finds all files with "review" in the path           |
+| Colored terminal output   | Easier to scan visually                                         |
+| Default sane behavior     | Ignores hidden dirs, `node_modules`, build output automatically |
 
 ```bash
 # Equivalent to the full pruned find, but shorter:
