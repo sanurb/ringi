@@ -17,6 +17,7 @@ import { resolve } from "node:path";
 import { CoreLive } from "@ringi/core/runtime";
 import type { ReviewId } from "@ringi/core/schemas/review";
 import { CommentService } from "@ringi/core/services/comment.service";
+import { CoverageService } from "@ringi/core/services/coverage.service";
 import { getDiffSummary, parseDiff } from "@ringi/core/services/diff.service";
 import { ExportService } from "@ringi/core/services/export.service";
 import { GitService } from "@ringi/core/services/git.service";
@@ -1380,6 +1381,83 @@ const mcp = Command.make(
 ).pipe(Command.withDescription("Start the MCP stdio server"));
 
 // ---------------------------------------------------------------------------
+// coverage
+// ---------------------------------------------------------------------------
+
+const coverageCmd = Command.make(
+  "coverage",
+  {
+    id: Argument.string("id"),
+    files: Flag.boolean("files").pipe(
+      Flag.withDefault(false),
+      Flag.withDescription("Show per-file breakdown")
+    ),
+  },
+  (config) =>
+    Effect.gen(function* () {
+      yield* ensureDatabaseExists;
+      const coverageService = yield* CoverageService;
+      const reviewService = yield* ReviewService;
+      const reviewId = yield* resolveReviewSelector(config.id);
+
+      // Validate review exists
+      const review = yield* reviewService.getById(reviewId);
+      const summary = yield* coverageService.getSummary(reviewId);
+
+      const pct = (n: number) =>
+        summary.totalHunks > 0
+          ? `${Math.round((n / summary.totalHunks) * 100)}%`
+          : "0%";
+
+      const data: Record<string, unknown> = {
+        reviewId: review.id,
+        summary,
+      };
+
+      const lines = [
+        `Review ${review.id} coverage:`,
+        `  Total hunks:      ${String(summary.totalHunks).padStart(4)}`,
+        `  Reviewed:         ${String(summary.reviewedHunks).padStart(4)}  (${pct(summary.reviewedHunks)})`,
+        `  Partial:          ${String(summary.partialHunks).padStart(4)}  (${pct(summary.partialHunks)})`,
+        `  Unreviewed:       ${String(summary.unreviewedHunks).padStart(4)}  (${pct(summary.unreviewedHunks)})`,
+      ];
+
+      if (config.files) {
+        // Get per-file hunk counts from the review
+        // We reuse the review files data from getById
+        lines.push("");
+        for (const file of review.files) {
+          const fileHunks = yield* reviewService.getFileHunks(
+            reviewId,
+            file.filePath
+          );
+          const totalFileHunks = fileHunks.length;
+          // Simple dots visualization
+          const dots = fileHunks.map(() => "○").join("");
+          lines.push(
+            `${file.filePath.padEnd(40)} ${totalFileHunks} hunks  ${dots}`
+          );
+        }
+      }
+
+      yield* emitOutput("ringi coverage", {
+        data,
+        human: lines.join("\n"),
+        nextActions: [
+          {
+            command: `ringi review show ${reviewId}`,
+            description: "View review details",
+          },
+          {
+            command: `ringi coverage ${reviewId} --files`,
+            description: "Show per-file coverage breakdown",
+          },
+        ],
+      });
+    })
+).pipe(Command.withDescription("Show review coverage summary"));
+
+// ---------------------------------------------------------------------------
 // doctor
 // ---------------------------------------------------------------------------
 
@@ -1446,6 +1524,7 @@ const data = Command.make("data").pipe(
 const reviewWithCore = provideCoreLayer(review) as any;
 const sourceWithGit = provideGitLayer(source) as any;
 const todoWithCore = provideCoreLayer(todo) as any;
+const coverageWithCore = provideCoreLayer(coverageCmd) as any;
 const doctorWithCore = provideCoreLayer(doctor) as any;
 
 export const ringiCommand = Command.make("ringi").pipe(
@@ -1460,6 +1539,7 @@ export const ringiCommand = Command.make("ringi").pipe(
     reviewWithCore,
     sourceWithGit,
     todoWithCore,
+    coverageWithCore,
     serve,
     mcp,
     doctorWithCore,

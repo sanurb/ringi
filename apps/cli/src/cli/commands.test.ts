@@ -22,6 +22,7 @@ describe("ringiCommand", () => {
     expect(names).toContain("todo");
     expect(names).toContain("serve");
     expect(names).toContain("mcp");
+    expect(names).toContain("coverage");
     expect(names).toContain("doctor");
     expect(names).toContain("events");
     expect(names).toContain("data");
