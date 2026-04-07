@@ -1,11 +1,14 @@
 import type { Comment } from "@ringi/core/schemas/comment";
+import type { CoverageSummary } from "@ringi/core/schemas/coverage";
 import type {
   DiffFile as DiffFileType,
   DiffSummary as DiffSummaryType,
 } from "@ringi/core/schemas/diff";
 import { ReviewId } from "@ringi/core/schemas/review";
 import type { ReviewStatus } from "@ringi/core/schemas/review";
+import { AnnotationService } from "@ringi/core/services/annotation.service";
 import { CommentService } from "@ringi/core/services/comment.service";
+import { CoverageService } from "@ringi/core/services/coverage.service";
 import { ReviewService } from "@ringi/core/services/review.service";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
@@ -52,6 +55,8 @@ interface ReviewDetailData {
   repository: string | null;
   comments: readonly Comment[];
   commentStats: { total: number; resolved: number; unresolved: number };
+  coverage: CoverageSummary;
+  annotationStats: { total: number; bySource: Record<string, number> };
 }
 
 const loadReview = createServerFn({ method: "GET" })
@@ -68,12 +73,16 @@ const loadReview = createServerFn({ method: "GET" })
       Effect.gen(function* result() {
         const reviewSvc = yield* ReviewService;
         const commentSvc = yield* CommentService;
+        const coverageSvc = yield* CoverageService;
+        const annotationSvc = yield* AnnotationService;
 
         const review = yield* reviewSvc.getById(id);
         const comments = yield* commentSvc.getByReview(id);
         const commentStats = yield* commentSvc.getStats(id);
+        const coverage = yield* coverageSvc.getSummary(id);
+        const annotationStats = yield* annotationSvc.stats(id);
 
-        return { ...review, commentStats, comments };
+        return { ...review, annotationStats, commentStats, comments, coverage };
       })
     );
     return JSON.parse(JSON.stringify(result));
@@ -280,6 +289,17 @@ const ReviewDetailPage = () => {
   const diffSummary: DiffSummaryType = data.summary;
   const repoName = data.repositoryPath.split("/").pop() ?? data.repositoryPath;
 
+  const coverageLabel =
+    data.coverage.totalHunks > 0
+      ? `${data.coverage.reviewedHunks}/${data.coverage.totalHunks} hunks reviewed`
+      : undefined;
+
+  const annotationSources = Object.keys(data.annotationStats.bySource);
+  const annotationLabel =
+    data.annotationStats.total > 0
+      ? `${data.annotationStats.total} annotations${annotationSources.length > 0 ? ` (${annotationSources.length} source${annotationSources.length > 1 ? "s" : ""})` : ""}`
+      : undefined;
+
   return (
     <div className="flex h-full flex-col">
       <ActionBar
@@ -300,6 +320,8 @@ const ReviewDetailPage = () => {
         isAnnotationsOpen={state.annotationsOpen}
         onToggleAnnotations={toggleAnnotations}
         onExport={handleExport}
+        coverageLabel={coverageLabel}
+        annotationLabel={annotationLabel}
       />
 
       <div className="flex min-h-0 flex-1">

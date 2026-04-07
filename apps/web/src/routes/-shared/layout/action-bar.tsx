@@ -57,6 +57,12 @@ interface ActionBarProps {
   // ── Utilities ────────────────────────────────────────────────────
   onExport?: () => void;
   onCopyDiff?: () => void;
+
+  /** e.g. "12/18 hunks reviewed" */
+  coverageLabel?: string;
+
+  /** e.g. "12 annotations (3 sources)" */
+  annotationLabel?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -295,6 +301,8 @@ export const ActionBar = ({
   onToggleAnnotations,
   onExport,
   onCopyDiff,
+  coverageLabel,
+  annotationLabel,
 }: ActionBarProps) => {
   // ── Copy feedback ───────────────────────────────────────────
   const [copyFeedback, setCopyFeedback] = useState(false);
@@ -413,6 +421,20 @@ export const ActionBar = ({
 
       {/* ── Right: review state / progress / action ──────────── */}
       <div className="flex shrink-0 items-center gap-1.5 pr-2.5">
+        {/* Coverage summary */}
+        {coverageLabel ? (
+          <span className="text-[11px] tabular-nums text-text-tertiary">
+            {coverageLabel}
+          </span>
+        ) : null}
+
+        {/* External annotation count */}
+        {annotationLabel ? (
+          <span className="text-[11px] tabular-nums text-status-info/70">
+            {annotationLabel}
+          </span>
+        ) : null}
+
         {/* Review progress: "4/13 reviewed" */}
         {hasProgress ? (
           <span
