@@ -6,6 +6,7 @@ import {
   HttpApiSchema,
 } from "effect/unstable/httpapi";
 
+import { CreateAnnotationInput, ReviewAnnotation } from "../schemas/annotation";
 import {
   Comment,
   CommentId,
@@ -13,6 +14,7 @@ import {
   CreateCommentInput,
   UpdateCommentInput,
 } from "../schemas/comment";
+import { CoverageSummary } from "../schemas/coverage";
 import { DiffFile, DiffHunk, DiffSummary } from "../schemas/diff";
 import { ReviewFeedback } from "../schemas/feedback";
 import { BranchInfo, CommitInfo, RepositoryInfo } from "../schemas/git";
@@ -290,6 +292,79 @@ export class ExportApiGroup extends HttpApiGroup.make("export").add(
   })
 ) {}
 
+// ── Annotations ──────────────────────────────────────────────
+export class AnnotationsApiGroup extends HttpApiGroup.make("annotations").add(
+  HttpApiEndpoint.post("create", "/reviews/:reviewId/annotations", {
+    params: { reviewId: ReviewId },
+    payload: Schema.Struct({
+      annotations: Schema.Array(CreateAnnotationInput),
+    }),
+    success: Schema.Array(ReviewAnnotation),
+    error: HttpApiSchema.status(404)(ReviewNotFound),
+  }),
+  HttpApiEndpoint.get("list", "/reviews/:reviewId/annotations", {
+    params: { reviewId: ReviewId },
+    query: {
+      filePath: Schema.optional(Schema.String),
+    },
+    success: Schema.Array(ReviewAnnotation),
+  }),
+  HttpApiEndpoint.get("stats", "/reviews/:reviewId/annotations/stats", {
+    params: { reviewId: ReviewId },
+    success: Schema.Struct({
+      bySource: Schema.Record(Schema.String, Schema.Number),
+      total: Schema.Number,
+    }),
+  }),
+  HttpApiEndpoint.delete("clearBySource", "/reviews/:reviewId/annotations", {
+    params: { reviewId: ReviewId },
+    query: { source: Schema.String },
+    success: Schema.Struct({ deleted: Schema.Number }),
+  }),
+  HttpApiEndpoint.delete(
+    "removeById",
+    "/reviews/:reviewId/annotations/:annId",
+    {
+      params: { reviewId: ReviewId, annId: Schema.String },
+      success: Schema.Struct({ success: Schema.Boolean }),
+    }
+  )
+) {}
+
+// ── Coverage ──────────────────────────────────────────────────
+export class CoverageApiGroup extends HttpApiGroup.make("coverage").add(
+  HttpApiEndpoint.get("summary", "/reviews/:reviewId/coverage", {
+    params: { reviewId: ReviewId },
+    success: CoverageSummary,
+    error: HttpApiSchema.status(404)(ReviewNotFound),
+  }),
+  HttpApiEndpoint.post("mark", "/reviews/:reviewId/coverage/mark", {
+    params: { reviewId: ReviewId },
+    payload: Schema.Struct({
+      hunkStableId: Schema.String,
+      startLine: Schema.NullOr(Schema.Number).pipe(
+        Schema.optionalKey,
+        Schema.withDecodingDefaultKey(() => null)
+      ),
+      endLine: Schema.NullOr(Schema.Number).pipe(
+        Schema.optionalKey,
+        Schema.withDecodingDefaultKey(() => null)
+      ),
+    }),
+    success: Schema.Struct({ success: Schema.Literal(true) }),
+    error: HttpApiSchema.status(404)(ReviewNotFound),
+  }),
+  HttpApiEndpoint.delete(
+    "unmark",
+    "/reviews/:reviewId/coverage/:hunkStableId",
+    {
+      params: { reviewId: ReviewId, hunkStableId: Schema.String },
+      success: Schema.Struct({ success: Schema.Literal(true) }),
+      error: HttpApiSchema.status(404)(ReviewNotFound),
+    }
+  )
+) {}
+
 // ── Health ──────────────────────────────────────────────────
 export class HealthApiGroup extends HttpApiGroup.make("health").add(
   HttpApiEndpoint.get("check", "/health", {
@@ -303,6 +378,8 @@ export class DomainApi extends HttpApi.make("api")
   .add(ReviewFilesApiGroup)
   .add(CommentsApiGroup)
   .add(TodosApiGroup)
+  .add(AnnotationsApiGroup)
+  .add(CoverageApiGroup)
   .add(DiffApiGroup)
   .add(GitApiGroup)
   .add(EventsApiGroup)

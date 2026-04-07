@@ -20,41 +20,11 @@ let runEffect: <A, E>(effect: Effect.Effect<A, E, Deps>) => A;
 
 const REVIEW_ID = "rev-1" as ReviewId;
 
-// We need the review_annotations table. Since migration v9 will create it,
-// we need to add it here for testing. We run all migrations (including v9
-// once it exists), but for now we create the table manually for schema tests.
-const createAnnotationsTable = (database: DatabaseSync) => {
-  database.exec(`CREATE TABLE IF NOT EXISTS review_annotations (
-    id TEXT PRIMARY KEY,
-    review_id TEXT NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
-    source TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-    hunk_stable_id TEXT,
-    line_start INTEGER NOT NULL,
-    line_end INTEGER NOT NULL,
-    side TEXT DEFAULT 'new',
-    type TEXT DEFAULT 'comment',
-    severity TEXT,
-    reasoning TEXT,
-    content TEXT NOT NULL,
-    suggested_code TEXT,
-    author TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  ) STRICT`);
-  database.exec(
-    `CREATE INDEX IF NOT EXISTS idx_annotations_review ON review_annotations(review_id)`
-  );
-  database.exec(
-    `CREATE INDEX IF NOT EXISTS idx_annotations_source ON review_annotations(review_id, source)`
-  );
-};
-
 beforeEach(() => {
   db = new DatabaseSync(":memory:");
   db.exec("PRAGMA journal_mode=WAL");
   db.exec("PRAGMA foreign_keys=ON");
   runMigrations(db);
-  createAnnotationsTable(db);
 
   // Seed review
   db.exec(

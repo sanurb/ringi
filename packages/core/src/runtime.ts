@@ -2,12 +2,14 @@ import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
 
 import { SqliteService } from "./db/database";
+import { AnnotationRepo } from "./repos/annotation.repo";
 import { CommentRepo } from "./repos/comment.repo";
 import { CoverageRepo } from "./repos/coverage.repo";
 import { ReviewFileRepo } from "./repos/review-file.repo";
 import { ReviewHunkRepo } from "./repos/review-hunk.repo";
 import { ReviewRepo } from "./repos/review.repo";
 import { TodoRepo } from "./repos/todo.repo";
+import { AnnotationService } from "./services/annotation.service";
 import { CommentService } from "./services/comment.service";
 import { CoverageService } from "./services/coverage.service";
 import { EventService } from "./services/event.service";
@@ -19,6 +21,7 @@ import { TodoService } from "./services/todo.service";
 
 // Repos depend on SqliteService
 const RepoLive = Layer.mergeAll(
+  AnnotationRepo.Default,
   ReviewRepo.Default,
   ReviewFileRepo.Default,
   ReviewHunkRepo.Default,
@@ -53,6 +56,11 @@ const CoverageServiceLive = CoverageService.Default.pipe(
   Layer.provide(SqliteService.Default)
 );
 
+const AnnotationServiceLive = AnnotationService.Default.pipe(
+  Layer.provide(AnnotationRepo.Default),
+  Layer.provide(SqliteService.Default)
+);
+
 const ExportServiceLive = ExportService.Default.pipe(
   Layer.provide(ReviewServiceLive),
   Layer.provide(CommentServiceLive),
@@ -63,6 +71,7 @@ export const CoreLive = Layer.mergeAll(
   ReviewServiceLive,
   CommentServiceLive,
   CoverageServiceLive,
+  AnnotationServiceLive,
   TodoServiceLive,
   GitService.Default,
   GhService.Default,
