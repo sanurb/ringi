@@ -93,6 +93,12 @@ describe("CLI parsing accepts valid inputs", () => {
     expect(await parseAccepts(["review", "export", "last"])).toBe(true);
   });
 
+  it("review export last with prompt format", async () => {
+    expect(
+      await parseAccepts(["review", "export", "last", "--format", "prompt"])
+    ).toBe(true);
+  });
+
   it("review create", async () => {
     expect(await parseAccepts(["review", "create"])).toBe(true);
   });

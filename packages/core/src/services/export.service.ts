@@ -4,6 +4,8 @@ import * as Layer from "effect/Layer";
 
 import type { ReviewId } from "../schemas/review";
 import { CommentService } from "../services/comment.service";
+import { ReviewContextBuilder } from "../services/context-builder.service";
+import type { FilePathRequired } from "../services/context-builder.service";
 import { ReviewService } from "../services/review.service";
 import { TodoService } from "../services/todo.service";
 
@@ -17,18 +19,25 @@ export class ExportService extends ServiceMap.Service<
     exportReview(
       reviewId: ReviewId
     ): Effect.Effect<string, import("../schemas/review").ReviewNotFound>;
+    exportAsPrompt(
+      reviewId: ReviewId
+    ): Effect.Effect<
+      string,
+      import("../schemas/review").ReviewNotFound | FilePathRequired
+    >;
   }
 >()("@ringi/ExportService") {
   static readonly Default: Layer.Layer<
     ExportService,
     never,
-    ReviewService | CommentService | TodoService
+    ReviewService | CommentService | TodoService | ReviewContextBuilder
   > = Layer.effect(
     ExportService,
     Effect.gen(function* () {
       const reviewSvc = yield* ReviewService;
       const commentSvc = yield* CommentService;
       const todoSvc = yield* TodoService;
+      const contextBuilder = yield* ReviewContextBuilder;
 
       const exportReview = (reviewId: ReviewId) =>
         Effect.gen(function* () {
@@ -126,7 +135,19 @@ export class ExportService extends ServiceMap.Service<
           return lines.join("\n");
         });
 
-      return ExportService.of({ exportReview });
+      const exportAsPrompt = (reviewId: ReviewId) =>
+        Effect.gen(function* () {
+          const prompt = yield* contextBuilder.buildContext({
+            reviewId,
+            mode: "feedback-prompt",
+          });
+          if (!/^\d+\./m.test(prompt)) {
+            return "No feedback to report.";
+          }
+          return prompt;
+        });
+
+      return ExportService.of({ exportReview, exportAsPrompt });
     })
   );
 }

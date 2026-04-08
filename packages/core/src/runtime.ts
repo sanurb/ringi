@@ -63,12 +63,6 @@ const AnnotationServiceLive = AnnotationService.Default.pipe(
   Layer.provide(SqliteService.Default)
 );
 
-const ExportServiceLive = ExportService.Default.pipe(
-  Layer.provide(ReviewServiceLive),
-  Layer.provide(CommentServiceLive),
-  Layer.provide(TodoServiceLive)
-);
-
 const ReviewContextBuilderLive = ReviewContextBuilder.Default.pipe(
   Layer.provide(ReviewServiceLive),
   Layer.provide(CommentServiceLive),
@@ -79,6 +73,13 @@ const ReviewContextBuilderLive = ReviewContextBuilder.Default.pipe(
   Layer.provide(ReviewHunkRepo.Default),
   Layer.provide(CoverageRepo.Default),
   Layer.provide(SqliteService.Default)
+);
+
+const ExportServiceLive = ExportService.Default.pipe(
+  Layer.provide(ReviewServiceLive),
+  Layer.provide(CommentServiceLive),
+  Layer.provide(TodoServiceLive),
+  Layer.provide(ReviewContextBuilderLive)
 );
 
 export const CoreLive = Layer.mergeAll(

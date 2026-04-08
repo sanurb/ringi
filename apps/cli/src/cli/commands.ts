@@ -469,6 +469,12 @@ const reviewExport = Command.make(
       Flag.withDescription("Output file path"),
       Flag.optional
     ),
+    format: Flag.choice("format", ["markdown", "prompt"]).pipe(
+      Flag.withDefault("markdown"),
+      Flag.withDescription(
+        "Export format: markdown (default) or prompt (agent-consumable)"
+      )
+    ),
     stdout: Flag.boolean("stdout").pipe(
       Flag.withDefault(false),
       Flag.withDescription("Print to stdout instead of a file")
@@ -480,7 +486,13 @@ const reviewExport = Command.make(
       const exportService = yield* ExportService;
       const cliConfig = yield* CliConfig;
       const reviewId = yield* resolveReviewSelector(config.id);
-      const markdown = yield* exportService.exportReview(reviewId);
+      const format = config.format;
+
+      const content =
+        format === "prompt"
+          ? yield* exportService.exportAsPrompt(reviewId)
+          : yield* exportService.exportReview(reviewId);
+
       const outputPath = Option.isSome(config.output)
         ? resolve(cliConfig.cwd, config.output.value)
         : undefined;
@@ -492,17 +504,20 @@ const reviewExport = Command.make(
               exitCode: ExitCode.RuntimeFailure,
               message: `Failed to write export to ${outputPath}: ${String(error)}`,
             }),
-          try: () => writeFile(outputPath, markdown, "utf8"),
+          try: () => writeFile(outputPath, content, "utf8"),
         });
       }
 
-      const shouldPrintMarkdown = config.stdout || !outputPath;
-      const data = { markdown, outputPath: outputPath ?? null, reviewId };
+      const shouldPrint = config.stdout || !outputPath;
+      const data =
+        format === "prompt"
+          ? { content, format: "prompt" as const, reviewId }
+          : { markdown: content, outputPath: outputPath ?? null, reviewId };
 
       yield* emitOutput("ringi review export", {
         data,
-        human: shouldPrintMarkdown
-          ? markdown
+        human: shouldPrint
+          ? content
           : `Exported review ${reviewId} to ${outputPath}.`,
         nextActions: [
           {
@@ -516,7 +531,11 @@ const reviewExport = Command.make(
         ],
       });
     })
-).pipe(Command.withDescription("Export review as markdown"));
+).pipe(
+  Command.withDescription(
+    "Export review as markdown or agent-consumable prompt"
+  )
+);
 
 // ---------------------------------------------------------------------------
 // review create
