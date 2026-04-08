@@ -27,5 +27,6 @@ This file is intentionally brief. Detailed instructions live in focused docs:
 - Architecture references:
   - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
   - [docs/specs/](./docs/specs/_index.md)
+  - [docs/specs/observability.md](./docs/specs/observability.md)
 
 @FP_AGENTS.md

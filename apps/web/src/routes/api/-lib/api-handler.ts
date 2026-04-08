@@ -1,9 +1,9 @@
 import { DomainApi } from "@ringi/core/api/domain-api";
 import { DomainRpc } from "@ringi/core/api/domain-rpc";
+import { ObservabilityLive } from "@ringi/core/observability/observability-layer";
 import { CoreLive } from "@ringi/core/runtime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
 import { HttpRouter, HttpServer } from "effect/unstable/http";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
@@ -51,7 +51,7 @@ const HttpApiRoutes = HttpApiBuilder.layer(DomainApi).pipe(
 
 const AllRoutes = Layer.mergeAll(RpcRouter, HttpApiRoutes, EventsSseLive).pipe(
   Layer.provide(ServiceLayers),
-  Layer.provide(Logger.layer([Logger.consolePretty()]))
+  Layer.provide(ObservabilityLive("server"))
 );
 
 // ── Initialization ──────────────────────────────────────────────
