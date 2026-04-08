@@ -2,6 +2,7 @@ import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
 
 import { SqliteService } from "./db/database";
+import { ObservabilityLive } from "./observability/observability-layer";
 import { AnnotationRepo } from "./repos/annotation.repo";
 import { CommentRepo } from "./repos/comment.repo";
 import { CoverageRepo } from "./repos/coverage.repo";
@@ -11,6 +12,7 @@ import { ReviewRepo } from "./repos/review.repo";
 import { TodoRepo } from "./repos/todo.repo";
 import { AnnotationService } from "./services/annotation.service";
 import { CommentService } from "./services/comment.service";
+import { ReviewContextBuilder } from "./services/context-builder.service";
 import { CoverageService } from "./services/coverage.service";
 import { EventService } from "./services/event.service";
 import { ExportService } from "./services/export.service";
@@ -67,6 +69,18 @@ const ExportServiceLive = ExportService.Default.pipe(
   Layer.provide(TodoServiceLive)
 );
 
+const ReviewContextBuilderLive = ReviewContextBuilder.Default.pipe(
+  Layer.provide(ReviewServiceLive),
+  Layer.provide(CommentServiceLive),
+  Layer.provide(CoverageServiceLive),
+  Layer.provide(AnnotationServiceLive),
+  Layer.provide(TodoServiceLive),
+  Layer.provide(ReviewFileRepo.Default),
+  Layer.provide(ReviewHunkRepo.Default),
+  Layer.provide(CoverageRepo.Default),
+  Layer.provide(SqliteService.Default)
+);
+
 export const CoreLive = Layer.mergeAll(
   ReviewServiceLive,
   CommentServiceLive,
@@ -77,8 +91,17 @@ export const CoreLive = Layer.mergeAll(
   GhService.Default,
   EventService.Default,
   ExportServiceLive,
+  ReviewContextBuilderLive,
   RepoLive,
   SqliteService.Default
 );
+
+/**
+ * Full runtime layer with observability.
+ * @param surface — "server" or "cli", controls trace file path and service name.
+ */
+export const CoreLiveWithObservability = (
+  surface: "server" | "cli" = "server"
+) => CoreLive.pipe(Layer.provideMerge(ObservabilityLive(surface)));
 
 export const createCoreRuntime = () => ManagedRuntime.make(CoreLive);
