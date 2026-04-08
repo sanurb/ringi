@@ -10,6 +10,7 @@ import { RpcSerialization, RpcServer } from "effect/unstable/rpc";
 
 import { AnnotationsApiLive } from "./wiring/annotations-api-live";
 import { CommentsApiLive } from "./wiring/comments-api-live";
+import { ContextApiLive } from "./wiring/context-api-live";
 import { CoverageApiLive } from "./wiring/coverage-api-live";
 import { DiffApiLive, ReviewFilesApiLive } from "./wiring/diff-api-live";
 import { EventsApiLive } from "./wiring/events-api-live";
@@ -40,6 +41,7 @@ const HttpApiRoutes = HttpApiBuilder.layer(DomainApi).pipe(
   Layer.provide(TodosApiLive),
   Layer.provide(AnnotationsApiLive),
   Layer.provide(CoverageApiLive),
+  Layer.provide(ContextApiLive),
   Layer.provide(DiffApiLive),
   Layer.provide(ReviewFilesApiLive),
   Layer.provide(GitApiLive),

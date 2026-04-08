@@ -33,6 +33,7 @@ import {
   TodoNotFound,
   UpdateTodoInput,
 } from "../schemas/todo";
+import { ReviewContextMode } from "../services/context-builder.service";
 
 // ── Reviews ────────────────────────────────────────────────────
 export class ReviewsApiGroup extends HttpApiGroup.make("reviews").add(
@@ -372,6 +373,23 @@ export class HealthApiGroup extends HttpApiGroup.make("health").add(
   })
 ) {}
 
+// ── Context ─────────────────────────────────────────────────
+export class ContextApiGroup extends HttpApiGroup.make("context").add(
+  HttpApiEndpoint.get("build", "/reviews/:reviewId/context", {
+    params: { reviewId: ReviewId },
+    query: {
+      mode: ReviewContextMode,
+      filePath: Schema.optional(Schema.String),
+    },
+    success: Schema.Struct({
+      context: Schema.String,
+      mode: ReviewContextMode,
+      reviewId: ReviewId,
+    }),
+    error: HttpApiSchema.status(404)(ReviewNotFound),
+  })
+) {}
+
 // ── Domain API ─────────────────────────────────────────────────
 export class DomainApi extends HttpApi.make("api")
   .add(ReviewsApiGroup)
@@ -384,5 +402,6 @@ export class DomainApi extends HttpApi.make("api")
   .add(GitApiGroup)
   .add(EventsApiGroup)
   .add(ExportApiGroup)
+  .add(ContextApiGroup)
   .add(HealthApiGroup)
   .prefix("/api") {}
