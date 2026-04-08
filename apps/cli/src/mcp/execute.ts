@@ -7,6 +7,7 @@ import type {
   TodoId,
 } from "@ringi/core/schemas/todo";
 import { CommentService } from "@ringi/core/services/comment.service";
+import { ReviewContextBuilder } from "@ringi/core/services/context-builder.service";
 import { ExportService } from "@ringi/core/services/export.service";
 import { GitService } from "@ringi/core/services/git.service";
 import { ReviewService } from "@ringi/core/services/review.service";
@@ -28,6 +29,7 @@ import { createSandboxGlobals } from "@/mcp/sandbox";
 import {
   decodeCreateTodoInput,
   decodeReviewCreateInput,
+  ReviewContextInput,
   ReviewDiffQuery,
   ReviewExportInput,
   ReviewListFilters,
@@ -475,6 +477,20 @@ const buildSandboxGlobals = (
         Effect.gen(function* create() {
           const svc = yield* ReviewService;
           return yield* svc.create(parsed);
+        })
+      );
+    },
+    buildContext: async (options: unknown) => {
+      const parsed = decodeInputSync(
+        ReviewContextInput,
+        options,
+        "reviews.buildContext"
+      );
+      return run(
+        "reviews.buildContext",
+        Effect.gen(function* () {
+          const builder = yield* ReviewContextBuilder;
+          return yield* builder.buildContext(parsed);
         })
       );
     },

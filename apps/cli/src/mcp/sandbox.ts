@@ -70,6 +70,7 @@ interface ReviewsNamespace {
   getSuggestions: (reviewId: unknown) => Promise<unknown>;
   getStatus: (reviewId: unknown) => Promise<unknown>;
   export: (options: unknown) => Promise<unknown>;
+  buildContext: (options: unknown) => Promise<unknown>;
 }
 
 interface TodosNamespace {
@@ -112,6 +113,10 @@ export const createSandboxGlobals = (deps: SandboxDeps): SandboxGlobals => {
         throw new Error("reviews.create: not wired to runtime");
       });
     },
+    buildContext: (_options: unknown) =>
+      deps.call("reviews.buildContext", async () => {
+        throw new Error("reviews.buildContext: not wired to runtime");
+      }),
     export: (_options: unknown) =>
       deps.call("reviews.export", async () => {
         throw new Error("reviews.export: not wired to runtime");

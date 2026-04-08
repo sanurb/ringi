@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodeCreateTodoInput,
   decodeReviewCreateInput,
+  ReviewContextInput,
   ReviewDiffQuery,
   ReviewExportInput,
   ReviewListFilters,
@@ -150,6 +151,36 @@ describe("ReviewListFilters", () => {
     const result = decode({ sourceType: "branch", status: "approved" });
     expect(result.status).toBe("approved");
     expect(result.sourceType).toBe("branch");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ReviewContextInput
+// ---------------------------------------------------------------------------
+
+describe("ReviewContextInput", () => {
+  const decode = Schema.decodeUnknownSync(ReviewContextInput);
+
+  it("applies defaults when mode and filePath are omitted", () => {
+    const result = decode({ reviewId: "review-1" });
+    expect(result).toEqual({
+      reviewId: "review-1",
+      mode: "review-summary",
+      filePath: null,
+    });
+  });
+
+  it("accepts explicit mode and filePath", () => {
+    const result = decode({
+      reviewId: "review-1",
+      mode: "file-focus",
+      filePath: "src/main.ts",
+    });
+    expect(result).toEqual({
+      reviewId: "review-1",
+      mode: "file-focus",
+      filePath: "src/main.ts",
+    });
   });
 });
 

@@ -101,6 +101,23 @@ export const ReviewListFilters = Schema.Struct({
 });
 export type ReviewListFilters = typeof ReviewListFilters.Type;
 
+export const ReviewContextInput = Schema.Struct({
+  reviewId: ReviewId,
+  mode: Schema.Literals([
+    "review-summary",
+    "file-focus",
+    "feedback-prompt",
+  ]).pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => "review-summary" as const)
+  ),
+  filePath: Schema.NullOr(Schema.String).pipe(
+    Schema.optionalKey,
+    Schema.withDecodingDefaultKey(() => null)
+  ),
+});
+export type ReviewContextInput = typeof ReviewContextInput.Type;
+
 // ---------------------------------------------------------------------------
 // Todo inputs
 // ---------------------------------------------------------------------------
