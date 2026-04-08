@@ -23,10 +23,10 @@
 
 ## Parent Issues
 
-| # | Title | Tracks |
-|---|---|---|
+| #   | Title                                                   | Tracks             |
+| --- | ------------------------------------------------------- | ------------------ |
 | #21 | feat: review-context builder and agent feedback surface | #17, #18, #19, #20 |
-| #24 | feat: ACP agent integration surface | #22, #23, future |
+| #24 | feat: ACP agent integration surface                     | #22, #23, future   |
 
 ## Dependency Graph
 
