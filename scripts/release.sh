@@ -101,7 +101,7 @@ ok "CLI smoke test passed (version: ${CLI_VERSION})"
 
 echo ""
 info "Packing dry-run..."
-cd apps/cli && npm pack --dry-run 2>&1
+(cd apps/cli && npm pack --dry-run 2>&1)
 echo ""
 
 # Show tarball size
