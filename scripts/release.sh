@@ -106,9 +106,9 @@ echo ""
 
 # Show tarball size
 TARBALL=$(cd apps/cli && npm pack 2>/dev/null | tail -1)
-TARBALL_SIZE=$(du -h "$TARBALL" | cut -f1)
+TARBALL_SIZE=$(du -h "apps/cli/$TARBALL" | cut -f1)
 info "Tarball: ${TARBALL} (${TARBALL_SIZE})"
-rm -f "$TARBALL"
+rm -f "apps/cli/$TARBALL"
 ok "Package looks good"
 
 # ── Step 5: Publish gate ─────────────────────────────────────────────────
