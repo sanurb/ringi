@@ -105,7 +105,7 @@ info "Packing dry-run..."
 echo ""
 
 # Show tarball size
-TARBALL=$(cd apps/cli && npm pack 2>/dev/null)
+TARBALL=$(cd apps/cli && npm pack 2>/dev/null | tail -1)
 TARBALL_SIZE=$(du -h "$TARBALL" | cut -f1)
 info "Tarball: ${TARBALL} (${TARBALL_SIZE})"
 rm -f "$TARBALL"
