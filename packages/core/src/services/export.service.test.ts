@@ -57,6 +57,8 @@ const testGitService = Layer.succeed(
     stageFiles: () => Effect.succeed([]),
     stageAll: Effect.succeed([]),
     unstageFiles: () => Effect.succeed([]),
+    getUntrackedFiles: Effect.succeed([]),
+    getUntrackedDiff: Effect.succeed(""),
   })
 );
 

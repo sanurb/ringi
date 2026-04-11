@@ -52,11 +52,19 @@ export const loadScopedDiff = createServerFn({ method: "GET" })
         let diffText = "";
         switch (data.scope) {
           case "uncommitted": {
-            diffText = yield* git.getUncommittedDiff;
+            const [tracked, untracked] = yield* Effect.all([
+              git.getUncommittedDiff,
+              git.getUntrackedDiff,
+            ]);
+            diffText = [tracked, untracked].filter(Boolean).join("\n");
             break;
           }
           case "unstaged": {
-            diffText = yield* git.getUnstagedDiff;
+            const [tracked, untracked] = yield* Effect.all([
+              git.getUnstagedDiff,
+              git.getUntrackedDiff,
+            ]);
+            diffText = [tracked, untracked].filter(Boolean).join("\n");
             break;
           }
           case "last-commit": {

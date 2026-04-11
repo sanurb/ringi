@@ -113,6 +113,8 @@ interface GitServiceShape {
     { path: string; status: string }[],
     GitError
   >;
+  readonly getUntrackedFiles: Effect.Effect<string[], GitError>;
+  readonly getUntrackedDiff: Effect.Effect<string, GitError>;
   getFileContent(
     filePath: string,
     version: "staged" | "head" | "working"
@@ -199,21 +201,24 @@ export class GitService extends ServiceMap.Service<
         // -- diffs -------------------------------------------------------------
 
         const getStagedDiff = execGit(
-          ["diff", "--cached", "--no-color", "--unified=3"],
+          ["diff", "--cached", "-M", "--no-color", "--unified=3"],
           repoPath
         ).pipe(Effect.withSpan("GitService.getStagedDiff"));
 
         const getUncommittedDiff = hasCommits.pipe(
           Effect.flatMap((has) =>
             has
-              ? execGit(["diff", "HEAD", "--no-color", "--unified=3"], repoPath)
+              ? execGit(
+                  ["diff", "HEAD", "-M", "--no-color", "--unified=3"],
+                  repoPath
+                )
               : Effect.succeed("")
           ),
           Effect.withSpan("GitService.getUncommittedDiff")
         );
 
         const getUnstagedDiff = execGit(
-          ["diff", "--no-color", "--unified=3"],
+          ["diff", "-M", "--no-color", "--unified=3"],
           repoPath
         ).pipe(Effect.withSpan("GitService.getUnstagedDiff"));
 
@@ -221,7 +226,14 @@ export class GitService extends ServiceMap.Service<
           Effect.flatMap((has) =>
             has
               ? execGit(
-                  ["show", "HEAD", "--format=", "--no-color", "--unified=3"],
+                  [
+                    "show",
+                    "HEAD",
+                    "--format=",
+                    "-M",
+                    "--no-color",
+                    "--unified=3",
+                  ],
                   repoPath
                 )
               : Effect.succeed("")
@@ -233,7 +245,7 @@ export class GitService extends ServiceMap.Service<
           branch: string
         ) {
           return yield* execGit(
-            ["diff", `${branch}...HEAD`, "--no-color", "--unified=3"],
+            ["diff", `${branch}...HEAD`, "-M", "--no-color", "--unified=3"],
             repoPath
           );
         });
@@ -243,14 +255,21 @@ export class GitService extends ServiceMap.Service<
         ) {
           if (shas.length === 1) {
             return yield* execGit(
-              ["show", shas[0]!, "--format=", "--no-color", "--unified=3"],
+              [
+                "show",
+                shas[0]!,
+                "--format=",
+                "-M",
+                "--no-color",
+                "--unified=3",
+              ],
               repoPath
             );
           }
           const first = shas.at(-1)!;
           const last = shas[0]!;
           return yield* execGit(
-            ["diff", `${first}~1..${last}`, "--no-color", "--unified=3"],
+            ["diff", `${first}~1..${last}`, "-M", "--no-color", "--unified=3"],
             repoPath
           );
         });
@@ -295,6 +314,47 @@ export class GitService extends ServiceMap.Service<
           ),
           Effect.withSpan("GitService.getLastCommitFiles")
         );
+
+        // -- untracked files ---------------------------------------------------
+
+        const getUntrackedFiles = execGit(
+          ["ls-files", "--others", "--exclude-standard"],
+          repoPath
+        ).pipe(
+          Effect.map(lines),
+          Effect.withSpan("GitService.getUntrackedFiles")
+        );
+
+        const getUntrackedDiff = Effect.gen(function* () {
+          const untrackedPaths = yield* getUntrackedFiles;
+          if (untrackedPaths.length === 0) return "";
+
+          const diffs: string[] = [];
+          for (const filePath of untrackedPaths) {
+            const content = yield* Effect.tryPromise({
+              catch: (error) =>
+                new GitError({
+                  message: `Failed to read untracked file ${filePath}: ${String(error)}`,
+                }),
+              try: () => readFile(join(repoPath, filePath), "utf8"),
+            });
+            const fileLines = content.split("\n");
+            // Remove trailing empty line from final newline
+            if (fileLines.at(-1) === "") fileLines.pop();
+            const addedLines = fileLines.map((l) => `+${l}`).join("\n");
+            diffs.push(
+              [
+                `diff --git a/${filePath} b/${filePath}`,
+                "new file mode 100644",
+                "--- /dev/null",
+                `+++ b/${filePath}`,
+                `@@ -0,0 +1,${fileLines.length} @@`,
+                addedLines,
+              ].join("\n")
+            );
+          }
+          return diffs.join("\n");
+        }).pipe(Effect.withSpan("GitService.getUntrackedDiff"));
 
         // -- file content ------------------------------------------------------
 
@@ -428,6 +488,8 @@ export class GitService extends ServiceMap.Service<
           getUncommittedFiles,
           getUnstagedDiff,
           getUnstagedFiles,
+          getUntrackedDiff,
+          getUntrackedFiles,
           hasCommits,
           stageAll,
           stageFiles,
