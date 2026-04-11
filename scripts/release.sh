@@ -101,15 +101,41 @@ ok "CLI smoke test passed (version: ${CLI_VERSION})"
 
 echo ""
 info "Packing dry-run..."
-(cd apps/cli && npm pack --dry-run 2>&1)
+# MUST be `pnpm pack`, not `npm pack`. The workspace uses pnpm `catalog:`
+# protocol references in dependencies; only `pnpm pack` resolves them to real
+# semver specifiers before writing the tarball. `npm pack` would copy them
+# verbatim, producing a tarball that fails on `npm install` with
+# EUNSUPPORTEDPROTOCOL — exactly the kind of regression this preflight catches.
+(cd apps/cli && pnpm pack --dry-run 2>&1)
 echo ""
 
-# Show tarball size
-TARBALL=$(cd apps/cli && npm pack 2>/dev/null | tail -1)
-TARBALL_SIZE=$(du -h "apps/cli/$TARBALL" | cut -f1)
+# Pack a real tarball and verify a npm consumer can install AND run it.
+# Validates the locally-built dist AND the resolved transitive dependency tree.
+# Releases used to ship pinned `effect@4.0.0-beta.41` direct deps but let npm hoist
+# `@effect/platform-node-shared@4.0.0-beta.46`, dragging `effect@4.0.0-beta.46` (which
+# removed `dist/ServiceMap.js`) on top of `@effect/platform-node@4.0.0-beta.41`'s import.
+# Local `node dist/cli.mjs` never caught it. The install-and-run test below does.
+TARBALL=$(cd apps/cli && pnpm pack 2>/dev/null | tail -1)
+TARBALL_PATH="$(cd apps/cli && pwd)/$TARBALL"
+TARBALL_SIZE=$(du -h "$TARBALL_PATH" | cut -f1)
 info "Tarball: ${TARBALL} (${TARBALL_SIZE})"
-rm -f "apps/cli/$TARBALL"
-ok "Package looks good"
+
+info "Installing packed tarball as a real npm consumer..."
+INSTALL_DIR=$(mktemp -d)
+cleanup_install() { rm -rf "$INSTALL_DIR" "$TARBALL_PATH"; }
+trap cleanup_install EXIT
+(
+  cd "$INSTALL_DIR"
+  npm init -y >/dev/null
+  npm install --silent "$TARBALL_PATH" >/dev/null 2>&1 || { echo "npm install of tarball failed"; exit 1; }
+  INSTALLED_VERSION=$(./node_modules/.bin/ringi --version 2>&1)
+  if [[ "$INSTALLED_VERSION" != *"$VERSION"* ]]; then
+    echo "Installed CLI reports '${INSTALLED_VERSION}', expected to contain '${VERSION}'"
+    exit 1
+  fi
+  ./node_modules/.bin/ringi --help >/dev/null || { echo "Installed CLI --help failed"; exit 1; }
+) || fail "Packed tarball failed to install or run as a npm consumer"
+ok "Packed tarball installs and runs cleanly (version: ${VERSION})"
 
 # ── Step 5: Publish gate ─────────────────────────────────────────────────
 
