@@ -90,11 +90,11 @@ pnpm build:cli || fail "CLI build failed"
 ok "CLI built"
 
 info "Smoke testing CLI..."
-CLI_VERSION=$(node apps/cli/dist/cli.js --version 2>&1)
+CLI_VERSION=$(node apps/cli/dist/cli.mjs --version 2>&1)
 if [[ "$CLI_VERSION" != *"$VERSION"* ]] && [[ "$CLI_VERSION" != "0.0.0-dev" ]]; then
   warn "CLI reports version '${CLI_VERSION}', expected '${VERSION}'"
 fi
-node apps/cli/dist/cli.js --help >/dev/null || fail "CLI --help failed"
+node apps/cli/dist/cli.mjs --help >/dev/null || fail "CLI --help failed"
 ok "CLI smoke test passed (version: ${CLI_VERSION})"
 
 # ── Step 4: Package inspection ───────────────────────────────────────────
