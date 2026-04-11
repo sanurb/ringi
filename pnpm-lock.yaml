@@ -12,6 +12,9 @@ catalogs:
     '@effect/platform-node':
       specifier: 4.0.0-beta.41
       version: 4.0.0-beta.41
+    '@effect/platform-node-shared':
+      specifier: 4.0.0-beta.41
+      version: 4.0.0-beta.41
     '@effect/vitest':
       specifier: 4.0.0-beta.41
       version: 4.0.0-beta.41
@@ -63,6 +66,9 @@ importers:
       '@effect/platform-node':
         specifier: 'catalog:'
         version: 4.0.0-beta.41(effect@4.0.0-beta.41)(ioredis@5.10.1)
+      '@effect/platform-node-shared':
+        specifier: 'catalog:'
+        version: 4.0.0-beta.41(effect@4.0.0-beta.41)
       effect:
         specifier: 'catalog:'
         version: 4.0.0-beta.41
@@ -223,7 +229,7 @@ importers:
         version: '@voidzero-dev/vite-plus-core@0.1.14(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@latest
-        version: '@voidzero-dev/vite-plus-test@0.1.14(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.3(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.14(@types/node@22.19.15)(@voidzero-dev/vite-plus-core@0.1.14(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(esbuild@0.27.4)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)'
       web-vitals:
         specifier: ^5.1.0
         version: 5.2.0
@@ -488,11 +494,11 @@ packages:
     resolution: {integrity: sha512-bw+xSYW3ItcgkgYlfnt7yx6g2ZjqoEpOjVVVg490F1waneIK/TeGw3jrro1LULJ+Z9sUj1dvhibQKHp9GK1CEg==}
     hasBin: true
 
-  '@effect/platform-node-shared@4.0.0-beta.42':
-    resolution: {integrity: sha512-PC+lxLsrwob3+nBChAPrQq32olCeyApgXBvs1NrRsoArLViNT76T/68CttuCAksCZj5e1bZ1ZibLPel3vUmx2g==}
+  '@effect/platform-node-shared@4.0.0-beta.41':
+    resolution: {integrity: sha512-YzKWz1G8YofCrQ0Thxymlk71CM3q7R1vzO2vtnb7KSHkTJrvrQB8FbZaM8mEddYOoamR25f46lidFKErmmotKg==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      effect: ^4.0.0-beta.42
+      effect: ^4.0.0-beta.41
 
   '@effect/platform-node@4.0.0-beta.41':
     resolution: {integrity: sha512-lgsWfvJfxwg7xXT5rK3xcPyAFPAYXXJ0u/6yCu2suOMhdR5w2W6oA2L2pIQaqap8qR8uEVB5pHq6dqVfdRP7Nw==}
@@ -5766,7 +5772,7 @@ snapshots:
 
   '@effect/language-service@0.84.0': {}
 
-  '@effect/platform-node-shared@4.0.0-beta.42(effect@4.0.0-beta.41)':
+  '@effect/platform-node-shared@4.0.0-beta.41(effect@4.0.0-beta.41)':
     dependencies:
       '@types/ws': 8.18.1
       effect: 4.0.0-beta.41
@@ -5777,7 +5783,7 @@ snapshots:
 
   '@effect/platform-node@4.0.0-beta.41(effect@4.0.0-beta.41)(ioredis@5.10.1)':
     dependencies:
-      '@effect/platform-node-shared': 4.0.0-beta.42(effect@4.0.0-beta.41)
+      '@effect/platform-node-shared': 4.0.0-beta.41(effect@4.0.0-beta.41)
       effect: 4.0.0-beta.41
       ioredis: 5.10.1
       mime: 4.1.0
@@ -5789,7 +5795,7 @@ snapshots:
   '@effect/vitest@4.0.0-beta.41(@voidzero-dev/vite-plus-test@0.1.14(@types/node@22.19.15)(@voidzero-dev/vite-plus-core@0.1.14(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(esbuild@0.27.4)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(effect@4.0.0-beta.41)':
     dependencies:
       effect: 4.0.0-beta.41
-      vitest: '@voidzero-dev/vite-plus-test@0.1.14(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.3(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+      vitest: '@voidzero-dev/vite-plus-test@0.1.14(@types/node@22.19.15)(@voidzero-dev/vite-plus-core@0.1.14(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(esbuild@0.27.4)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)'
 
   '@emnapi/core@1.9.1':
     dependencies:
@@ -7839,6 +7845,46 @@ snapshots:
 
   '@voidzero-dev/vite-plus-linux-x64-musl@0.1.14':
     optional: true
+
+  '@voidzero-dev/vite-plus-test@0.1.14(@types/node@22.19.15)(@voidzero-dev/vite-plus-core@0.1.14(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(esbuild@0.27.4)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@types/chai': 5.2.3
+      '@voidzero-dev/vite-plus-core': 0.1.14(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      es-module-lexer: 1.7.0
+      obug: 2.1.1
+      pixelmatch: 7.1.0
+      pngjs: 7.0.0
+      sirv: 3.0.2
+      std-env: 4.0.0
+      tinybench: 2.9.0
+      tinyexec: 1.0.4
+      tinyglobby: 0.2.15
+      vite: '@voidzero-dev/vite-plus-core@0.1.14(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)'
+      ws: 8.20.0
+    optionalDependencies:
+      '@types/node': 22.19.15
+      jsdom: 27.4.0(@noble/hashes@1.8.0)
+    transitivePeerDependencies:
+      - '@arethetypeswrong/core'
+      - '@tsdown/css'
+      - '@tsdown/exe'
+      - '@vitejs/devtools'
+      - bufferutil
+      - esbuild
+      - jiti
+      - less
+      - publint
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - typescript
+      - unplugin-unused
+      - utf-8-validate
+      - yaml
 
   '@voidzero-dev/vite-plus-test@0.1.14(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(tsx@4.21.0)(typescript@5.9.3)(vite@8.0.3(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
     dependencies:

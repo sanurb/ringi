@@ -1,6 +1,6 @@
 {
   "name": "@sanurb/ringi",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Local-first code review tool for AI-generated changes — CLI and MCP server",
   "homepage": "https://github.com/sanurb/ringi#readme",
   "bugs": {
@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
+    "@effect/platform-node-shared": "catalog:",
     "effect": "catalog:"
   },
   "devDependencies": {
